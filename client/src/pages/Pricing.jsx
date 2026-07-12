@@ -50,7 +50,11 @@ export default function Pricing() {
       return;
     }
     try {
-      const data = await api('/api/billing/upgrade', { method: 'POST', body: { plan } });
+      const data = await api('/api/billing/checkout', { method: 'POST', body: { plan } });
+      if (data.mode === 'stripe' && data.url) {
+        window.location.href = data.url;
+        return;
+      }
       setUser({ ...user, plan: data.plan });
       toast(data.message || `Plan set to ${data.plan}`);
     } catch (err) {

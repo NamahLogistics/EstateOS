@@ -155,7 +155,13 @@ export default function EstatePage() {
           : res.invite?.link || '';
       if (link) {
         await navigator.clipboard.writeText(link).catch(() => {});
-        toast('Invite link copied — send it to your sibling');
+        const emailed =
+          res.invite?.emailStatus === 'resend'
+            ? 'Email sent + link copied'
+            : res.invite?.emailStatus === 'logged'
+              ? 'Invite logged + link copied (add RESEND_API_KEY to send email)'
+              : 'Invite link copied — send it to your sibling';
+        toast(emailed);
       } else {
         toast('Member added');
       }

@@ -8,7 +8,17 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import JSZip from 'jszip';
 import { fileURLToPath } from 'url';
-import { mutate, readStore, audit, uploadsDir, initDb, flushPersist, persistenceMode } from './db.js';
+import {
+  mutate,
+  readStore,
+  audit,
+  uploadsDir,
+  initDb,
+  flushPersist,
+  persistenceMode,
+  saveUpload,
+  readUpload,
+} from './db.js';
 import {
   authRequired,
   hashPassword,
@@ -25,6 +35,8 @@ import {
   seedLawyersIfNeeded,
   attachLawyerAccess,
 } from './lawyers.routes.js';
+import { sendInviteEmail, mailConfigured } from './mail.js';
+import { registerBillingRoutes, stripeConfigured } from './billing.js';
 
 const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +61,22 @@ app.use(
     credentials: true,
   })
 );
+
+// Stripe webhook needs raw body — register before JSON parser
+app.post(
+  '/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    req.rawBody = req.body;
+    try {
+      req.body = JSON.parse(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body);
+    } catch {
+      req.body = {};
+    }
+    next();
+  }
+);
+
 app.use(express.json({ limit: '8mb' }));
 app.use(
   '/api/',
@@ -67,17 +95,18 @@ app.use(
     message: { error: 'Too many auth attempts. Try again shortly.' },
   })
 );
-app.use('/uploads', express.static(uploadsDir));
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${Date.now()}-${safe}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 12 * 1024 * 1024 },
+});
+
+app.get('/uploads/:fileId', async (req, res) => {
+  const file = await readUpload(req.params.fileId);
+  if (!file) return res.status(404).send('Not found');
+  res.setHeader('Content-Type', file.mime || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
+  res.send(file.buffer);
 });
 
 function canAccessEstateBase(store, userId, estateId) {
@@ -193,29 +222,7 @@ app.get('/api/me', authRequired, (req, res) => {
   res.json({ user: req.user });
 });
 
-app.post('/api/billing/upgrade', authRequired, (req, res) => {
-  const plan = req.body?.plan === 'diaspora' ? 'diaspora' : 'family';
-  mutate((store) => {
-    const user = store.users.find((u) => u.id === req.user.id);
-    if (user) {
-      user.plan = plan;
-      user.planRequestedAt = new Date().toISOString();
-    }
-    store.leads.push({
-      id: uuid(),
-      type: 'plan_upgrade',
-      plan,
-      userId: req.user.id,
-      email: req.user.email,
-      name: req.user.name,
-      at: new Date().toISOString(),
-    });
-  });
-  res.json({
-    plan,
-    message: `You're on ${plan}. We'll confirm billing details by email if payment is required for your cohort.`,
-  });
-});
+registerBillingRoutes(app);
 
 app.post('/api/leads', (req, res) => {
   const email = (req.body?.email || '').trim().toLowerCase();
@@ -466,7 +473,7 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
 });
 
 // ── Life Map items ────────────────────────────────────
-app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), (req, res) => {
+app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -477,11 +484,15 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), (req,
   if (!category || !title?.trim()) {
     return res.status(400).json({ error: 'Category and title required' });
   }
-  const files = (req.files || []).map((f) => ({
-    name: f.originalname,
-    path: `/uploads/${f.filename}`,
-    size: f.size,
-  }));
+  const files = [];
+  for (const f of req.files || []) {
+    const saved = await saveUpload({
+      name: f.originalname,
+      mime: f.mimetype,
+      buffer: f.buffer,
+    });
+    files.push(saved);
+  }
   const item = {
     id: uuid(),
     estateId: access.estate.id,
@@ -558,7 +569,7 @@ app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
 });
 
 // ── Members & invites ─────────────────────────────────
-app.post('/api/estates/:id/invites', authRequired, (req, res) => {
+app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -590,15 +601,31 @@ app.post('/api/estates/:id/invites', authRequired, (req, res) => {
       detail: `Invite for ${email} as ${role}`,
     });
   });
-  const base = process.env.APP_URL || '';
+  const base = (process.env.APP_URL || '').replace(/\/$/, '');
+  const link = `${base || ''}/invite/${token}`;
+  let emailStatus = 'skipped';
+  try {
+    const sent = await sendInviteEmail({
+      to: email,
+      estateName: access.estate.subjectName,
+      role,
+      link: base ? link : `https://estate-os-production.up.railway.app/invite/${token}`,
+      inviterName: req.user.name,
+    });
+    emailStatus = sent.mode;
+  } catch (err) {
+    emailStatus = 'failed';
+    console.error('invite email failed', err.message);
+  }
   res.status(201).json({
     invite: {
       id: invite.id,
       email,
       role,
       expiresAt: invite.expiresAt,
-      link: `${base}/invite/${token}`,
+      link: base ? link : null,
       token,
+      emailStatus,
     },
   });
 });
@@ -665,7 +692,7 @@ app.post('/api/invites/:token/accept', authRequired, (req, res) => {
   res.json({ ok: true, estateId: invite.estateId });
 });
 
-app.post('/api/estates/:id/members', authRequired, (req, res) => {
+app.post('/api/estates/:id/members', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -676,7 +703,6 @@ app.post('/api/estates/:id/members', authRequired, (req, res) => {
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
   if (!email) return res.status(400).json({ error: 'Email required' });
 
-  // Prefer invite-link flow; if user already exists, also attach immediately
   const invitee = store.users.find((u) => u.email === email);
   const token = crypto.randomBytes(24).toString('hex');
   const invite = {
@@ -726,21 +752,38 @@ app.post('/api/estates/:id/members', authRequired, (req, res) => {
   });
 
   const base = (process.env.APP_URL || '').replace(/\/$/, '');
+  const publicLink = `${base || 'https://estate-os-production.up.railway.app'}/invite/${token}`;
+  let emailStatus = 'skipped';
+  if (invite.status === 'pending' || !member) {
+    try {
+      const sent = await sendInviteEmail({
+        to: email,
+        estateName: access.estate.subjectName,
+        role,
+        link: publicLink,
+        inviterName: req.user.name,
+      });
+      emailStatus = sent.mode;
+    } catch (err) {
+      emailStatus = 'failed';
+      console.error('invite email failed', err.message);
+    }
+  }
+
   res.status(201).json({
-    member: member
-      ? { ...member, name: invitee.name, email }
-      : null,
+    member: member ? { ...member, name: invitee.name, email } : null,
     invite: {
       email,
       role,
-      link: base ? `${base}/invite/${token}` : null,
+      link: publicLink,
       token,
+      emailStatus,
     },
   });
 });
 
 // ── Unlock flow ───────────────────────────────────────
-app.post('/api/estates/:id/unlock/request', authRequired, upload.single('proof'), (req, res) => {
+app.post('/api/estates/:id/unlock/request', authRequired, upload.single('proof'), async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -756,12 +799,21 @@ app.post('/api/estates/:id/unlock/request', authRequired, upload.single('proof')
   if (rules.requireProof !== false && !req.file) {
     return res.status(400).json({ error: 'Upload death certificate or incapacity letter' });
   }
+  let proofPath = null;
+  if (req.file) {
+    const saved = await saveUpload({
+      name: req.file.originalname,
+      mime: req.file.mimetype,
+      buffer: req.file.buffer,
+    });
+    proofPath = saved.path;
+  }
   const request = {
     id: uuid(),
     estateId: access.estate.id,
     requestedBy: req.user.id,
     proofType,
-    proofPath: req.file ? `/uploads/${req.file.filename}` : null,
+    proofPath,
     status: rules.mode === 'dual' ? 'pending_approval' : 'approved',
     approvals: [req.user.id],
     createdAt: new Date().toISOString(),
@@ -902,7 +954,10 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     product: 'Estate OS',
     persistence: persistenceMode(),
-    version: '1.1.0',
+    files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
+    mail: mailConfigured() ? 'resend' : 'outbox',
+    billing: stripeConfigured() ? 'stripe' : 'direct',
+    version: '1.2.0',
   });
 });
 
@@ -937,9 +992,10 @@ app.get('/api/estates/:id/export', authRequired, async (req, res) => {
   const originals = zip.folder('originals');
   for (const item of items) {
     for (const f of item.files || []) {
-      const abs = path.join(uploadsDir, path.basename(f.path));
-      if (fs.existsSync(abs)) {
-        originals.file(`${item.title.replace(/\W+/g, '_')}_${f.name}`, fs.readFileSync(abs));
+      const fileId = f.id || path.basename(f.path || '');
+      const stored = await readUpload(fileId);
+      if (stored?.buffer) {
+        originals.file(`${item.title.replace(/\W+/g, '_')}_${stored.name}`, stored.buffer);
       }
     }
   }

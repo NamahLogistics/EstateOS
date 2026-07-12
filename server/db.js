@@ -24,6 +24,7 @@ const empty = () => ({
   counselNeeds: [],
   invites: [],
   leads: [],
+  mailOutbox: [],
 });
 
 function migrate(store) {
@@ -82,6 +83,16 @@ export async function initDb() {
         updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS estate_os_files (
+        id text PRIMARY KEY,
+        name text NOT NULL,
+        mime text,
+        size integer NOT NULL,
+        data bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
     const { rows } = await pool.query('SELECT data FROM estate_os_store WHERE id = 1');
     if (!rows.length) {
       cache = empty();
@@ -92,7 +103,7 @@ export async function initDb() {
       cache = migrate(rows[0].data);
     }
     mode = 'postgres';
-    console.log('Estate OS persistence: Postgres (durable)');
+    console.log('Estate OS persistence: Postgres (durable store + files)');
   } else {
     if (fs.existsSync(storePath)) {
       cache = migrate(JSON.parse(fs.readFileSync(storePath, 'utf8')));
@@ -104,6 +115,61 @@ export async function initDb() {
     console.warn('Estate OS persistence: local file — add DATABASE_URL for production durability');
   }
   return mode;
+}
+
+export async function saveUpload({ id, name, mime, buffer }) {
+  const fileId = id || crypto.randomUUID();
+  if (mode === 'postgres') {
+    await pool.query(
+      `INSERT INTO estate_os_files (id, name, mime, size, data)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, mime = EXCLUDED.mime, size = EXCLUDED.size, data = EXCLUDED.data`,
+      [fileId, name, mime || 'application/octet-stream', buffer.length, buffer]
+    );
+  } else {
+    ensureDirs();
+    fs.writeFileSync(path.join(uploadsDir, fileId), buffer);
+    fs.writeFileSync(
+      path.join(uploadsDir, `${fileId}.meta.json`),
+      JSON.stringify({ name, mime, size: buffer.length })
+    );
+  }
+  return {
+    id: fileId,
+    name,
+    mime: mime || 'application/octet-stream',
+    size: buffer.length,
+    path: `/uploads/${fileId}`,
+  };
+}
+
+export async function readUpload(fileId) {
+  if (mode === 'postgres') {
+    const { rows } = await pool.query(
+      'SELECT id, name, mime, size, data FROM estate_os_files WHERE id = $1',
+      [fileId]
+    );
+    if (!rows[0]) return null;
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      mime: rows[0].mime,
+      size: rows[0].size,
+      buffer: rows[0].data,
+    };
+  }
+  const abs = path.join(uploadsDir, fileId);
+  if (!fs.existsSync(abs)) return null;
+  let meta = { name: fileId, mime: 'application/octet-stream' };
+  const metaPath = path.join(uploadsDir, `${fileId}.meta.json`);
+  if (fs.existsSync(metaPath)) meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+  return {
+    id: fileId,
+    name: meta.name,
+    mime: meta.mime,
+    size: meta.size,
+    buffer: fs.readFileSync(abs),
+  };
 }
 
 export function readStore() {
@@ -141,4 +207,4 @@ export function persistenceMode() {
   return mode;
 }
 
-export { uploadsDir, dataDir };
+export { uploadsDir, dataDir, pool };
