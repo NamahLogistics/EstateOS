@@ -36,7 +36,7 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { sendInviteEmail, mailConfigured } from './mail.js';
-import { registerBillingRoutes, stripeConfigured } from './billing.js';
+import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 
 const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,21 +62,7 @@ app.use(
   })
 );
 
-// Stripe webhook needs raw body — register before JSON parser
-app.post(
-  '/api/billing/webhook',
-  express.raw({ type: 'application/json' }),
-  (req, res, next) => {
-    req.rawBody = req.body;
-    try {
-      req.body = JSON.parse(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body);
-    } catch {
-      req.body = {};
-    }
-    next();
-  }
-);
-
+// Razorpay uses JSON verify endpoint — no Stripe raw webhook needed
 app.use(express.json({ limit: '8mb' }));
 app.use(
   '/api/',
@@ -956,8 +942,8 @@ app.get('/api/health', (_req, res) => {
     persistence: persistenceMode(),
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
-    billing: stripeConfigured() ? 'stripe' : 'direct',
-    version: '1.2.0',
+    billing: razorpayConfigured() ? 'razorpay' : 'direct',
+    version: '1.2.1',
   });
 });
 

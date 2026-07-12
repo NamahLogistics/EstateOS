@@ -25,6 +25,7 @@ const empty = () => ({
   invites: [],
   leads: [],
   mailOutbox: [],
+  pendingPayments: [],
 });
 
 function migrate(store) {

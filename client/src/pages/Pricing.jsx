@@ -22,12 +22,12 @@ const plans = [
       'Counsel retain + brief',
       'ZIP export + audit log',
     ],
-    cta: 'Choose Family',
+    cta: 'Pay with UPI / card',
   },
   {
     id: 'diaspora',
     name: 'Diaspora',
-    price: '$149/yr',
+    price: '₹12,499/yr',
     blurb: 'When family spans countries',
     features: [
       'Everything in Family',
@@ -35,13 +35,25 @@ const plans = [
       'Priority counsel matching',
       'Multi-country checklist packs (rolling out)',
     ],
-    cta: 'Choose Diaspora',
+    cta: 'Pay with UPI / card',
   },
 ];
+
+function loadRazorpay() {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve(window.Razorpay);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(window.Razorpay);
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
+    document.body.appendChild(script);
+  });
+}
 
 export default function Pricing() {
   const { user, api, toast, setUser } = useAuth();
   const [lead, setLead] = useState({ name: '', email: '', interest: 'family' });
+  const [busy, setBusy] = useState(false);
 
   async function choose(plan) {
     if (plan === 'free') return;
@@ -49,16 +61,48 @@ export default function Pricing() {
       toast('Create an account first, then choose a plan');
       return;
     }
+    setBusy(true);
     try {
       const data = await api('/api/billing/checkout', { method: 'POST', body: { plan } });
-      if (data.mode === 'stripe' && data.url) {
-        window.location.href = data.url;
+      if (data.mode === 'razorpay') {
+        const Razorpay = await loadRazorpay();
+        const rzp = new Razorpay({
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency || 'INR',
+          name: data.name,
+          description: data.description,
+          order_id: data.orderId,
+          prefill: data.prefill,
+          theme: { color: '#2c4d3c' },
+          handler: async (response) => {
+            try {
+              const verified = await api('/api/billing/verify', {
+                method: 'POST',
+                body: {
+                  ...response,
+                  plan: data.plan,
+                },
+              });
+              setUser({ ...user, plan: verified.plan });
+              toast(`Payment successful — you're on ${verified.plan}`);
+            } catch (err) {
+              toast(err.message);
+            }
+          },
+        });
+        rzp.on('payment.failed', (resp) => {
+          toast(resp.error?.description || 'Payment failed');
+        });
+        rzp.open();
         return;
       }
       setUser({ ...user, plan: data.plan });
       toast(data.message || `Plan set to ${data.plan}`);
     } catch (err) {
       toast(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -86,8 +130,7 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 520 }}>
-        Free to start. Family and Diaspora unlock sibling invites, counsel workspace, and exports.
-        Early cohorts may be billed manually while card checkout rolls out.
+        Free to start. Paid plans use Razorpay (UPI, cards, netbanking) — built for India.
       </p>
       <div className="panel-grid" style={{ marginTop: '1.5rem' }}>
         {plans.map((p) => (
@@ -117,6 +160,7 @@ export default function Pricing() {
               <button
                 className={`btn ${p.id === 'family' ? 'btn-primary' : 'btn-ghost'}`}
                 style={{ width: '100%', marginTop: '0.5rem' }}
+                disabled={busy}
                 onClick={() => choose(p.id)}
               >
                 {user?.plan === p.id ? 'Current plan' : p.cta}
