@@ -1,0 +1,722 @@
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import multer from 'multer';
+import { fileURLToPath } from 'url';
+import { mutate, readStore, audit, uploadsDir } from './db.js';
+import {
+  authRequired,
+  hashPassword,
+  verifyPassword,
+  signToken,
+} from './auth.js';
+import {
+  ITEM_CATEGORIES,
+  buildIndiaExecutionTasks,
+  renderLetter,
+} from './checklist.js';
+import {
+  registerLawyerRoutes,
+  seedLawyersIfNeeded,
+  attachLawyerAccess,
+} from './lawyers.routes.js';
+
+const uuid = () => crypto.randomUUID();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PORT = Number(process.env.PORT || 4060);
+const app = express();
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '8mb' }));
+app.use('/uploads', express.static(uploadsDir));
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `${Date.now()}-${safe}`);
+    },
+  }),
+  limits: { fileSize: 12 * 1024 * 1024 },
+});
+
+function canAccessEstateBase(store, userId, estateId) {
+  const estate = store.estates.find((e) => e.id === estateId);
+  if (!estate) return { ok: false, status: 404, error: 'Estate not found' };
+  if (estate.ownerId === userId) return { ok: true, estate, role: 'owner' };
+  const member = store.members.find(
+    (m) => m.estateId === estateId && m.userId === userId && m.status === 'active'
+  );
+  if (member) return { ok: true, estate, role: member.role };
+  return { ok: false, status: 403, error: 'No access to this estate' };
+}
+
+const canAccessEstate = attachLawyerAccess(canAccessEstateBase);
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    plan: user.plan,
+    accountType: user.accountType || 'family',
+  };
+}
+
+function publicEstate(estate, store, userId) {
+  const members = store.members.filter((m) => m.estateId === estate.id);
+  const itemCount = store.items.filter((i) => i.estateId === estate.id).length;
+  const myMember = members.find((m) => m.userId === userId);
+  let myRole = estate.ownerId === userId ? 'owner' : myMember?.role || null;
+  if (!myRole) {
+    const eng = store.engagements?.find(
+      (e) =>
+        e.estateId === estate.id &&
+        e.lawyerUserId === userId &&
+        ['engaged', 'active'].includes(e.status)
+    );
+    if (eng) myRole = 'counsel';
+  }
+  return {
+    ...estate,
+    itemCount,
+    memberCount: members.length + 1,
+    myRole: myRole || 'viewer',
+  };
+}
+
+// ── Auth ──────────────────────────────────────────────
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password, accountType } = req.body || {};
+  if (!name?.trim() || !email?.trim() || !password || password.length < 6) {
+    return res.status(400).json({ error: 'Name, email, and password (6+) required' });
+  }
+  const normalized = email.trim().toLowerCase();
+  const store = readStore();
+  if (store.users.some((u) => u.email === normalized)) {
+    return res.status(409).json({ error: 'Email already registered' });
+  }
+  const passwordHash = await hashPassword(password);
+  const type = accountType === 'lawyer' ? 'lawyer' : 'family';
+  const user = {
+    id: uuid(),
+    name: name.trim(),
+    email: normalized,
+    passwordHash,
+    plan: 'free',
+    accountType: type,
+    createdAt: new Date().toISOString(),
+  };
+  mutate((s) => {
+    s.users.push(user);
+    if (type === 'lawyer') {
+      s.lawyers.push({
+        id: uuid(),
+        userId: user.id,
+        slug: normalized.split('@')[0].replace(/[^a-z0-9]+/gi, '-'),
+        name: user.name,
+        firm: (req.body?.firm || 'Independent counsel').trim(),
+        cities: [req.body?.city || 'India'].flat(),
+        specialties: ['succession'],
+        languages: ['English', 'Hindi'],
+        barId: req.body?.barId || 'Pending verification',
+        years: Number(req.body?.years) || 1,
+        retainerBand: 'On request',
+        slaHours: 24,
+        bio: req.body?.bio || 'Estate counsel on Estate OS.',
+        rating: 5,
+        mattersCompleted: 0,
+        nriFriendly: true,
+        verified: false,
+        acceptingMatters: true,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  });
+  const token = signToken(user);
+  res.json({ token, user: publicUser(user) });
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  const normalized = (email || '').trim().toLowerCase();
+  const store = readStore();
+  const user = store.users.find((u) => u.email === normalized);
+  if (!user || !(await verifyPassword(password || '', user.passwordHash))) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+  const token = signToken(user);
+  res.json({ token, user: publicUser(user) });
+});
+
+app.get('/api/me', authRequired, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.post('/api/billing/upgrade', authRequired, (req, res) => {
+  const plan = req.body?.plan === 'diaspora' ? 'diaspora' : 'family';
+  mutate((store) => {
+    const user = store.users.find((u) => u.id === req.user.id);
+    if (user) user.plan = plan;
+  });
+  res.json({ plan, message: `Upgraded to ${plan} (demo billing)` });
+});
+
+// ── Estates ───────────────────────────────────────────
+app.get('/api/estates', authRequired, (req, res) => {
+  const store = readStore();
+  const owned = store.estates.filter((e) => e.ownerId === req.user.id);
+  const sharedIds = store.members
+    .filter((m) => m.userId === req.user.id && m.status === 'active')
+    .map((m) => m.estateId);
+  const shared = store.estates.filter((e) => sharedIds.includes(e.id));
+  const counselIds = (store.engagements || [])
+    .filter(
+      (e) => e.lawyerUserId === req.user.id && ['engaged', 'active'].includes(e.status)
+    )
+    .map((e) => e.estateId);
+  const counselEstates = store.estates.filter((e) => counselIds.includes(e.id));
+  const map = new Map();
+  for (const e of [...owned, ...shared, ...counselEstates]) map.set(e.id, e);
+  res.json({ estates: [...map.values()].map((e) => publicEstate(e, store, req.user.id)) });
+});
+
+app.post('/api/estates', authRequired, (req, res) => {
+  const { subjectName, subjectRelation, country, notes } = req.body || {};
+  if (!subjectName?.trim()) {
+    return res.status(400).json({ error: 'Parent / subject name required' });
+  }
+  const estate = {
+    id: uuid(),
+    ownerId: req.user.id,
+    subjectName: subjectName.trim(),
+    subjectRelation: subjectRelation?.trim() || 'Parent',
+    country: country || 'IN',
+    notes: notes?.trim() || '',
+    status: 'locked', // locked | unlock_pending | unlocked
+    unlockRules: {
+      mode: 'single', // single | dual
+      unlockerUserIds: [req.user.id],
+      requireProof: true,
+      notifyMemberIds: true,
+      cooldownHours: 48,
+    },
+    unlockedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  mutate((store) => {
+    store.estates.push(estate);
+    audit(store, {
+      estateId: estate.id,
+      userId: req.user.id,
+      action: 'estate_created',
+      detail: `Created estate for ${estate.subjectName}`,
+    });
+  });
+  res.status(201).json({ estate });
+});
+
+app.get('/api/estates/:id', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const items = store.items.filter((i) => i.estateId === access.estate.id);
+  const members = store.members.filter((m) => m.estateId === access.estate.id);
+  const memberViews = members.map((m) => {
+    const u = store.users.find((x) => x.id === m.userId);
+    return {
+      ...m,
+      name: u?.name || m.inviteEmail,
+      email: u?.email || m.inviteEmail,
+    };
+  });
+  const owner = store.users.find((u) => u.id === access.estate.ownerId);
+  const unlockRequests = store.unlockRequests.filter(
+    (r) => r.estateId === access.estate.id
+  );
+  const tasks =
+    access.estate.status === 'unlocked'
+      ? store.tasks
+          .filter((t) => t.estateId === access.estate.id)
+          .sort((a, b) => a.priority - b.priority)
+      : [];
+  const auditLog = store.audit
+    .filter((a) => a.estateId === access.estate.id)
+    .slice(-100)
+    .reverse();
+
+  res.json({
+    estate: publicEstate(access.estate, store, req.user.id),
+    items,
+    members: [
+      {
+        id: 'owner',
+        role: 'owner',
+        status: 'active',
+        userId: owner?.id,
+        name: owner?.name,
+        email: owner?.email,
+      },
+      ...memberViews,
+    ],
+    unlockRequests,
+    tasks,
+    audit: auditLog,
+    categories: ITEM_CATEGORIES,
+  });
+});
+
+app.patch('/api/estates/:id', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner' && access.role !== 'manager') {
+    return res.status(403).json({ error: 'Only owner/manager can edit estate' });
+  }
+  const updated = mutate((s) => {
+    const estate = s.estates.find((e) => e.id === req.params.id);
+    const { subjectName, subjectRelation, country, notes, unlockRules } = req.body || {};
+    if (subjectName != null) estate.subjectName = subjectName.trim();
+    if (subjectRelation != null) estate.subjectRelation = subjectRelation.trim();
+    if (country != null) estate.country = country;
+    if (notes != null) estate.notes = notes;
+    if (unlockRules) {
+      estate.unlockRules = { ...estate.unlockRules, ...unlockRules };
+    }
+    estate.updatedAt = new Date().toISOString();
+    audit(s, {
+      estateId: estate.id,
+      userId: req.user.id,
+      action: 'estate_updated',
+      detail: 'Updated estate settings / unlock rules',
+    });
+    return estate;
+  });
+  res.json({ estate: updated });
+});
+
+app.post('/api/estates/:id/seed-demo', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.estate.status === 'unlocked') {
+    return res.status(400).json({ error: 'Cannot seed after unlock' });
+  }
+  const samples = [
+    {
+      category: 'bank',
+      title: 'SBI Savings',
+      institution: 'State Bank of India',
+      accountRef: 'XXXX1234',
+      notes: 'Primary salary account. Nominee: spouse.',
+    },
+    {
+      category: 'bank',
+      title: 'HDFC Savings',
+      institution: 'HDFC Bank',
+      accountRef: 'XXXX5678',
+      notes: 'Joint-ish family use; confirm nominee at branch.',
+    },
+    {
+      category: 'insurance',
+      title: 'LIC Jeevan Anand',
+      institution: 'LIC of India',
+      accountRef: 'POL-998877',
+      notes: 'Keep original policy bond with property papers.',
+    },
+    {
+      category: 'investments',
+      title: 'NSDL Demat',
+      institution: 'Zerodha / NSDL',
+      accountRef: 'IN300XXXX',
+      notes: 'Transmission form needed after death certificate.',
+    },
+    {
+      category: 'property',
+      title: 'Flat — Andheri East',
+      institution: 'Society records',
+      accountRef: 'Wing B / 1203',
+      notes: 'Title deed in steel cupboard. Society share certificate too.',
+    },
+    {
+      category: 'digital',
+      title: 'Primary mobile + UPI',
+      institution: 'Airtel',
+      accountRef: '+91-98XXXXXX',
+      notes: 'SIM linked to banks. Preserve for OTPs during claims.',
+    },
+    {
+      category: 'subscriptions',
+      title: 'Netflix + Spotify',
+      institution: 'Card autopay',
+      accountRef: '',
+      notes: 'Cancel after settling month.',
+    },
+    {
+      category: 'contacts',
+      title: 'Family CA',
+      institution: 'Sharma & Co.',
+      accountRef: '',
+      notes: 'Handles ITR and PF queries.',
+    },
+    {
+      category: 'wishes',
+      title: 'Funeral preferences',
+      institution: '',
+      accountRef: '',
+      notes: 'Simple cremation; inform village relatives within 24h.',
+    },
+  ];
+  mutate((s) => {
+    for (const sample of samples) {
+      s.items.push({
+        id: uuid(),
+        estateId: access.estate.id,
+        ...sample,
+        files: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: req.user.id,
+      });
+    }
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'demo_seeded',
+      detail: 'Loaded India demo Life Map items',
+    });
+  });
+  res.json({ ok: true, added: samples.length });
+});
+
+// ── Life Map items ────────────────────────────────────
+app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.estate.status === 'unlocked' && access.role === 'viewer') {
+    return res.status(403).json({ error: 'Viewers cannot add items after unlock' });
+  }
+  const { category, title, institution, accountRef, notes } = req.body || {};
+  if (!category || !title?.trim()) {
+    return res.status(400).json({ error: 'Category and title required' });
+  }
+  const files = (req.files || []).map((f) => ({
+    name: f.originalname,
+    path: `/uploads/${f.filename}`,
+    size: f.size,
+  }));
+  const item = {
+    id: uuid(),
+    estateId: access.estate.id,
+    category,
+    title: title.trim(),
+    institution: (institution || '').trim(),
+    accountRef: (accountRef || '').trim(),
+    notes: (notes || '').trim(),
+    files,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: req.user.id,
+  };
+  mutate((s) => {
+    s.items.push(item);
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'item_added',
+      detail: `Added ${category}: ${item.title}`,
+    });
+  });
+  res.status(201).json({ item });
+});
+
+app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const item = mutate((s) => {
+    const row = s.items.find(
+      (i) => i.id === req.params.itemId && i.estateId === req.params.id
+    );
+    if (!row) return null;
+    const fields = ['category', 'title', 'institution', 'accountRef', 'notes'];
+    for (const f of fields) {
+      if (req.body?.[f] != null) row[f] = String(req.body[f]).trim();
+    }
+    row.updatedAt = new Date().toISOString();
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'item_updated',
+      detail: `Updated ${row.title}`,
+    });
+    return row;
+  });
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  res.json({ item });
+});
+
+app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role === 'viewer') {
+    return res.status(403).json({ error: 'Viewers cannot delete' });
+  }
+  mutate((s) => {
+    const idx = s.items.findIndex(
+      (i) => i.id === req.params.itemId && i.estateId === req.params.id
+    );
+    if (idx >= 0) {
+      const [removed] = s.items.splice(idx, 1);
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'item_deleted',
+        detail: `Deleted ${removed.title}`,
+      });
+    }
+  });
+  res.json({ ok: true });
+});
+
+// ── Members ───────────────────────────────────────────
+app.post('/api/estates/:id/members', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner') {
+    return res.status(403).json({ error: 'Only owner can invite' });
+  }
+  const email = (req.body?.email || '').trim().toLowerCase();
+  const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  const invitee = store.users.find((u) => u.email === email);
+  if (!invitee) {
+    return res.status(404).json({
+      error: 'User must sign up with this email first, then you can invite them',
+    });
+  }
+  if (invitee.id === access.estate.ownerId) {
+    return res.status(400).json({ error: 'Owner already has access' });
+  }
+  const existing = store.members.find(
+    (m) => m.estateId === access.estate.id && m.userId === invitee.id
+  );
+  if (existing) return res.status(409).json({ error: 'Already a member' });
+
+  const member = {
+    id: uuid(),
+    estateId: access.estate.id,
+    userId: invitee.id,
+    inviteEmail: email,
+    role,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  };
+  mutate((s) => {
+    s.members.push(member);
+    const rules = s.estates.find((e) => e.id === access.estate.id).unlockRules;
+    if (!rules.unlockerUserIds.includes(invitee.id) && role === 'manager') {
+      rules.unlockerUserIds.push(invitee.id);
+    }
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'member_added',
+      detail: `Invited ${email} as ${role}`,
+    });
+  });
+  res.status(201).json({ member: { ...member, name: invitee.name, email } });
+});
+
+// ── Unlock flow ───────────────────────────────────────
+app.post('/api/estates/:id/unlock/request', authRequired, upload.single('proof'), (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.estate.status === 'unlocked') {
+    return res.status(400).json({ error: 'Already unlocked' });
+  }
+  const rules = access.estate.unlockRules || {};
+  const allowed = rules.unlockerUserIds || [access.estate.ownerId];
+  if (!allowed.includes(req.user.id) && access.role !== 'owner') {
+    return res.status(403).json({ error: 'You are not an appointed unlocker' });
+  }
+  const proofType = req.body?.proofType === 'incapacity' ? 'incapacity' : 'death';
+  if (rules.requireProof !== false && !req.file) {
+    return res.status(400).json({ error: 'Upload death certificate or incapacity letter' });
+  }
+  const request = {
+    id: uuid(),
+    estateId: access.estate.id,
+    requestedBy: req.user.id,
+    proofType,
+    proofPath: req.file ? `/uploads/${req.file.filename}` : null,
+    status: rules.mode === 'dual' ? 'pending_approval' : 'approved',
+    approvals: [req.user.id],
+    createdAt: new Date().toISOString(),
+  };
+
+  const result = mutate((s) => {
+    s.unlockRequests.push(request);
+    const estate = s.estates.find((e) => e.id === access.estate.id);
+    if (request.status === 'approved') {
+      return finalizeUnlock(s, estate, req.user, request);
+    }
+    estate.status = 'unlock_pending';
+    audit(s, {
+      estateId: estate.id,
+      userId: req.user.id,
+      action: 'unlock_requested',
+      detail: `Unlock requested (${proofType}). Waiting for second approver.`,
+    });
+    return { estate, request, unlocked: false };
+  });
+
+  res.json(result);
+});
+
+app.post('/api/estates/:id/unlock/approve', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const pending = store.unlockRequests
+    .filter((r) => r.estateId === access.estate.id && r.status === 'pending_approval')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  if (!pending) return res.status(404).json({ error: 'No pending unlock request' });
+  const allowed = access.estate.unlockRules?.unlockerUserIds || [];
+  if (!allowed.includes(req.user.id)) {
+    return res.status(403).json({ error: 'Not an appointed unlocker' });
+  }
+  if (pending.approvals.includes(req.user.id)) {
+    return res.status(400).json({ error: 'You already approved' });
+  }
+
+  const result = mutate((s) => {
+    const reqRow = s.unlockRequests.find((r) => r.id === pending.id);
+    reqRow.approvals.push(req.user.id);
+    const need = 2;
+    if (reqRow.approvals.length >= need) {
+      reqRow.status = 'approved';
+      const estate = s.estates.find((e) => e.id === access.estate.id);
+      return finalizeUnlock(s, estate, req.user, reqRow);
+    }
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'unlock_approved_partial',
+      detail: `Approval ${reqRow.approvals.length}/2 recorded`,
+    });
+    return { unlocked: false, request: reqRow };
+  });
+  res.json(result);
+});
+
+function finalizeUnlock(store, estate, user, request) {
+  estate.status = 'unlocked';
+  estate.unlockedAt = new Date().toISOString();
+  const items = store.items.filter((i) => i.estateId === estate.id);
+  const tasks = buildIndiaExecutionTasks(estate, items);
+  store.tasks = store.tasks.filter((t) => t.estateId !== estate.id);
+  store.tasks.push(...tasks);
+  audit(store, {
+    estateId: estate.id,
+    userId: user.id,
+    action: 'estate_unlocked',
+    detail: `Execution Mode opened (${request.proofType}). ${tasks.length} tasks generated.`,
+  });
+  return { unlocked: true, estate, request, taskCount: tasks.length };
+}
+
+app.patch('/api/estates/:id/tasks/:taskId', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.estate.status !== 'unlocked') {
+    return res.status(400).json({ error: 'Estate is still locked' });
+  }
+  const task = mutate((s) => {
+    const row = s.tasks.find(
+      (t) => t.id === req.params.taskId && t.estateId === req.params.id
+    );
+    if (!row) return null;
+    if (req.body?.status) row.status = req.body.status;
+    if (req.body?.notes != null) row.notes = req.body.notes;
+    row.updatedAt = new Date().toISOString();
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'task_updated',
+      detail: `${row.title} → ${row.status}`,
+    });
+    return row;
+  });
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json({ task });
+});
+
+app.get('/api/estates/:id/tasks/:taskId/letter', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.estate.status !== 'unlocked') {
+    return res.status(400).json({ error: 'Unlock required' });
+  }
+  const task = store.tasks.find(
+    (t) => t.id === req.params.taskId && t.estateId === req.params.id
+  );
+  if (!task?.letterKey) return res.status(404).json({ error: 'No letter for this task' });
+  const item = store.items.find((i) => i.id === task.itemId);
+  const lastUnlock = store.unlockRequests
+    .filter((r) => r.estateId === access.estate.id && r.status === 'approved')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const letter = renderLetter(task.letterKey, {
+    estate: access.estate,
+    item,
+    requester: req.user,
+    proofType: lastUnlock?.proofType,
+  });
+  mutate((s) => {
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'letter_downloaded',
+      detail: task.title,
+    });
+  });
+  res.json({ filename: `${task.letterKey}.txt`, content: letter });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, product: 'Estate OS' });
+});
+
+registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase });
+
+// Production static
+const dist = path.join(__dirname, '..', 'client', 'dist');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
+  app.use(express.static(dist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(dist, 'index.html'));
+  });
+}
+
+seedLawyersIfNeeded()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Estate OS API on http://0.0.0.0:${PORT}`);
+      console.log('Demo counsel logins: advocate.mehta@estateos.dev / counsel12');
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to seed counsel', err);
+    process.exit(1);
+  });

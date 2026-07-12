@@ -1,0 +1,126 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth.jsx';
+
+function statusBadge(status) {
+  if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
+  if (status === 'unlock_pending') return <span className="badge badge-pending">Unlock pending</span>;
+  return <span className="badge badge-locked">Locked</span>;
+}
+
+export default function Dashboard() {
+  const { api, toast } = useAuth();
+  const [estates, setEstates] = useState([]);
+  const [form, setForm] = useState({
+    subjectName: '',
+    subjectRelation: 'Parent',
+    country: 'IN',
+    notes: '',
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const data = await api('/api/estates');
+    setEstates(data.estates || []);
+  }
+
+  useEffect(() => {
+    load().catch((e) => toast(e.message));
+  }, []);
+
+  async function createEstate(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api('/api/estates', { method: 'POST', body: form });
+      setForm({ subjectName: '', subjectRelation: 'Parent', country: 'IN', notes: '' });
+      toast('Estate created');
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section style={{ paddingBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
+        <div>
+          <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>
+            Your estates
+          </h1>
+          <p className="muted">One estate per parent (or person you help manage).</p>
+        </div>
+      </div>
+
+      <div className="split" style={{ marginTop: '1rem' }}>
+        <div className="card">
+          {estates.length === 0 ? (
+            <div style={{ padding: '1.4rem' }}>
+              <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
+                No estates yet
+              </p>
+              <p className="muted">Create one for a parent. You can invite siblings after.</p>
+            </div>
+          ) : (
+            estates.map((e) => (
+              <Link key={e.id} to={`/app/estates/${e.id}`} className="item-row" style={{ display: 'block' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <div>
+                    <strong style={{ fontSize: '1.05rem' }}>{e.subjectName}</strong>
+                    <div className="small muted">
+                      {e.subjectRelation} · {e.itemCount} items · {e.myRole}
+                    </div>
+                  </div>
+                  {statusBadge(e.status)}
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+
+        <form className="card" style={{ padding: '1.2rem' }} onSubmit={createEstate}>
+          <p className="display" style={{ fontSize: '1.35rem', marginTop: 0 }}>
+            New estate
+          </p>
+          <div className="field">
+            <label>Parent / subject name</label>
+            <input
+              required
+              value={form.subjectName}
+              onChange={(e) => setForm({ ...form, subjectName: e.target.value })}
+              placeholder="Ramesh Kumar"
+            />
+          </div>
+          <div className="field">
+            <label>Relation</label>
+            <input
+              value={form.subjectRelation}
+              onChange={(e) => setForm({ ...form, subjectRelation: e.target.value })}
+              placeholder="Father / Mother"
+            />
+          </div>
+          <div className="field">
+            <label>Country pack</label>
+            <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
+              <option value="IN">India</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Notes</label>
+            <textarea
+              rows={3}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Lives in Pune; CA is Sharma…"
+            />
+          </div>
+          <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
+            {busy ? 'Creating…' : 'Create estate'}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
