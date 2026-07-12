@@ -4,8 +4,11 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import multer from 'multer';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import JSZip from 'jszip';
 import { fileURLToPath } from 'url';
-import { mutate, readStore, audit, uploadsDir } from './db.js';
+import { mutate, readStore, audit, uploadsDir, initDb, flushPersist, persistenceMode } from './db.js';
 import {
   authRequired,
   hashPassword,
@@ -27,9 +30,43 @@ const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 4060);
 const app = express();
+const isProd = process.env.NODE_ENV === 'production';
 
-app.use(cors({ origin: true, credentials: true }));
+if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'estate-os-dev-secret')) {
+  console.warn('WARNING: Set a strong JWT_SECRET in production');
+}
+
+app.set('trust proxy', 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '8mb' }));
+app.use(
+  '/api/',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: isProd ? 400 : 2000,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+app.use(
+  '/api/auth/',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: isProd ? 40 : 200,
+    message: { error: 'Too many auth attempts. Try again shortly.' },
+  })
+);
 app.use('/uploads', express.static(uploadsDir));
 
 const upload = multer({
@@ -160,9 +197,44 @@ app.post('/api/billing/upgrade', authRequired, (req, res) => {
   const plan = req.body?.plan === 'diaspora' ? 'diaspora' : 'family';
   mutate((store) => {
     const user = store.users.find((u) => u.id === req.user.id);
-    if (user) user.plan = plan;
+    if (user) {
+      user.plan = plan;
+      user.planRequestedAt = new Date().toISOString();
+    }
+    store.leads.push({
+      id: uuid(),
+      type: 'plan_upgrade',
+      plan,
+      userId: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      at: new Date().toISOString(),
+    });
   });
-  res.json({ plan, message: `Upgraded to ${plan} (demo billing)` });
+  res.json({
+    plan,
+    message: `You're on ${plan}. We'll confirm billing details by email if payment is required for your cohort.`,
+  });
+});
+
+app.post('/api/leads', (req, res) => {
+  const email = (req.body?.email || '').trim().toLowerCase();
+  const name = (req.body?.name || '').trim();
+  const interest = (req.body?.interest || 'general').trim();
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+  mutate((s) => {
+    s.leads.push({
+      id: uuid(),
+      type: 'waitlist',
+      email,
+      name,
+      interest,
+      at: new Date().toISOString(),
+    });
+  });
+  res.status(201).json({ ok: true });
 });
 
 // ── Estates ───────────────────────────────────────────
@@ -299,7 +371,7 @@ app.patch('/api/estates/:id', authRequired, (req, res) => {
   res.json({ estate: updated });
 });
 
-app.post('/api/estates/:id/seed-demo', authRequired, (req, res) => {
+app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -386,8 +458,8 @@ app.post('/api/estates/:id/seed-demo', authRequired, (req, res) => {
     audit(s, {
       estateId: access.estate.id,
       userId: req.user.id,
-      action: 'demo_seeded',
-      detail: 'Loaded India demo Life Map items',
+      action: 'sample_seeded',
+      detail: 'Loaded India sample Life Map items',
     });
   });
   res.json({ ok: true, added: samples.length });
@@ -485,7 +557,114 @@ app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Members ───────────────────────────────────────────
+// ── Members & invites ─────────────────────────────────
+app.post('/api/estates/:id/invites', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner') {
+    return res.status(403).json({ error: 'Only owner can invite' });
+  }
+  const email = (req.body?.email || '').trim().toLowerCase();
+  const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const token = crypto.randomBytes(24).toString('hex');
+  const invite = {
+    id: uuid(),
+    estateId: access.estate.id,
+    email,
+    role,
+    token,
+    invitedBy: req.user.id,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+  mutate((s) => {
+    s.invites.push(invite);
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'invite_created',
+      detail: `Invite for ${email} as ${role}`,
+    });
+  });
+  const base = process.env.APP_URL || '';
+  res.status(201).json({
+    invite: {
+      id: invite.id,
+      email,
+      role,
+      expiresAt: invite.expiresAt,
+      link: `${base}/invite/${token}`,
+      token,
+    },
+  });
+});
+
+app.get('/api/invites/:token', (req, res) => {
+  const store = readStore();
+  const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
+  if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
+  if (new Date(invite.expiresAt) < new Date()) {
+    return res.status(410).json({ error: 'Invite expired' });
+  }
+  const estate = store.estates.find((e) => e.id === invite.estateId);
+  res.json({
+    email: invite.email,
+    role: invite.role,
+    estateName: estate?.subjectName,
+    expiresAt: invite.expiresAt,
+  });
+});
+
+app.post('/api/invites/:token/accept', authRequired, (req, res) => {
+  const store = readStore();
+  const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
+  if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
+  if (new Date(invite.expiresAt) < new Date()) {
+    return res.status(410).json({ error: 'Invite expired' });
+  }
+  if (req.user.email !== invite.email) {
+    return res.status(403).json({
+      error: `Sign in as ${invite.email} to accept this invite`,
+    });
+  }
+  mutate((s) => {
+    const inv = s.invites.find((i) => i.id === invite.id);
+    inv.status = 'accepted';
+    inv.acceptedAt = new Date().toISOString();
+    const exists = s.members.find(
+      (m) => m.estateId === invite.estateId && m.userId === req.user.id
+    );
+    if (!exists) {
+      s.members.push({
+        id: uuid(),
+        estateId: invite.estateId,
+        userId: req.user.id,
+        inviteEmail: invite.email,
+        role: invite.role,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      });
+    }
+    const estate = s.estates.find((e) => e.id === invite.estateId);
+    if (invite.role === 'manager' && estate) {
+      const ids = estate.unlockRules.unlockerUserIds || [];
+      if (!ids.includes(req.user.id)) ids.push(req.user.id);
+      estate.unlockRules.unlockerUserIds = ids;
+    }
+    audit(s, {
+      estateId: invite.estateId,
+      userId: req.user.id,
+      action: 'invite_accepted',
+      detail: `${req.user.email} joined as ${invite.role}`,
+    });
+  });
+  res.json({ ok: true, estateId: invite.estateId });
+});
+
 app.post('/api/estates/:id/members', authRequired, (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
@@ -496,43 +675,68 @@ app.post('/api/estates/:id/members', authRequired, (req, res) => {
   const email = (req.body?.email || '').trim().toLowerCase();
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
   if (!email) return res.status(400).json({ error: 'Email required' });
-  const invitee = store.users.find((u) => u.email === email);
-  if (!invitee) {
-    return res.status(404).json({
-      error: 'User must sign up with this email first, then you can invite them',
-    });
-  }
-  if (invitee.id === access.estate.ownerId) {
-    return res.status(400).json({ error: 'Owner already has access' });
-  }
-  const existing = store.members.find(
-    (m) => m.estateId === access.estate.id && m.userId === invitee.id
-  );
-  if (existing) return res.status(409).json({ error: 'Already a member' });
 
-  const member = {
+  // Prefer invite-link flow; if user already exists, also attach immediately
+  const invitee = store.users.find((u) => u.email === email);
+  const token = crypto.randomBytes(24).toString('hex');
+  const invite = {
     id: uuid(),
     estateId: access.estate.id,
-    userId: invitee.id,
-    inviteEmail: email,
+    email,
     role,
-    status: 'active',
+    token,
+    invitedBy: req.user.id,
+    status: 'pending',
     createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   };
+
+  let member = null;
   mutate((s) => {
-    s.members.push(member);
-    const rules = s.estates.find((e) => e.id === access.estate.id).unlockRules;
-    if (!rules.unlockerUserIds.includes(invitee.id) && role === 'manager') {
-      rules.unlockerUserIds.push(invitee.id);
+    s.invites.push(invite);
+    if (invitee && invitee.id !== access.estate.ownerId) {
+      const existing = s.members.find(
+        (m) => m.estateId === access.estate.id && m.userId === invitee.id
+      );
+      if (!existing) {
+        member = {
+          id: uuid(),
+          estateId: access.estate.id,
+          userId: invitee.id,
+          inviteEmail: email,
+          role,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+        s.members.push(member);
+        invite.status = 'accepted';
+        invite.acceptedAt = new Date().toISOString();
+        const rules = s.estates.find((e) => e.id === access.estate.id).unlockRules;
+        if (role === 'manager' && !rules.unlockerUserIds.includes(invitee.id)) {
+          rules.unlockerUserIds.push(invitee.id);
+        }
+      }
     }
     audit(s, {
       estateId: access.estate.id,
       userId: req.user.id,
-      action: 'member_added',
+      action: 'member_invited',
       detail: `Invited ${email} as ${role}`,
     });
   });
-  res.status(201).json({ member: { ...member, name: invitee.name, email } });
+
+  const base = (process.env.APP_URL || '').replace(/\/$/, '');
+  res.status(201).json({
+    member: member
+      ? { ...member, name: invitee.name, email }
+      : null,
+    invite: {
+      email,
+      role,
+      link: base ? `${base}/invite/${token}` : null,
+      token,
+    },
+  });
 });
 
 // ── Unlock flow ───────────────────────────────────────
@@ -694,7 +898,66 @@ app.get('/api/estates/:id/tasks/:taskId/letter', authRequired, (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, product: 'Estate OS' });
+  res.json({
+    ok: true,
+    product: 'Estate OS',
+    persistence: persistenceMode(),
+    version: '1.1.0',
+  });
+});
+
+app.get('/api/estates/:id/export', authRequired, async (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const items = store.items.filter((i) => i.estateId === access.estate.id);
+  const tasks = store.tasks.filter((t) => t.estateId === access.estate.id);
+  const zip = new JSZip();
+  zip.file(
+    'README.txt',
+    `Estate OS export — ${access.estate.subjectName}\nGenerated ${new Date().toISOString()}\nNot legal advice.\n`
+  );
+  zip.file(
+    'life-map.json',
+    JSON.stringify({ estate: access.estate, items, tasks }, null, 2)
+  );
+  const summary = [
+    `Estate: ${access.estate.subjectName}`,
+    `Status: ${access.estate.status}`,
+    '',
+    'Life Map',
+    ...items.map(
+      (i) => `- [${i.category}] ${i.title} | ${i.institution || ''} | ${i.accountRef || ''}`
+    ),
+    '',
+    'Tasks',
+    ...tasks.map((t) => `- [${t.status}] ${t.title}`),
+  ].join('\n');
+  zip.file('summary.txt', summary);
+  const originals = zip.folder('originals');
+  for (const item of items) {
+    for (const f of item.files || []) {
+      const abs = path.join(uploadsDir, path.basename(f.path));
+      if (fs.existsSync(abs)) {
+        originals.file(`${item.title.replace(/\W+/g, '_')}_${f.name}`, fs.readFileSync(abs));
+      }
+    }
+  }
+  mutate((s) => {
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'estate_exported',
+      detail: 'ZIP export downloaded',
+    });
+  });
+  const buf = await zip.generateAsync({ type: 'nodebuffer' });
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="EstateOS_${access.estate.subjectName.replace(/\s+/g, '_')}.zip"`
+  );
+  res.send(buf);
 });
 
 registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase });
@@ -709,14 +972,26 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
   });
 }
 
-seedLawyersIfNeeded()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Estate OS API on http://0.0.0.0:${PORT}`);
-      console.log('Demo counsel logins: advocate.mehta@estateos.dev / counsel12');
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to seed counsel', err);
-    process.exit(1);
+async function boot() {
+  await initDb();
+  await seedLawyersIfNeeded();
+  await flushPersist();
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Estate OS on http://0.0.0.0:${PORT} [${persistenceMode()}]`);
   });
+}
+
+boot().catch((err) => {
+  console.error('Boot failed', err);
+  process.exit(1);
+});
+
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, async () => {
+    try {
+      await flushPersist();
+    } finally {
+      process.exit(0);
+    }
+  });
+}

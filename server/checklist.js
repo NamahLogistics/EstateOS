@@ -141,7 +141,7 @@ export function buildIndiaExecutionTasks(estate, items) {
       category: 'claims',
       title: 'Add Life Map items, then refresh tasks',
       detail:
-        'This estate has few vault items. Add banks, insurance, and property in Life Map (before unlock) for a fuller checklist. Demo estates can re-seed.',
+        'This estate has few vault items. Add banks, insurance, and property in Life Map before unlock for a fuller checklist.',
       documents: [],
       letterKey: null,
     });

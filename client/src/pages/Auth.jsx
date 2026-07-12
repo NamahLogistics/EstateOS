@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 
 export default function AuthPage() {
   const { user, login, register, toast } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('register');
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState(params.get('mode') === 'login' ? 'login' : 'register');
   const [form, setForm] = useState({ name: '', email: '', password: '', accountType: 'family' });
   const [busy, setBusy] = useState(false);
 
@@ -15,10 +16,9 @@ export default function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const data =
-        mode === 'register' ? await register(form) : await login(form);
+      const data = mode === 'register' ? await register(form) : await login(form);
       toast('Welcome to Estate OS');
-      navigate(data.user?.accountType === 'lawyer' || form.accountType === 'lawyer' ? '/app/counsel' : '/app');
+      navigate(data.user?.accountType === 'lawyer' ? '/app/counsel' : '/app');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -85,9 +85,6 @@ export default function AuthPage() {
           </button>
         </form>
         <p className="small muted" style={{ marginTop: '1rem', marginBottom: 0 }}>
-          Demo counsel: advocate.mehta@estateos.dev / counsel12
-        </p>
-        <p className="small muted" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
           {mode === 'register' ? 'Already have an account?' : 'New here?'}{' '}
           <button
             type="button"

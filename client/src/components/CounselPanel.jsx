@@ -76,7 +76,7 @@ export default function CounselPanel({ estateId, onToast }) {
         method: 'POST',
         body: { familyBrief: engage.familyBrief || 'Please take over this matter.' },
       });
-      notify('Adv. Kavita Mehta retained — brief + pathway live');
+      notify('Adv. Kavita Mehta retained — brief + pathway ready');
       await load();
     } catch (err) {
       notify(err.message);
@@ -343,7 +343,7 @@ export default function CounselPanel({ estateId, onToast }) {
                 </div>
               </div>
               <button type="button" className="btn btn-primary" style={{ width: '100%', marginBottom: '0.6rem' }} disabled={busy || role === 'viewer'} onClick={demoRetain}>
-                One-click retain Adv. Mehta (demo)
+                Retain Adv. Mehta (recommended starter)
               </button>
             </>
           )}

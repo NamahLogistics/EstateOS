@@ -1,46 +1,41 @@
 # Estate OS
 
-Family continuity after death or incapacity.
+Family continuity after death or incapacity — Life Map, unlock rules, Execution Mode, counsel retain & brief.
 
-Adult children build a parent’s **Life Map**, set **unlock rules**, then run **Execution Mode** (India checklist + claim letters) when something happens.
+**Live:** https://estate-os-production.up.railway.app  
+**Repo:** https://github.com/NamahLogistics/EstateOS
 
-## Run
+## Product
+
+- Life Map vault (banks, insurance, property, digital, wishes)
+- Unlock rules (single / dual) + proof upload
+- India Execution Mode + claim letters
+- Counsel directory, retain, legal pathway, privileged matter room
+- Sibling invite links · ZIP export · audit trail
+- Terms / Privacy included in-app
+
+## Local
 
 ```bash
 npm install
 npm run dev
 ```
 
-- Web: http://localhost:5177  
+- Web: http://localhost:5178  
 - API: http://localhost:4060  
 
-## Demo path
+## Production (Railway)
 
-1. Register an account  
-2. Create an estate for a parent  
-3. Click **Load India demo items**  
-4. Set unlock rules  
-5. Upload any file as “death certificate” → Unlock  
-6. Work Execution Mode + download letters  
+1. Add Postgres: `railway add --database postgres`
+2. Variables on the web service:
+   - `JWT_SECRET` (strong random)
+   - `DATABASE_URL` (from Postgres plugin / reference)
+   - `APP_URL=https://estate-os-production.up.railway.app`
+   - `NODE_ENV=production`
+3. `npm run build` + `npm start` (configured in `railway.toml`)
 
-## Counsel layer
+Without `DATABASE_URL`, data is file-backed and **not durable** across deploys.
 
-- Directory of verified demo advocates (filter by city / specialty / NRI)
-- Engage with scope + conflict ack → counsel accepts on **Counsel desk**
-- Auto **legal pathway** (India succession intelligence)
-- Auto **Counsel Brief** download for the matter
-- Privileged notes, legal action board, “needs from family”
-- One-click demo retain: Adv. Kavita Mehta
+## Counsel directory
 
-## Deploy
-
-Railway (recommended): connected GitHub repo, build `npm install && npm run build`, start `npm start`.
-
-Set env:
-- `JWT_SECRET` — long random string
-- `NODE_ENV=production`
-
-Demo counsel after deploy: `advocate.mehta@estateos.dev` / `counsel12`
-
-Note: JSON file storage is ephemeral on Railway unless you attach a volume — fine for demo.
-
+Verified starter advocates are seeded for matching. Families can also request any listed counsel.

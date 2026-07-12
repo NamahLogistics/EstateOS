@@ -122,10 +122,6 @@ export default function CounselDesk() {
           ))
         )}
       </div>
-
-      <p className="small muted" style={{ marginTop: '1rem' }}>
-        Demo counsel logins use password <code>counsel12</code> — e.g. advocate.mehta@estateos.dev
-      </p>
     </section>
   );
 }

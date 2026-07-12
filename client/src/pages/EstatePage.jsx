@@ -77,8 +77,8 @@ export default function EstatePage() {
   async function seedDemo() {
     setBusy(true);
     try {
-      await api(`/api/estates/${id}/seed-demo`, { method: 'POST', body: {} });
-      toast('Demo India Life Map loaded');
+      await api(`/api/estates/${id}/seed-sample`, { method: 'POST', body: {} });
+      toast('Sample India Life Map loaded');
       await load();
     } catch (err) {
       toast(err.message);
@@ -148,14 +148,45 @@ export default function EstatePage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api(`/api/estates/${id}/members`, { method: 'POST', body: invite });
-      toast('Member added');
+      const res = await api(`/api/estates/${id}/members`, { method: 'POST', body: invite });
+      const link =
+        res.invite?.token
+          ? `${window.location.origin}/invite/${res.invite.token}`
+          : res.invite?.link || '';
+      if (link) {
+        await navigator.clipboard.writeText(link).catch(() => {});
+        toast('Invite link copied — send it to your sibling');
+      } else {
+        toast('Member added');
+      }
       setInvite({ email: '', role: 'manager' });
       await load();
     } catch (err) {
       toast(err.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function exportZip() {
+    try {
+      const res = await fetch(`/api/estates/${id}/export`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('estate_os_session') ? JSON.parse(localStorage.getItem('estate_os_session')).token : ''}` },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `EstateOS_${(data?.estate?.subjectName || 'estate').replace(/\s+/g, '_')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Export downloaded');
+    } catch (err) {
+      toast(err.message);
     }
   }
 
@@ -217,6 +248,11 @@ export default function EstatePage() {
         </div>
         {statusBadge(estate.status)}
       </div>
+      <div style={{ marginTop: '0.75rem' }}>
+        <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={exportZip}>
+          Export ZIP
+        </button>
+      </div>
 
       <div className="tabs">
         {TABS.map((t) => (
@@ -250,7 +286,7 @@ export default function EstatePage() {
               <strong>Vault</strong>
               {estate.status !== 'unlocked' && (
                 <button type="button" className="btn btn-ghost" style={{ padding: '0.35rem 0.8rem' }} onClick={seedDemo} disabled={busy}>
-                  Load India demo items
+                  Load sample items
                 </button>
               )}
             </div>
@@ -521,7 +557,9 @@ export default function EstatePage() {
               <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
                 Invite sibling
               </p>
-              <p className="small muted">They must already have an Estate OS account with this email.</p>
+              <p className="small muted">
+                We’ll create a shareable invite link. They can register with that email and join.
+              </p>
               <div className="field">
                 <label>Email</label>
                 <input required type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
