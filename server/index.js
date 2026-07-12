@@ -935,6 +935,19 @@ app.get('/api/estates/:id/tasks/:taskId/letter', authRequired, (req, res) => {
   res.json({ filename: `${task.letterKey}.txt`, content: letter });
 });
 
+app.get('/api/public/business', (_req, res) => {
+  res.json({
+    brand: process.env.BUSINESS_BRAND || 'Estate OS',
+    legalName: process.env.BUSINESS_LEGAL_NAME || 'Estate OS (set BUSINESS_LEGAL_NAME)',
+    address: process.env.BUSINESS_ADDRESS || 'Registered office address — set BUSINESS_ADDRESS',
+    email: process.env.BUSINESS_EMAIL || 'support@estateos.app',
+    phone: process.env.BUSINESS_PHONE || '+91-XXXXXXXXXX',
+    hours: process.env.BUSINESS_HOURS || 'Mon–Sat, 10:00–18:00 IST',
+    grievanceName: process.env.BUSINESS_GRIEVANCE_NAME || 'Grievance Officer',
+    grievanceEmail: process.env.BUSINESS_GRIEVANCE_EMAIL || process.env.BUSINESS_EMAIL || 'grievance@estateos.app',
+  });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -943,7 +956,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.2.1',
+    version: '1.2.2',
   });
 });
 

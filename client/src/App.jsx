@@ -7,7 +7,7 @@ import EstatePage from './pages/EstatePage.jsx';
 import Pricing from './pages/Pricing.jsx';
 import CounselDesk from './pages/CounselDesk.jsx';
 import InvitePage from './pages/InvitePage.jsx';
-import { LegalPrivacy, LegalTerms } from './pages/Legal.jsx';
+import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
@@ -70,11 +70,23 @@ function Shell({ children }) {
           }}
         >
           <span className="small muted">© {new Date().getFullYear()} Estate OS</span>
+          <Link className="small muted" to="/pricing">
+            Pricing
+          </Link>
           <Link className="small muted" to="/terms">
             Terms
           </Link>
           <Link className="small muted" to="/privacy">
             Privacy
+          </Link>
+          <Link className="small muted" to="/refunds">
+            Refunds
+          </Link>
+          <Link className="small muted" to="/shipping">
+            Shipping
+          </Link>
+          <Link className="small muted" to="/contact">
+            Contact
           </Link>
           <span className="small muted">Not legal advice</span>
         </footer>
@@ -97,6 +109,9 @@ export default function App() {
       <Route path="/pricing" element={<Shell><Pricing /></Shell>} />
       <Route path="/terms" element={<Shell><LegalTerms /></Shell>} />
       <Route path="/privacy" element={<Shell><LegalPrivacy /></Shell>} />
+      <Route path="/refunds" element={<Shell><LegalRefunds /></Shell>} />
+      <Route path="/shipping" element={<Shell><LegalShipping /></Shell>} />
+      <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
       <Route path="/auth" element={<Shell><AuthPage /></Shell>} />
       <Route path="/invite/:token" element={<Shell><InvitePage /></Shell>} />
       <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
