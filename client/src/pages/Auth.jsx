@@ -61,10 +61,16 @@ export default function AuthPage() {
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
       <div className="card" style={{ padding: '1.5rem' }}>
         <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
-          {mode === 'register' ? 'Create account' : 'Sign in'}
+          {mode === 'register'
+            ? form.accountType === 'lawyer' || typeFromUrl === 'lawyer'
+              ? 'Join as counsel'
+              : 'Create account'
+            : 'Sign in'}
         </h1>
         <p className="muted" style={{ marginTop: '-0.3rem' }}>
-          Families map estates. Counsel runs the legal matter.
+          {form.accountType === 'lawyer' || typeFromUrl === 'lawyer'
+            ? 'Counsel desk, city leads, and matter briefs — for advocates.'
+            : 'Families map estates. Counsel runs the legal matter.'}
         </p>
         {mode === 'register' && referralCode && (
           <p className="small" style={{ marginTop: 0 }}>

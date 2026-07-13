@@ -3,6 +3,8 @@ import { useAuth } from '../auth.jsx';
 
 export default function Landing() {
   const { user } = useAuth();
+  const isLawyer = user?.accountType === 'lawyer';
+
   return (
     <>
       <section className="hero-bleed" aria-label="HeirReady">
@@ -14,12 +16,25 @@ export default function Landing() {
             once — so family isn’t guessing on WhatsApp when something happens.
           </p>
           <div className="hero-actions">
-            <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
-              {user ? 'Open your estates' : 'Start free — map one parent'}
-            </Link>
-            <Link className="btn btn-ghost" to="/pricing">
-              See plans
-            </Link>
+            {isLawyer ? (
+              <>
+                <Link className="btn btn-primary" to="/app/counsel">
+                  Open counsel desk
+                </Link>
+                <Link className="btn btn-ghost" to="/pricing">
+                  Counsel Pro
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
+                  {user ? 'Open your estates' : 'Start free — map one parent'}
+                </Link>
+                <Link className="btn btn-ghost" to="/auth?mode=register&type=lawyer">
+                  I’m counsel
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -53,6 +68,30 @@ export default function Landing() {
         <p className="small" style={{ marginTop: '1.5rem', color: 'var(--ink-soft)' }}>
           Not a will. Not a bank. Not a substitute for licensed legal advice.
         </p>
+      </section>
+
+      <section className="section-counsel">
+        <h2 className="display section-how-title">For advocates</h2>
+        <p className="section-lead">
+          Join as counsel. Complete your profile, take Counsel Pro, and approach families in your
+          cities who asked to be found — vault stays locked until they accept.
+        </p>
+        <div className="hero-actions">
+          {isLawyer ? (
+            <Link className="btn btn-primary" to="/app/counsel">
+              Counsel desk
+            </Link>
+          ) : (
+            <>
+              <Link className="btn btn-primary" to="/auth?mode=register&type=lawyer">
+                Register as counsel
+              </Link>
+              <Link className="btn btn-ghost" to="/pricing">
+                Counsel Pro — ₹1,499/yr
+              </Link>
+            </>
+          )}
+        </div>
       </section>
     </>
   );
