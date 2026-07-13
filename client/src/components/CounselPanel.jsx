@@ -34,6 +34,7 @@ export default function CounselPanel({ estateId, onToast }) {
     scopes: ['succession', 'property'],
     published: true,
     showContact: false,
+    exclusive: false,
   });
 
   async function load() {
@@ -55,6 +56,7 @@ export default function CounselPanel({ estateId, onToast }) {
         scopes: c.listing.scopes?.length ? c.listing.scopes : ['succession'],
         published: c.listing.status === 'open',
         showContact: !!c.listing.showContact,
+        exclusive: !!c.listing.exclusive,
       });
     }
   }
@@ -426,6 +428,28 @@ export default function CounselPanel({ estateId, onToast }) {
                   );
                 })}
               </div>
+            </div>
+            <div style={{ display: 'grid', gap: '0.55rem', marginBottom: '0.9rem' }}>
+              <label className="small" style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start' }}>
+                <input
+                  type="checkbox"
+                  checked={listingForm.showContact}
+                  onChange={(e) => setListingForm({ ...listingForm, showContact: e.target.checked })}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>
+                  Share my email with counsel who approach (they still need your accept to open the vault)
+                </span>
+              </label>
+              <label className="small" style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start' }}>
+                <input
+                  type="checkbox"
+                  checked={listingForm.exclusive}
+                  onChange={(e) => setListingForm({ ...listingForm, exclusive: e.target.checked })}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>Exclusive — only one counsel can approach at a time</span>
+              </label>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button

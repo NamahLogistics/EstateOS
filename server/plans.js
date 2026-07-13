@@ -32,6 +32,14 @@ export function userHasPaidAccess(user) {
   return new Date(expires) > new Date();
 }
 
+/** City leads + approach — Counsel Pro only (not Family/Diaspora). */
+export function userHasCounselPro(user) {
+  return Boolean(user && user.plan === 'counsel' && userHasPaidAccess(user));
+}
+
+export const MAX_OPEN_APPROACHES_PER_LAWYER = 10;
+export const DEFAULT_MAX_APPROACHES_PER_LISTING = 5;
+
 /**
  * Backfill planExpiresAt for legacy paid users; lapse to free when year is over.
  * Mutates the user object in place. Returns true if persisted fields changed.

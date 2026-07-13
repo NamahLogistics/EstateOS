@@ -394,7 +394,7 @@ export default function CounselDesk() {
         {leadsError?.needsPayment ? (
           <div className="item-row" style={{ display: 'grid', gap: '0.75rem' }}>
             <p style={{ margin: 0 }}>
-              Lead board unlocks after payment. Counsel Pro is ₹1,499/yr — see families in your cities and approach them.
+              City leads unlock with <strong>Counsel Pro</strong> (₹1,499/yr) — Family/Diaspora plans do not include the lead board.
             </p>
             <p className="small muted" style={{ margin: 0 }}>
               {leadsError.message}
@@ -418,19 +418,42 @@ export default function CounselDesk() {
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <strong>
                     {lead.subjectName} · {lead.city}
+                    {lead.exclusive ? (
+                      <span className="badge badge-pending" style={{ marginLeft: '0.4rem' }}>
+                        Exclusive
+                      </span>
+                    ) : null}
                   </strong>
                   <div className="small muted">
-                    {lead.urgency} · {(lead.scopes || []).join(', ')} · estate {lead.estateStatus}
+                    {lead.urgency} · match {lead.matchScore ?? '—'}
+                    {lead.specialtyOverlap?.length
+                      ? ` · overlap: ${lead.specialtyOverlap.join(', ')}`
+                      : ' · no specialty overlap'}
+                    {` · ${(lead.scopes || []).join(', ')} · estate ${lead.estateStatus}`}
                   </div>
                   <p className="small" style={{ margin: '0.4rem 0 0' }}>
                     {lead.blurb}
+                  </p>
+                  {lead.showContact && lead.familyLead?.email && (
+                    <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+                      Contact shared: {lead.familyLead.name} · {lead.familyLead.email}
+                    </p>
+                  )}
+                  <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                    Approaches: {lead.openApproaches ?? 0}
+                    {lead.approachSlotsLeft != null ? ` · ${lead.approachSlotsLeft} slots left` : ''}
                   </p>
                   {lead.alreadyApproached && (
                     <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
                       Already engaged ({lead.engagementStatus})
                     </p>
                   )}
-                  {!lead.alreadyApproached && (
+                  {lead.approachBlockedReason && (
+                    <p className="small" style={{ margin: '0.35rem 0 0', color: 'var(--warn)' }}>
+                      {lead.approachBlockedReason}
+                    </p>
+                  )}
+                  {!lead.alreadyApproached && lead.canApproach !== false && (
                     <textarea
                       rows={2}
                       placeholder="Short pitch to the family…"
@@ -447,7 +470,7 @@ export default function CounselDesk() {
                   )}
                 </div>
                 <div>
-                  {!lead.alreadyApproached && (
+                  {!lead.alreadyApproached && lead.canApproach !== false && (
                     <button
                       className="btn btn-primary"
                       style={{ padding: '0.4rem 0.85rem' }}

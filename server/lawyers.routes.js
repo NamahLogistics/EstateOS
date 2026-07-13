@@ -5,7 +5,11 @@ import {
   buildCounselBrief,
   purgeDemoCounsel,
 } from './lawyers.js';
-import { userHasPaidAccess } from './plans.js';
+import {
+  userHasCounselPro,
+  MAX_OPEN_APPROACHES_PER_LAWYER,
+  DEFAULT_MAX_APPROACHES_PER_LISTING,
+} from './plans.js';
 import {
   notifyFamilyOfApproach,
   notifyLawyerOfRequest,
@@ -86,6 +90,9 @@ function publicListing(listing, estate, owner) {
     blurb: listing.blurb || '',
     urgency: listing.urgency || 'normal',
     status: listing.status,
+    exclusive: !!listing.exclusive,
+    maxApproaches: listing.maxApproaches || DEFAULT_MAX_APPROACHES_PER_LISTING,
+    showContact: !!listing.showContact,
     estateStatus: estate?.status || null,
     subjectName: estate?.subjectName || null,
     familyLead: owner
@@ -94,6 +101,38 @@ function publicListing(listing, estate, owner) {
     updatedAt: listing.updatedAt,
     createdAt: listing.createdAt,
   };
+}
+
+function leadMatchScore(listing, profile) {
+  let score = 0;
+  const urgencyPts = { critical: 30, high: 18, normal: 8 };
+  score += urgencyPts[listing.urgency] || 8;
+
+  const specs = new Set((profile?.specialties || []).map((s) => String(s).toLowerCase()));
+  const scopes = listing.scopes || [];
+  const overlap = scopes.filter((s) => specs.has(String(s).toLowerCase()));
+  score += overlap.length * 12;
+  if (scopes.length && overlap.length === 0) score -= 4;
+
+  const city = String(listing.city || '').toLowerCase();
+  const cityHit = (profile?.cities || []).some((c) => {
+    const cc = String(c).toLowerCase();
+    return city.includes(cc) || cc.includes(city);
+  });
+  if (cityHit) score += 15;
+
+  if (profile?.verified) score += 5;
+  if (listing.exclusive) score += 3;
+  return score;
+}
+
+function countOpenApproachesOnListing(store, listingId, estateId) {
+  return (store.engagements || []).filter(
+    (e) =>
+      (e.listingId === listingId || e.estateId === estateId) &&
+      e.initiatedBy === 'lawyer' &&
+      e.status === 'approached'
+  ).length;
 }
 
 function activateEngagement(s, row, actorUserId) {
@@ -374,14 +413,18 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         };
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const paid = userHasPaidAccess(req.user);
+    const counselPro = userHasCounselPro(req.user);
     res.json({
       lawyer: profile ? selfLawyer(profile, req.user) : null,
       engagements: enriched,
-      leadsUnlocked: paid,
+      leadsUnlocked: counselPro,
       plan: req.user.plan || 'free',
       planExpiresAt: req.user.planExpiresAt || null,
       specialtyOptions: SPECIALTY_OPTIONS,
+      approachLimits: {
+        maxOpenApproaches: MAX_OPEN_APPROACHES_PER_LAWYER,
+        openApproaches: mine.filter((e) => e.status === 'approached').length,
+      },
       stats: {
         requested: enriched.filter((e) => e.status === 'requested' || e.status === 'approached').length,
         active: enriched.filter((e) => ['engaged', 'active'].includes(e.status)).length,
@@ -390,16 +433,16 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     });
   });
 
-  /** Paid counsel only — families who opted into city discovery */
+  /** Counsel Pro only — families who opted into city discovery */
   app.get('/api/counsel/leads', authRequired, (req, res) => {
     const store = readStore();
     const profile = store.lawyers.find((l) => l.userId === req.user.id);
     if (!profile && req.user.accountType !== 'lawyer') {
       return res.status(403).json({ error: 'Counsel leads are for lawyer accounts' });
     }
-    if (!userHasPaidAccess(req.user)) {
+    if (!userHasCounselPro(req.user)) {
       return res.status(402).json({
-        error: 'Upgrade to Counsel Pro to see families looking for counsel in your cities',
+        error: 'Upgrade to Counsel Pro (₹1,499/yr) to see families looking for counsel in your cities',
         needsPayment: true,
         planSuggested: 'counsel',
         leadsUnlocked: false,
@@ -431,19 +474,48 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
             e.lawyerUserId === req.user.id &&
             !['declined', 'closed'].includes(e.status)
         );
+        const openApproaches = countOpenApproachesOnListing(store, listing.id, listing.estateId);
+        const maxApproaches = listing.maxApproaches || DEFAULT_MAX_APPROACHES_PER_LISTING;
+        const exclusiveBlocked = !!listing.exclusive && openApproaches >= 1 && !already;
+        const capped = openApproaches >= maxApproaches && !already;
+        const matchScore = leadMatchScore(listing, profile);
+        const specialtyOverlap = (listing.scopes || []).filter((s) =>
+          (profile?.specialties || []).some((p) => String(p).toLowerCase() === String(s).toLowerCase())
+        );
         return {
           ...publicListing(listing, estate, owner),
           alreadyApproached: !!already,
           engagementStatus: already?.status || null,
+          matchScore,
+          specialtyOverlap,
+          openApproaches,
+          approachSlotsLeft: Math.max(0, maxApproaches - openApproaches),
+          canApproach: !already && !exclusiveBlocked && !capped,
+          approachBlockedReason: already
+            ? null
+            : exclusiveBlocked
+              ? 'Exclusive listing — another counsel already approached'
+              : capped
+                ? `Approach cap reached (${maxApproaches})`
+                : null,
         };
       })
       .filter(Boolean)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      .sort((a, b) => {
+        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+        return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+      });
 
     res.json({
       leadsUnlocked: true,
       leads,
       lawyerCities: profile?.cities || [],
+      approachLimits: {
+        maxOpenApproaches: MAX_OPEN_APPROACHES_PER_LAWYER,
+        openApproaches: (store.engagements || []).filter(
+          (e) => e.lawyerUserId === req.user.id && e.status === 'approached'
+        ).length,
+      },
     });
   });
 
@@ -451,9 +523,9 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     const store = readStore();
     const profile = store.lawyers.find((l) => l.userId === req.user.id);
     if (!profile) return res.status(403).json({ error: 'Counsel profile required' });
-    if (!userHasPaidAccess(req.user)) {
+    if (!userHasCounselPro(req.user)) {
       return res.status(402).json({
-        error: 'Upgrade to Counsel Pro to approach families',
+        error: 'Upgrade to Counsel Pro (₹1,499/yr) to approach families',
         needsPayment: true,
         planSuggested: 'counsel',
       });
@@ -478,6 +550,28 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         !['declined', 'closed'].includes(e.status)
     );
     if (open) return res.status(409).json({ error: 'You already have an open engagement on this estate' });
+
+    const lawyerOpenApproaches = (store.engagements || []).filter(
+      (e) => e.lawyerUserId === req.user.id && e.status === 'approached'
+    ).length;
+    if (lawyerOpenApproaches >= MAX_OPEN_APPROACHES_PER_LAWYER) {
+      return res.status(429).json({
+        error: `You have ${MAX_OPEN_APPROACHES_PER_LAWYER} open approaches waiting on families. Wait for a response or close old ones before approaching more.`,
+      });
+    }
+
+    const openOnListing = countOpenApproachesOnListing(store, listing.id, listing.estateId);
+    const maxApproaches = listing.maxApproaches || DEFAULT_MAX_APPROACHES_PER_LISTING;
+    if (listing.exclusive && openOnListing >= 1) {
+      return res.status(409).json({
+        error: 'This family listed exclusively — another counsel already approached',
+      });
+    }
+    if (openOnListing >= maxApproaches) {
+      return res.status(409).json({
+        error: `This listing already has ${maxApproaches} open approaches`,
+      });
+    }
 
     const message = (req.body?.message || '').trim();
     const scopes =
@@ -530,7 +624,12 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       pitch: message,
     });
 
-    res.status(201).json({ engagement, lawyer: publicLawyer(profile) });
+    res.status(201).json({
+      engagement,
+      lawyer: publicLawyer(profile),
+      familyContact: listing.showContact && owner ? { name: owner.name, email: owner.email } : null,
+      matchScore: leadMatchScore(listing, profile),
+    });
   });
 
   app.get('/api/estates/:id/counsel/listing', authRequired, (req, res) => {
@@ -561,6 +660,13 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       req.body?.urgency === 'critical' || req.body?.urgency === 'high' ? req.body.urgency : 'normal';
     const published = req.body?.published !== false;
     const showContact = !!req.body?.showContact;
+    const exclusive = !!req.body?.exclusive;
+    let maxApproaches = Number(req.body?.maxApproaches);
+    if (!Number.isFinite(maxApproaches) || maxApproaches < 1) {
+      maxApproaches = exclusive ? 1 : DEFAULT_MAX_APPROACHES_PER_LISTING;
+    }
+    maxApproaches = Math.min(20, Math.max(1, Math.round(maxApproaches)));
+    if (exclusive) maxApproaches = 1;
 
     if (published && !city) return res.status(400).json({ error: 'City required to publish' });
     if (published && blurb.length < 20) {
@@ -581,6 +687,8 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
           blurb,
           urgency,
           showContact,
+          exclusive,
+          maxApproaches,
           status: published ? 'open' : 'paused',
           createdAt: now,
           updatedAt: now,
@@ -592,6 +700,8 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         row.scopes = scopes.length ? scopes : row.scopes;
         row.urgency = urgency;
         row.showContact = showContact;
+        row.exclusive = exclusive;
+        row.maxApproaches = maxApproaches;
         row.status = published ? 'open' : 'paused';
         row.updatedAt = now;
         row.publishedByUserId = req.user.id;
@@ -600,7 +710,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         estateId: access.estate.id,
         userId: req.user.id,
         action: published ? 'counsel_listing_published' : 'counsel_listing_paused',
-        detail: `${row.city} · ${row.status}`,
+        detail: `${row.city} · ${row.status}${row.exclusive ? ' · exclusive' : ''}`,
       });
       return row;
     });
