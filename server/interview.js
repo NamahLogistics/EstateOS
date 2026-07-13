@@ -44,6 +44,13 @@ export const INTERVIEW_QUESTIONS = [
     placeholder: 'Netflix\nSpotify',
   },
   {
+    id: 'care',
+    category: 'care',
+    en: 'Nurse, attendant, maid, cook, or driver at home? (Name — role — phone — who pays)',
+    hi: 'घर पर नर्स, आया, नौकरानी, कुक या ड्राइवर? (नाम — भूमिका — फ़ोन — कौन भुगतान करता है)',
+    placeholder: 'Sunita — nurse — 98XXXX — son pays nights\nRaju — driver — 97XXXX',
+  },
+  {
     id: 'contacts',
     category: 'contacts',
     en: 'CA / family lawyer / trusted relative contact?',
@@ -81,17 +88,35 @@ export function answersToItems(answers, estateId, userId) {
     if (!raw) continue;
     const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     for (const line of lines) {
-      const [titlePart, ...rest] = line.split(/[—\-–]/);
-      const title = (titlePart || line).trim().slice(0, 120);
-      const notes = rest.join('-').trim() || (q.id === 'will' ? line : '');
+      const parts = line.split(/[—\-–]/).map((p) => p.trim()).filter(Boolean);
+      const title = (parts[0] || line).slice(0, 120);
+      let institution = '';
+      let accountRef = '';
+      let notes = '';
+      let paidBy = null;
+      let shift = null;
+      let backupContact = null;
+
+      if (q.category === 'care') {
+        institution = parts[1] || 'Caregiver';
+        accountRef = parts[2] || '';
+        paidBy = parts[3] || null;
+        notes = parts.slice(4).join(' — ') || '';
+      } else {
+        notes = parts.slice(1).join('-').trim() || (q.id === 'will' ? line : '');
+      }
+
       items.push({
         id: crypto.randomUUID(),
         estateId,
         category: q.category,
         title: title || q.id,
-        institution: '',
-        accountRef: '',
-        notes: notes || (lines.length === 1 && rest.length === 0 ? '' : notes),
+        institution,
+        accountRef,
+        notes: notes || (lines.length === 1 && parts.length <= 1 && q.category !== 'care' ? '' : notes),
+        shift,
+        paidBy,
+        backupContact,
         expiresOn: null,
         files: [],
         createdAt: now,

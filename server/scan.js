@@ -12,6 +12,7 @@ function guessCategory(name = '', hint = '') {
   if (/deed|registry|flat|property|society/.test(s)) return 'property';
   if (/aadhaar|pan|passport|sim|phone/.test(s)) return 'digital';
   if (/will|wish|funeral/.test(s)) return 'wishes';
+  if (/nurse|ayah|maid|caregiver|attendant|driver|cook/.test(s)) return 'care';
   return 'bank';
 }
 
@@ -43,7 +44,7 @@ async function draftWithOpenAI(buffer, mime, categoryHint) {
         {
           role: 'system',
           content:
-            'Extract estate vault fields from an Indian bank/insurance/property document photo. Return JSON keys: category (bank|insurance|investments|property|digital|subscriptions|contacts|wishes), title, institution, accountRef, notes. Keep notes short. If unsure, still guess best-effort.',
+            'Extract estate vault fields from an Indian bank/insurance/property document photo. Return JSON keys: category (bank|insurance|investments|property|digital|subscriptions|care|contacts|wishes), title, institution, accountRef, notes. Keep notes short. If unsure, still guess best-effort.',
         },
         {
           role: 'user',
@@ -77,6 +78,7 @@ async function draftWithOpenAI(buffer, mime, categoryHint) {
       'property',
       'digital',
       'subscriptions',
+      'care',
       'contacts',
       'wishes',
     ];

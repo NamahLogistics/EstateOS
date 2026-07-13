@@ -64,13 +64,22 @@ export default function EmergencyPage() {
       {data.contacts?.length > 0 && (
         <>
           <h2 className="display" style={{ fontSize: '1.2rem' }}>
-            Key contacts
+            Key contacts & caregivers
           </h2>
           <ul>
             {data.contacts.map((c) => (
-              <li key={c.title}>
+              <li key={`${c.kind}-${c.title}-${c.phone || ''}`}>
                 <strong>{c.title}</strong>
-                {c.notes ? ` — ${c.notes}` : ''}
+                {c.role ? ` · ${c.role}` : ''}
+                {c.phone ? (
+                  <>
+                    {' '}
+                    — <a href={`tel:${c.phone}`}>{c.phone}</a>
+                  </>
+                ) : null}
+                {c.shift ? <div className="small muted">Shift: {c.shift}</div> : null}
+                {c.backupContact ? <div className="small muted">Backup: {c.backupContact}</div> : null}
+                {c.notes ? <div className="small muted">{c.notes}</div> : null}
               </li>
             ))}
           </ul>

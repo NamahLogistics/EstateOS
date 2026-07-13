@@ -27,6 +27,7 @@ import {
 } from './auth.js';
 import {
   ITEM_CATEGORIES,
+  CARE_ROLES,
   buildExecutionTasks,
   COUNTRY_PACKS,
   renderLetter,
@@ -401,6 +402,7 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     tasks,
     audit: auditLog,
     categories: ITEM_CATEGORIES,
+    careRoles: CARE_ROLES,
     countryPacks: COUNTRY_PACKS,
     interviewQuestions: INTERVIEW_QUESTIONS,
     expiringSoon,
@@ -508,6 +510,26 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
       notes: 'Cancel after settling month.',
     },
     {
+      category: 'care',
+      title: 'Sunita',
+      institution: 'Nurse',
+      accountRef: '+91-98XXXXXX01',
+      shift: 'Night · 8pm–8am',
+      paidBy: 'Son (abroad) via UPI to neighbour',
+      backupContact: 'Building watchman — 98XXXXXX02',
+      notes: 'Has spare keys. Call before hospital discharge.',
+    },
+    {
+      category: 'care',
+      title: 'Meena',
+      institution: 'Maid / domestic help',
+      accountRef: '+91-97XXXXXX03',
+      shift: 'Morning · 8am–12pm',
+      paidBy: 'Cash weekly by neighbour aunt',
+      backupContact: 'Sister-in-law in Pune',
+      notes: 'Knows cupboard where medicines are kept.',
+    },
+    {
       category: 'contacts',
       title: 'Family CA',
       institution: 'Sharma & Co.',
@@ -572,7 +594,8 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
   } catch (err) {
     return res.status(err.status || 400).json({ error: err.message });
   }
-  const { category, title, institution, accountRef, notes } = req.body || {};
+  const { category, title, institution, accountRef, notes, shift, paidBy, backupContact } =
+    req.body || {};
   if (!category || !title?.trim()) {
     return res.status(400).json({ error: 'Category and title required' });
   }
@@ -593,6 +616,9 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
     institution: (institution || '').trim(),
     accountRef: (accountRef || '').trim(),
     notes: (notes || '').trim(),
+    shift: shift ? String(shift).trim() : null,
+    paidBy: paidBy ? String(paidBy).trim() : null,
+    backupContact: backupContact ? String(backupContact).trim() : null,
     expiresOn: req.body?.expiresOn ? String(req.body.expiresOn).trim() : null,
     files,
     createdAt: new Date().toISOString(),
@@ -671,7 +697,17 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
       (i) => i.id === req.params.itemId && i.estateId === req.params.id
     );
     if (!row) return null;
-    const fields = ['category', 'title', 'institution', 'accountRef', 'notes', 'expiresOn'];
+    const fields = [
+      'category',
+      'title',
+      'institution',
+      'accountRef',
+      'notes',
+      'expiresOn',
+      'shift',
+      'paidBy',
+      'backupContact',
+    ];
     for (const f of fields) {
       if (req.body?.[f] != null) row[f] = String(req.body[f]).trim() || null;
     }
@@ -1160,7 +1196,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.6',
+    version: '1.4.7',
   });
 });
 
@@ -1302,9 +1338,18 @@ app.get('/api/public/emergency/:token', (req, res) => {
     .filter(Boolean)
     .map((u) => ({ name: u.name, email: u.email }));
   const contacts = store.items
-    .filter((i) => i.estateId === estate.id && i.category === 'contacts')
-    .slice(0, 5)
-    .map((i) => ({ title: i.title, notes: i.notes }));
+    .filter((i) => i.estateId === estate.id && (i.category === 'contacts' || i.category === 'care'))
+    .slice(0, 8)
+    .map((i) => ({
+      title: i.title,
+      role: i.institution || (i.category === 'care' ? 'Caregiver' : null),
+      phone: i.accountRef || null,
+      notes: i.notes,
+      shift: i.shift || null,
+      paidBy: i.paidBy || null,
+      backupContact: i.backupContact || null,
+      kind: i.category,
+    }));
   res.json({
     subjectName: estate.subjectName,
     subjectRelation: estate.subjectRelation,
@@ -1316,6 +1361,7 @@ app.get('/api/public/emergency/:token', (req, res) => {
     contacts,
     firstSteps: [
       'Call the unlockers listed here',
+      'Call home caregivers (nurse / maid) if listed — confirm keys and overnight cover',
       'Get death certificate / doctor incapacity letter (multiple copies)',
       'Ask an unlocker to open Estate OS → Unlock tab → upload proof',
       'Do not share bank passwords casually — use the Execution checklist after unlock',

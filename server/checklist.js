@@ -7,8 +7,19 @@ export const ITEM_CATEGORIES = [
   { id: 'property', label: 'Property & papers', icon: 'home' },
   { id: 'digital', label: 'Phone, email, digital', icon: 'device' },
   { id: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
+  { id: 'care', label: 'Care at home', icon: 'care' },
   { id: 'contacts', label: 'Key contacts', icon: 'people' },
   { id: 'wishes', label: 'Wishes & notes', icon: 'heart' },
+];
+
+/** Roles for category=care (institution field stores the role label) */
+export const CARE_ROLES = [
+  { id: 'nurse', label: 'Nurse' },
+  { id: 'attendant', label: 'Attendant / ayah' },
+  { id: 'maid', label: 'Maid / domestic help' },
+  { id: 'cook', label: 'Cook' },
+  { id: 'driver', label: 'Driver' },
+  { id: 'other', label: 'Other caregiver' },
 ];
 
 /** India-first execution checklist generated when an estate unlocks */
@@ -43,6 +54,44 @@ export function buildIndiaExecutionTasks(estate, items) {
     documents: [],
     letterKey: null,
   });
+
+  const caregivers = items.filter((i) => i.category === 'care');
+  if (caregivers.length) {
+    push({
+      priority: 3,
+      category: 'immediate',
+      title: 'Confirm home care coverage',
+      detail:
+        'Call nurse / attendant / maid listed in Care at home. Confirm who stays overnight, who has house keys, and who is paid this week. Do not leave the home empty if the parent needs continuous care.',
+      documents: ['Caregiver phone numbers from Life Map'],
+      letterKey: null,
+    });
+    for (const care of caregivers) {
+      const phone = care.accountRef ? ` Phone: ${care.accountRef}.` : '';
+      const shift = care.shift ? ` Shift: ${care.shift}.` : '';
+      const paid = care.paidBy ? ` Paid by: ${care.paidBy}.` : '';
+      const backup = care.backupContact ? ` Backup: ${care.backupContact}.` : '';
+      push({
+        priority: 4,
+        category: 'immediate',
+        title: `Call caregiver — ${care.title}`,
+        detail: `${care.institution || 'Caregiver'}.${phone}${shift}${paid}${backup} ${care.notes || ''}`.trim(),
+        documents: [],
+        letterKey: null,
+        itemId: care.id,
+      });
+    }
+  } else {
+    push({
+      priority: 3,
+      category: 'immediate',
+      title: 'Arrange local care / house security',
+      detail:
+        'If the parent needed help at home, arrange a nurse, attendant, or trusted neighbour now. Add them under Life Map → Care at home for next time. Confirm who has keys.',
+      documents: [],
+      letterKey: null,
+    });
+  }
 
   const banks = items.filter((i) => i.category === 'bank');
   for (const bank of banks) {

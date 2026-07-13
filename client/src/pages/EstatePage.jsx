@@ -27,6 +27,9 @@ export default function EstatePage() {
     accountRef: '',
     notes: '',
     expiresOn: '',
+    shift: '',
+    paidBy: '',
+    backupContact: '',
   });
   const [files, setFiles] = useState(null);
   const [invite, setInvite] = useState({ email: '', role: 'manager' });
@@ -53,6 +56,8 @@ export default function EstatePage() {
   }, [searchParams]);
 
   const categories = data?.categories || [];
+  const careRoles = data?.careRoles || [];
+  const isCare = itemForm.category === 'care';
   const itemsByCat = useMemo(() => {
     const map = {};
     for (const c of categories) map[c.id] = [];
@@ -71,7 +76,17 @@ export default function EstatePage() {
       Object.entries(itemForm).forEach(([k, v]) => fd.append(k, v));
       if (files) [...files].forEach((f) => fd.append('files', f));
       await api(`/api/estates/${id}/items`, { method: 'POST', body: fd });
-      setItemForm({ category: 'bank', title: '', institution: '', accountRef: '', notes: '', expiresOn: '' });
+      setItemForm({
+        category: 'bank',
+        title: '',
+        institution: '',
+        accountRef: '',
+        notes: '',
+        expiresOn: '',
+        shift: '',
+        paidBy: '',
+        backupContact: '',
+      });
       setFiles(null);
       toast('Item added to Life Map');
       await load();
@@ -426,6 +441,17 @@ export default function EstatePage() {
                           <div className="small muted">
                             {[item.institution, item.accountRef].filter(Boolean).join(' · ')}
                           </div>
+                          {item.category === 'care' && (
+                            <div className="small muted" style={{ marginTop: '0.25rem' }}>
+                              {[
+                                item.shift && `Shift: ${item.shift}`,
+                                item.paidBy && `Paid by: ${item.paidBy}`,
+                                item.backupContact && `Backup: ${item.backupContact}`,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </div>
+                          )}
                           {item.notes && <p className="small" style={{ margin: '0.35rem 0 0' }}>{item.notes}</p>}
                           {item.expiresOn && (
                             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
@@ -495,7 +521,16 @@ export default function EstatePage() {
                 <label>Category</label>
                 <select
                   value={itemForm.category}
-                  onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({
+                      ...itemForm,
+                      category: e.target.value,
+                      institution:
+                        e.target.value === 'care' && !itemForm.institution
+                          ? 'Nurse'
+                          : itemForm.institution,
+                    })
+                  }
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -505,21 +540,85 @@ export default function EstatePage() {
                 </select>
               </div>
               <div className="field">
-                <label>Title</label>
-                <input required value={itemForm.title} onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })} placeholder="SBI Savings" />
+                <label>{isCare ? 'Name' : 'Title'}</label>
+                <input
+                  required
+                  value={itemForm.title}
+                  onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
+                  placeholder={isCare ? 'Sunita' : 'SBI Savings'}
+                />
               </div>
               <div className="field">
-                <label>Institution</label>
-                <input value={itemForm.institution} onChange={(e) => setItemForm({ ...itemForm, institution: e.target.value })} placeholder="State Bank of India" />
+                <label>{isCare ? 'Role' : 'Institution'}</label>
+                {isCare && careRoles.length > 0 ? (
+                  <select
+                    value={itemForm.institution}
+                    onChange={(e) => setItemForm({ ...itemForm, institution: e.target.value })}
+                  >
+                    {careRoles.map((r) => (
+                      <option key={r.id} value={r.label}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={itemForm.institution}
+                    onChange={(e) => setItemForm({ ...itemForm, institution: e.target.value })}
+                    placeholder="State Bank of India"
+                  />
+                )}
               </div>
               <div className="field">
-                <label>Account / policy ref</label>
-                <input value={itemForm.accountRef} onChange={(e) => setItemForm({ ...itemForm, accountRef: e.target.value })} placeholder="XXXX1234" />
+                <label>{isCare ? 'Phone' : 'Account / policy ref'}</label>
+                <input
+                  value={itemForm.accountRef}
+                  onChange={(e) => setItemForm({ ...itemForm, accountRef: e.target.value })}
+                  placeholder={isCare ? '+91-98XXXXXXXX' : 'XXXX1234'}
+                />
               </div>
+              {isCare && (
+                <>
+                  <div className="field">
+                    <label>Shift / hours</label>
+                    <input
+                      value={itemForm.shift}
+                      onChange={(e) => setItemForm({ ...itemForm, shift: e.target.value })}
+                      placeholder="Night · 8pm–8am"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Who pays them</label>
+                    <input
+                      value={itemForm.paidBy}
+                      onChange={(e) => setItemForm({ ...itemForm, paidBy: e.target.value })}
+                      placeholder="Son abroad via UPI to neighbour"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Backup person</label>
+                    <input
+                      value={itemForm.backupContact}
+                      onChange={(e) => setItemForm({ ...itemForm, backupContact: e.target.value })}
+                      placeholder="Building watchman — phone"
+                    />
+                  </div>
+                </>
+              )}
               <div className="field">
                 <label>Notes</label>
-                <textarea rows={3} value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} placeholder="Nominee is spouse; passbook in steel cupboard…" />
+                <textarea
+                  rows={3}
+                  value={itemForm.notes}
+                  onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
+                  placeholder={
+                    isCare
+                      ? 'Has spare keys; call before hospital discharge…'
+                      : 'Nominee is spouse; passbook in steel cupboard…'
+                  }
+                />
               </div>
+              {!isCare && (
               <div className="field">
                 <label>{t('expiry')} (optional)</label>
                 <input
@@ -528,6 +627,7 @@ export default function EstatePage() {
                   onChange={(e) => setItemForm({ ...itemForm, expiresOn: e.target.value })}
                 />
               </div>
+              )}
               <div className="field">
                 <label>Photos / PDFs</label>
                 <input type="file" multiple onChange={(e) => setFiles(e.target.files)} />
