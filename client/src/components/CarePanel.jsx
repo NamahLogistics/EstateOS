@@ -5,6 +5,7 @@ import UpgradeGate, { isPlanLimitError } from './UpgradeGate.jsx';
 
 export default function CarePanel({ estateId, onSaved }) {
   const { api, toast } = useAuth();
+  const [comingSoon, setComingSoon] = useState(true);
   const [city, setCity] = useState(() => {
     try {
       localStorage.removeItem('heirready_invite_city');
@@ -27,11 +28,17 @@ export default function CarePanel({ estateId, onSaved }) {
       if (nextCity.trim()) q.set('city', nextCity.trim());
       if (nextRole) q.set('role', nextRole);
       const res = await api(`/api/care/directory?${q.toString()}`);
+      setComingSoon(false);
       setUnlocked(true);
       setWorkers(res.workers || []);
       if (res.roles?.length) setRoles(res.roles);
     } catch (err) {
-      if (isPlanLimitError(err)) {
+      if (err?.data?.code === 'CARE_COMING_SOON' || /coming soon/i.test(err?.message || '')) {
+        setComingSoon(true);
+        setUnlocked(false);
+        setWorkers([]);
+      } else if (isPlanLimitError(err)) {
+        setComingSoon(false);
         setUnlocked(false);
         setWorkers([]);
         setUpgradeOpen(true);
@@ -57,12 +64,49 @@ export default function CarePanel({ estateId, onSaved }) {
       toast('Saved to Life Map → Care at home');
       onSaved?.();
     } catch (err) {
-      if (isPlanLimitError(err)) {
+      if (err?.data?.code === 'CARE_COMING_SOON' || /coming soon/i.test(err?.message || '')) {
+        setComingSoon(true);
+      } else if (isPlanLimitError(err)) {
         setUpgradeOpen(true);
       } else toast(err.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (comingSoon) {
+    return (
+      <div
+        className="card"
+        style={{
+          padding: '1.35rem',
+          borderColor: 'rgba(47, 107, 82, 0.35)',
+          background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
+        }}
+      >
+        <p
+          className="small muted"
+          style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+        >
+          Coming soon
+        </p>
+        <p className="display" style={{ fontSize: '1.45rem', margin: '0.3rem 0 0.4rem' }}>
+          Care in their city
+        </p>
+        <p className="muted" style={{ marginTop: 0, lineHeight: 1.55 }}>
+          Browse nurses, maids, and attendants near your parent isn’t open yet. We’re seeding the
+          network first — caregivers can join free today.
+        </p>
+        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+          <Link className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} to="/auth?mode=register&type=care">
+            Invite a caregiver — free
+          </Link>
+          <Link className="btn btn-ghost" style={{ padding: '0.5rem 1rem' }} to="/app#grow">
+            WhatsApp invite
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -72,24 +116,14 @@ export default function CarePanel({ estateId, onSaved }) {
         Care in their city
       </p>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Nurses, maids, and attendants near your parent — unlock with Family + Care or Diaspora + Care
-        (2× the base plans).
+        Nurses, maids, and attendants near your parent.
       </p>
 
       {unlocked === false && (
         <div className="upgrade-limit-banner" style={{ marginTop: '0.75rem' }}>
           <p className="small">
-            <strong>Add Care Network.</strong> Family + Care ₹2,998/yr or Diaspora + Care ₹24,998/yr —
-            then browse and save caregivers to the vault.
+            <strong>Coming soon.</strong> City care browse isn’t available to purchase yet.
           </p>
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <Link className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=family_care">
-              Family + Care
-            </Link>
-            <Link className="btn btn-ghost" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=diaspora_care">
-              Diaspora + Care
-            </Link>
-          </div>
         </div>
       )}
 
@@ -124,7 +158,7 @@ export default function CarePanel({ estateId, onSaved }) {
 
           <div style={{ marginTop: '1rem' }}>
             {workers.length === 0 ? (
-              <p className="muted small">No caregivers in this city yet — check back as the network grows.</p>
+              <p className="muted small">No caregivers in this city yet — invite them on WhatsApp.</p>
             ) : (
               workers.map((w) => (
                 <div key={w.id} className="item-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
@@ -141,7 +175,11 @@ export default function CarePanel({ estateId, onSaved }) {
                           {w.phone}
                         </div>
                       )}
-                      {w.bio && <p className="small" style={{ margin: '0.35rem 0 0' }}>{w.bio}</p>}
+                      {w.bio && (
+                        <p className="small" style={{ margin: '0.35rem 0 0' }}>
+                          {w.bio}
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"

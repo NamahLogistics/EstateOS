@@ -15,6 +15,8 @@ import {
   applyPlanExpiryInPlace,
   quotePlanChange,
   PLAN_LIST_PAISE,
+  CARE_NETWORK_COMING_SOON,
+  isCareNetworkPlan,
 } from './plans.js';
 
 const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || PLAN_LIST_PAISE.family);
@@ -154,6 +156,15 @@ function checkoutDescription(plan, quote, applyDiscount) {
 }
 
 async function createCheckout(user, plan) {
+  if (CARE_NETWORK_COMING_SOON && isCareNetworkPlan(plan)) {
+    const err = new Error(
+      'City care network is coming soon — Family + Care and Diaspora + Care aren’t available to purchase yet. Caregivers can still join free.'
+    );
+    err.status = 403;
+    err.code = 'CARE_COMING_SOON';
+    throw err;
+  }
+
   const storeUser = freshUser(user.id) || user;
   ensureUserReferralFields(storeUser, readStore());
   mutate((s) => {
@@ -400,6 +411,13 @@ export function registerBillingRoutes(app) {
     }
 
     const plan = pending?.plan || normalizeCheckoutPlan(bodyPlan);
+
+    if (CARE_NETWORK_COMING_SOON && isCareNetworkPlan(plan)) {
+      return res.status(403).json({
+        error: 'City care network is coming soon — this plan isn’t available yet.',
+        code: 'CARE_COMING_SOON',
+      });
+    }
 
     const planExpiresAt = activatePlan(req.user.id, plan, {
       paymentId: razorpay_payment_id,

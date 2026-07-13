@@ -57,6 +57,7 @@ import {
   planPublicFields,
   applyPlanExpiryInPlace,
   ownerHasPaidPlan,
+  CARE_NETWORK_COMING_SOON,
 } from './plans.js';
 import { draftFromPhoto } from './scan.js';
 import {
@@ -1297,7 +1298,8 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.9.10',
+    careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
+    version: '1.10.0',
   });
 });
 

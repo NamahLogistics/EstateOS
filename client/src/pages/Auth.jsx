@@ -115,7 +115,7 @@ export default function AuthPage() {
           {isLawyer
             ? 'Counsel desk, city leads, and matter briefs — for advocates.'
             : isCare
-              ? 'List your cities and role — families on Family + Care or Diaspora + Care can find you.'
+              ? 'List your cities and role free — families will find you when city care launches.'
               : 'Families map estates. Counsel and care network when you need them.'}
         </p>
         {mode === 'register' && cityHint && !isLawyer && (

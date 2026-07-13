@@ -54,7 +54,7 @@ export default function CareDesk() {
       });
       setData((d) => ({ ...d, worker: res.worker }));
       setForm(formFromWorker(res.worker));
-      toast('Profile saved — visible to families on Family + Care or Diaspora + Care');
+      toast('Profile saved — you’ll show when city care launches for families');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -80,6 +80,28 @@ export default function CareDesk() {
         {worker?.acceptingWork === false ? 'Not accepting work' : 'Accepting work'}
       </p>
 
+      <div
+        className="card"
+        style={{
+          margin: '1rem 0',
+          maxWidth: 640,
+          padding: '1rem 1.15rem',
+          borderColor: 'rgba(47, 107, 82, 0.35)',
+          background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
+        }}
+      >
+        <p
+          className="small muted"
+          style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+        >
+          Coming soon for families
+        </p>
+        <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+          Keep your profile ready. Families can’t browse yet — city care unlock is coming soon. You’re free to join
+          and list.
+        </p>
+      </div>
+
       <div style={{ margin: '1.15rem 0', maxWidth: 640 }}>
         <ReferralCard />
       </div>
@@ -89,7 +111,7 @@ export default function CareDesk() {
           <div>
             <strong>Your care profile</strong>
             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-              Families on Family + Care or Diaspora + Care see you in their city.
+              List free now — families will see you when city care launches.
             </p>
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.85rem' }} disabled={busy}>
@@ -183,8 +205,7 @@ export default function CareDesk() {
       </form>
 
       <p className="small muted">
-        Complete your profile so families in your cities can find you.{' '}
-        <Link to="/pricing?plan=family_care">Family + Care / Diaspora + Care</Link>
+        Complete your profile so you’re ready when families can browse. Caregivers join free — no payment needed.
       </p>
     </section>
   );

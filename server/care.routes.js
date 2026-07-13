@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { mutate, readStore, audit } from './db.js';
 import { authRequired } from './auth.js';
-import { userHasCareNetwork } from './plans.js';
+import { userHasCareNetwork, CARE_NETWORK_COMING_SOON } from './plans.js';
 import { CARE_ROLES } from './checklist.js';
 
 const uuid = () => crypto.randomUUID();
@@ -118,8 +118,16 @@ export function registerCareRoutes(app) {
     });
   });
 
-  /** Families with Family / Diaspora — browse by city */
+  /** Families with Care plans — browse by city (paused while coming soon) */
   app.get('/api/care/directory', authRequired, (req, res) => {
+    if (CARE_NETWORK_COMING_SOON) {
+      return res.status(403).json({
+        error: 'City care network is coming soon. Caregivers can still join and list free.',
+        code: 'CARE_COMING_SOON',
+        careUnlocked: false,
+        comingSoon: true,
+      });
+    }
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
         error: 'City nurses & maids unlock with Family + Care (₹2,998/yr) or Diaspora + Care (₹24,998/yr). Upgrade on Pricing.',
@@ -151,6 +159,13 @@ export function registerCareRoutes(app) {
 
   /** Save a directory worker onto estate Life Map as care item */
   app.post('/api/estates/:id/care/save', authRequired, (req, res) => {
+    if (CARE_NETWORK_COMING_SOON) {
+      return res.status(403).json({
+        error: 'City care network is coming soon — saving caregivers isn’t available yet.',
+        code: 'CARE_COMING_SOON',
+        comingSoon: true,
+      });
+    }
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
         error: 'Family + Care or Diaspora + Care required to save city caregivers. Upgrade on Pricing.',

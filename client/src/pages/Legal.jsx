@@ -55,7 +55,7 @@ export function LegalTerms() {
         appointments, and lawful use of the service.
       </p>
       <p>
-        Paid plans (Family / Family + Care / Diaspora / Diaspora + Care / Counsel Pro) are billed annually in INR via Razorpay.
+        Paid plans (Family / Diaspora / Counsel Pro) are billed annually in INR via Razorpay. Family + Care and Diaspora + Care are listed as coming soon and are not available for purchase.
         Mid-year upgrades charge a prorated difference for remaining days and keep your renewal date; downgrades take effect at renewal.
         Buyers abroad typically pay with an international debit/credit card. UPI and Indian
         netbanking remain available for payers in India. We do not require UPI for NRI checkout.

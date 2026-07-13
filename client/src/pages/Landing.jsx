@@ -66,7 +66,7 @@ export default function Landing() {
             ],
             [
               'Local care bench',
-              'On Family + Care or Diaspora + Care, see nurses and maids in their city, save them to the vault, stop relying on one WhatsApp forward.',
+              'Coming soon — city nurses and maids you can save to the vault. Caregivers can join free today.',
             ],
           ].map(([t, b]) => (
             <div key={t} className="feature-block">
@@ -83,8 +83,8 @@ export default function Landing() {
       <section className="section-counsel">
         <h2 className="display section-how-title">City care</h2>
         <p className="section-lead">
-          Nurses, maids, attendants in the parent’s city — Family + Care (₹2,998) or Diaspora + Care
-          (₹24,998), double the base plans. Caregivers join free.
+          Family browse for nurses and maids is coming soon. Caregivers can join free now and list
+          their city — we’ll open family unlock when the network is ready.
         </p>
         <div className="hero-actions">
           {isCare ? (
@@ -93,10 +93,10 @@ export default function Landing() {
             </Link>
           ) : (
             <>
-              <Link className="btn btn-primary" to="/pricing?plan=family_care">
-                Family + Care — ₹2,998/yr
-              </Link>
-              <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
+              <span className="btn btn-ghost" style={{ opacity: 0.7, pointerEvents: 'none' }}>
+                Family + Care — coming soon
+              </span>
+              <Link className="btn btn-primary" to="/auth?mode=register&type=care">
                 I provide care — join free
               </Link>
             </>

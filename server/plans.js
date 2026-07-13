@@ -137,10 +137,18 @@ export function userHasCounselPro(user) {
 /**
  * City nurses / maids — Family+Care or Diaspora+Care only (2× base plans).
  * Legacy `care` still unlocks. Base Family/Diaspora do not.
+ * When CARE_NETWORK_COMING_SOON, families cannot buy or browse; caregivers still onboard.
  */
+export const CARE_NETWORK_COMING_SOON = true;
+
+export function isCareNetworkPlan(plan) {
+  return plan === 'family_care' || plan === 'diaspora_care' || plan === 'care';
+}
+
 export function userHasCareNetwork(user) {
+  if (CARE_NETWORK_COMING_SOON) return false;
   if (!user || !userHasPaidAccess(user)) return false;
-  return user.plan === 'family_care' || user.plan === 'diaspora_care' || user.plan === 'care';
+  return isCareNetworkPlan(user.plan);
 }
 
 export function userHasDiasporaPack(user) {
