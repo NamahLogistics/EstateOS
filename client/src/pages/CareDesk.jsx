@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import { useCareNetwork } from '../careNetwork.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 
 const DEFAULT_ROLES = [
@@ -28,6 +29,7 @@ function formFromWorker(worker) {
 
 export default function CareDesk() {
   const { api, toast, user } = useAuth();
+  const { comingSoon: careComingSoon } = useCareNetwork();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -53,7 +55,11 @@ export default function CareDesk() {
       });
       setData((d) => ({ ...d, worker: res.worker }));
       setForm(formFromWorker(res.worker));
-      toast('Profile saved — you’ll show when city care launches for families');
+      toast(
+        careComingSoon
+          ? 'Profile saved — you’ll show when city care launches for families'
+          : 'Profile saved — visible to families on Family + Care or Diaspora + Care'
+      );
     } catch (err) {
       toast(err.message);
     } finally {
@@ -79,27 +85,29 @@ export default function CareDesk() {
         {worker?.acceptingWork === false ? 'Not accepting work' : 'Accepting work'}
       </p>
 
-      <div
-        className="card"
-        style={{
-          margin: '1rem 0',
-          maxWidth: 640,
-          padding: '1rem 1.15rem',
-          borderColor: 'rgba(47, 107, 82, 0.35)',
-          background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
-        }}
-      >
-        <p
-          className="small muted"
-          style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+      {careComingSoon && (
+        <div
+          className="card"
+          style={{
+            margin: '1rem 0',
+            maxWidth: 640,
+            padding: '1rem 1.15rem',
+            borderColor: 'rgba(47, 107, 82, 0.35)',
+            background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
+          }}
         >
-          Coming soon for families
-        </p>
-        <p className="muted" style={{ margin: '0.35rem 0 0' }}>
-          Keep your profile ready. Families can’t browse yet — city care unlock is coming soon. You’re free to join
-          and list.
-        </p>
-      </div>
+          <p
+            className="small muted"
+            style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+          >
+            Coming soon for families
+          </p>
+          <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+            Keep your profile ready. Families can’t browse yet — city care unlock is coming soon. You’re free to join
+            and list.
+          </p>
+        </div>
+      )}
 
       <div style={{ margin: '1.15rem 0', maxWidth: 640 }}>
         <ReferralCard />
@@ -110,7 +118,9 @@ export default function CareDesk() {
           <div>
             <strong>Your care profile</strong>
             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-              List free now — families will see you when city care launches.
+              {careComingSoon
+                ? 'List free now — families will see you when city care launches.'
+                : 'Families on Family + Care or Diaspora + Care see you in their city.'}
             </p>
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.85rem' }} disabled={busy}>
@@ -204,7 +214,9 @@ export default function CareDesk() {
       </form>
 
       <p className="small muted">
-        Complete your profile so you’re ready when families can browse. Caregivers join free — no payment needed.
+        {careComingSoon
+          ? 'Complete your profile so you’re ready when families can browse. Caregivers join free — no payment needed.'
+          : 'Complete your profile so families in your cities can find you on Family + Care / Diaspora + Care.'}
       </p>
     </section>
   );

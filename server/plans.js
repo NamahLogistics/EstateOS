@@ -137,9 +137,22 @@ export function userHasCounselPro(user) {
 /**
  * City nurses / maids — Family+Care or Diaspora+Care only (2× base plans).
  * Legacy `care` still unlocks. Base Family/Diaspora do not.
- * When CARE_NETWORK_COMING_SOON, families cannot buy or browse; caregivers still onboard.
+ *
+ * ── ONE SWITCH ──────────────────────────────────────────────────────────────
+ * Pause (now):  CARE_NETWORK_COMING_SOON unset or true  → no care checkout / browse
+ * Go live:      Railway env CARE_NETWORK_COMING_SOON=false → restart service
+ * Pause again:  CARE_NETWORK_COMING_SOON=true → restart
+ * Caregiver signup + Care desk always stay open either way.
+ * Client UI follows /api/health.careNetwork (coming_soon | live) — no frontend redeploy.
+ * ───────────────────────────────────────────────────────────────────────────
  */
-export const CARE_NETWORK_COMING_SOON = true;
+function envTruthy(name, defaultValue) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return defaultValue;
+  return !/^(0|false|no|off)$/i.test(String(raw).trim());
+}
+
+export const CARE_NETWORK_COMING_SOON = envTruthy('CARE_NETWORK_COMING_SOON', true);
 
 export function isCareNetworkPlan(plan) {
   return plan === 'family_care' || plan === 'diaspora_care' || plan === 'care';

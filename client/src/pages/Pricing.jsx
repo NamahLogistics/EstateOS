@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import { useCareNetwork } from '../careNetwork.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate from '../components/UpgradeGate.jsx';
 
@@ -31,15 +32,16 @@ const plans = [
     id: 'family_care',
     name: 'Family + Care',
     price: '₹2,998/yr',
-    blurb: 'City nurses & maids — coming soon',
+    blurbLive: '2× Family — adds city nurses & maids',
+    blurbSoon: 'City nurses & maids — coming soon',
     features: [
       'Everything in Family',
       'Browse nurses / maids by city',
       'Phone numbers unlocked',
       'Save caregivers into Life Map',
     ],
-    cta: 'Coming soon',
-    comingSoon: true,
+    ctaLive: 'Get Family + Care',
+    carePlan: true,
   },
   {
     id: 'diaspora',
@@ -58,15 +60,16 @@ const plans = [
     id: 'diaspora_care',
     name: 'Diaspora + Care',
     price: '₹24,998/yr',
-    blurb: 'Cross-border + city care — coming soon',
+    blurbLive: '2× Diaspora — cross-border + city care',
+    blurbSoon: 'Cross-border + city care — coming soon',
     features: [
       'Everything in Diaspora',
       'City nurses & maids directory',
       'Phone numbers unlocked',
       'Save caregivers into Life Map',
     ],
-    cta: 'Coming soon',
-    comingSoon: true,
+    ctaLive: 'Get Diaspora + Care',
+    carePlan: true,
   },
   {
     id: 'counsel',
@@ -104,6 +107,7 @@ function loadRazorpay() {
 
 export default function Pricing() {
   const { user, api, toast, setUser } = useAuth();
+  const { comingSoon: careComingSoon } = useCareNetwork();
   const [searchParams] = useSearchParams();
   const [lead, setLead] = useState({ name: '', email: '', interest: 'family' });
   const [busy, setBusy] = useState(false);
@@ -129,7 +133,7 @@ export default function Pricing() {
 
   async function checkout(plan) {
     if (plan === 'free') return;
-    if (plan === 'family_care' || plan === 'diaspora_care' || plan === 'care') {
+    if (careComingSoon && (plan === 'family_care' || plan === 'diaspora_care' || plan === 'care')) {
       toast('City care network is coming soon — not available to purchase yet');
       return;
     }
@@ -266,38 +270,67 @@ export default function Pricing() {
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
 
-      <div
-        className="card"
-        style={{
-          marginTop: '1.1rem',
-          maxWidth: 640,
-          padding: '1.15rem 1.25rem',
-          borderColor: 'rgba(47, 107, 82, 0.35)',
-          background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
-        }}
-      >
-        <p
-          className="small muted"
-          style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+      {careComingSoon ? (
+        <div
+          className="card"
+          style={{
+            marginTop: '1.1rem',
+            maxWidth: 640,
+            padding: '1.15rem 1.25rem',
+            borderColor: 'rgba(47, 107, 82, 0.35)',
+            background: 'linear-gradient(165deg, rgba(220, 232, 225, 0.55), var(--card))',
+          }}
         >
-          Coming soon
-        </p>
-        <p className="display" style={{ fontSize: '1.35rem', margin: '0.3rem 0 0.4rem' }}>
-          City care network
-        </p>
-        <p className="muted" style={{ margin: 0 }}>
-          Family + Care and Diaspora + Care aren’t open for purchase yet. Caregivers can still join
-          free and list their city — we’ll notify families when browse unlocks.
-        </p>
-        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
-          <Link className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} to="/auth?mode=register&type=care">
-            Join as caregiver — free
-          </Link>
-          <span className="btn btn-ghost" style={{ padding: '0.5rem 1rem', opacity: 0.65, pointerEvents: 'none' }}>
-            Family / Diaspora + Care — soon
-          </span>
+          <p
+            className="small muted"
+            style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+          >
+            Coming soon
+          </p>
+          <p className="display" style={{ fontSize: '1.35rem', margin: '0.3rem 0 0.4rem' }}>
+            City care network
+          </p>
+          <p className="muted" style={{ margin: 0 }}>
+            Family + Care and Diaspora + Care aren’t open for purchase yet. Caregivers can still join
+            free and list their city — we’ll notify families when browse unlocks.
+          </p>
+          <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+            <Link className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} to="/auth?mode=register&type=care">
+              Join as caregiver — free
+            </Link>
+            <span className="btn btn-ghost" style={{ padding: '0.5rem 1rem', opacity: 0.65, pointerEvents: 'none' }}>
+              Family / Diaspora + Care — soon
+            </span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="upgrade-limit-banner" style={{ marginTop: '1.1rem', maxWidth: 640 }}>
+          <p className="small">
+            <strong>Want nurses & maids in their city?</strong> Take Family + Care (₹2,998) or Diaspora +
+            Care (₹24,998) — double the base plan.
+          </p>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: '0.45rem 0.95rem' }}
+              disabled={busy}
+              onClick={() => checkout('family_care')}
+            >
+              Family + Care
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: '0.45rem 0.95rem' }}
+              disabled={busy}
+              onClick={() => checkout('diaspora_care')}
+            >
+              Diaspora + Care
+            </button>
+          </div>
+        </div>
+      )}
 
       {user ? (
         <div style={{ marginTop: '1.25rem', maxWidth: 640 }}>
@@ -311,9 +344,11 @@ export default function Pricing() {
 
       <div className="panel-grid" style={{ marginTop: '1.5rem' }}>
         {plans.map((p) => {
-          const featured = highlight === p.id && !p.comingSoon;
+          const soon = Boolean(p.carePlan && careComingSoon);
+          const featured = highlight === p.id && !soon;
           const half = referralHalfPrice(p.id);
-          const soon = Boolean(p.comingSoon);
+          const blurb = soon ? p.blurbSoon || p.blurb : p.blurbLive || p.blurb;
+          const cta = soon ? 'Coming soon' : p.ctaLive || p.cta;
           return (
             <div
               key={p.id}
@@ -331,7 +366,7 @@ export default function Pricing() {
                 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}
               >
                 {p.name}
-                {soon ? ' · coming soon' : ''}
+                {soon ? ' · coming soon' : p.carePlan ? ' · care network' : ''}
               </p>
               <p className="display" style={{ fontSize: '2rem', margin: '0.35rem 0' }}>
                 {soon ? '—' : p.price}
@@ -342,7 +377,7 @@ export default function Pricing() {
                 )}
               </p>
               <p className="muted" style={{ marginTop: 0 }}>
-                {p.blurb}
+                {blurb}
               </p>
               <ul style={{ paddingLeft: '1.1rem', color: 'var(--ink-soft)', lineHeight: 1.55 }}>
                 {p.features.map((f) => (
@@ -364,7 +399,9 @@ export default function Pricing() {
                 </button>
               ) : (
                 <button
-                  className={`btn ${p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
+                  className={`btn ${
+                    p.carePlan || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'
+                  }`}
                   style={{ width: '100%', marginTop: '0.5rem' }}
                   disabled={busy}
                   onClick={() => choose(p.id)}
@@ -385,7 +422,7 @@ export default function Pricing() {
                           : 'Upgrade (prorated)'
                         : hasCredit
                           ? 'Pay with 50% credit'
-                          : p.cta}
+                          : cta}
                 </button>
               )}
             </div>

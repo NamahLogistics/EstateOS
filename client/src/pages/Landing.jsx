@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import { useCareNetwork } from '../careNetwork.js';
 
 export default function Landing() {
   const { user } = useAuth();
+  const { comingSoon: careComingSoon } = useCareNetwork();
   const isLawyer = user?.accountType === 'lawyer';
   const isCare = user?.accountType === 'care';
 
@@ -66,7 +68,9 @@ export default function Landing() {
             ],
             [
               'Local care bench',
-              'Coming soon — city nurses and maids you can save to the vault. Caregivers can join free today.',
+              careComingSoon
+                ? 'Coming soon — city nurses and maids you can save to the vault. Caregivers can join free today.'
+                : 'On Family + Care or Diaspora + Care, see nurses and maids in their city, save them to the vault.',
             ],
           ].map(([t, b]) => (
             <div key={t} className="feature-block">
@@ -83,20 +87,30 @@ export default function Landing() {
       <section className="section-counsel">
         <h2 className="display section-how-title">City care</h2>
         <p className="section-lead">
-          Family browse for nurses and maids is coming soon. Caregivers can join free now and list
-          their city — we’ll open family unlock when the network is ready.
+          {careComingSoon
+            ? 'Family browse for nurses and maids is coming soon. Caregivers can join free now and list their city — we’ll open family unlock when the network is ready.'
+            : 'Nurses, maids, attendants in the parent’s city — Family + Care (₹2,998) or Diaspora + Care (₹24,998). Caregivers join free.'}
         </p>
         <div className="hero-actions">
           {isCare ? (
             <Link className="btn btn-primary" to="/app/care">
               Care desk
             </Link>
-          ) : (
+          ) : careComingSoon ? (
             <>
               <span className="btn btn-ghost" style={{ opacity: 0.7, pointerEvents: 'none' }}>
                 Family + Care — coming soon
               </span>
               <Link className="btn btn-primary" to="/auth?mode=register&type=care">
+                I provide care — join free
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link className="btn btn-primary" to="/pricing?plan=family_care">
+                Family + Care — ₹2,998/yr
+              </Link>
+              <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
                 I provide care — join free
               </Link>
             </>

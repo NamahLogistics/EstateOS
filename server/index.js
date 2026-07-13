@@ -1299,7 +1299,8 @@ app.get('/api/health', (_req, res) => {
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
-    version: '1.10.1',
+    /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
+    version: '1.10.2',
   });
 });
 
