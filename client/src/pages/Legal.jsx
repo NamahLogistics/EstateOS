@@ -63,6 +63,13 @@ export function LegalTerms() {
         under our Cancellation & Refunds policy.
       </p>
       <p>
+        Referral programme: when someone registers with your invite link and later pays for a plan,
+        you may receive one discount credit (typically 50% off one checkout). Credits stack, do not
+        expire while the programme runs, and are limited to one credit per referred person on their
+        first paid plan. Free signups and free caregiver listings do not earn credits. We may change
+        or end the referral programme with reasonable notice.
+      </p>
+      <p>
         We may suspend or terminate accounts for abuse, fraud, unlawful content, or non-payment.
         Service is provided on an as-available basis.
       </p>

@@ -112,10 +112,10 @@ export function referralInviteLink(baseUrl, user, opts = {}) {
 
 export function referralRuleForUser(user) {
   if (user?.accountType === 'lawyer') {
-    return 'Share with another advocate. You get 50% off only when they pay Counsel Pro — free signup alone doesn’t count.';
+    return 'Invite advocates with your link. Free joins don’t count. When they pay Counsel Pro (now or later), you get 1 credit (50% off one checkout). Credits stack and don’t expire — one per paid person.';
   }
   if (user?.accountType === 'care') {
-    return 'Caregivers join free (no 50% for free joins). You earn 50% off only if a family signs up with your code and pays a plan.';
+    return 'Caregivers join free (no credit). When a family uses your code and pays a plan — even next year — you get 1 credit. Invite many → credits stack. Each credit = 50% off one checkout.';
   }
-  return 'Any city works — type yours below. Caregivers join free (no reward). 50% off only when a referred person pays Family / Care / Diaspora / Counsel Pro.';
+  return 'Invite with WhatsApp. Free joins link them to you but don’t pay you. When they pay Family / Diaspora / Counsel Pro — this year or later — you get 1 credit. Many paid friends = many stacked credits. Each credit = 50% off one upgrade or renew; credits don’t expire. Caregiver free joins don’t count.';
 }

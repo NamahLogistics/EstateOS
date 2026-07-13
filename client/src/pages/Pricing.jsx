@@ -267,7 +267,13 @@ export default function Pricing() {
       <p className="muted" style={{ maxWidth: 560 }}>
         Annual subscriptions via Razorpay. Mid-year upgrades: pay only the difference for days
         left — renewal date stays the same. Downgrades wait until renewal.
-        {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
+        {hasCredit
+          ? ` You have ${credits} referral credit${credits === 1 ? '' : 's'} (50% off per checkout).`
+          : ''}
+      </p>
+      <p className="small muted" style={{ maxWidth: 560, marginTop: '0.35rem' }}>
+        Invites: each person who joins with your link and later pays earns you 1 credit. Credits stack and don’t
+        expire — use one per year when you renew, or on any paid upgrade.
       </p>
 
       {careComingSoon ? (

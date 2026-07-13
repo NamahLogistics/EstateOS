@@ -165,9 +165,29 @@ export default function ReferralCard({ compact = false }) {
         Tap → pick a chat → send
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Message opens prefilled with your link. Caregivers join free (no 50% for free joins). You get 50% off only
-        when someone <strong>pays</strong> with your code.
+        Bring families with your link. One person can earn many credits — each paid signup stacks.
       </p>
+
+      <div
+        className="small"
+        style={{
+          marginBottom: '1rem',
+          padding: '0.75rem 0.85rem',
+          borderRadius: 12,
+          background: 'rgba(255,255,255,0.72)',
+          lineHeight: 1.55,
+          color: 'var(--ink-soft)',
+        }}
+      >
+        <strong style={{ color: 'var(--ink)' }}>How 50% credits work</strong>
+        <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem' }}>
+          <li>They join free with your link → linked to you (no credit yet).</li>
+          <li>They pay a plan later — even next year → you get <strong>1 credit</strong>.</li>
+          <li>Invite many people → credits <strong>stack</strong> (10 paid friends = 10 credits).</li>
+          <li>Each credit = 50% off one checkout (upgrade or renew). Credits don’t expire.</li>
+          <li>Caregiver free joins don’t earn credits. One credit per person, first payment only.</li>
+        </ul>
+      </div>
 
       <div className="field" style={{ marginBottom: '1rem' }}>
         <label>City in the message</label>
@@ -197,7 +217,15 @@ export default function ReferralCard({ compact = false }) {
           <p className="small" style={{ marginBottom: '0.85rem' }}>
             Your code: <strong style={{ letterSpacing: '0.06em' }}>{code}</strong>
             {' · '}
-            Credits: {referral?.referralDiscountCredits ?? user.referralDiscountCredits ?? 0}
+            Credits ready:{' '}
+            <strong>{referral?.referralDiscountCredits ?? user.referralDiscountCredits ?? 0}</strong>
+            {(referral?.referralRewardCount || user.referralRewardCount) ? (
+              <>
+                {' '}
+                · Earned from {referral?.referralRewardCount ?? user.referralRewardCount} paid signup
+                {(referral?.referralRewardCount ?? user.referralRewardCount) === 1 ? '' : 's'}
+              </>
+            ) : null}
           </p>
 
           <div style={{ display: 'grid', gap: '0.75rem' }}>
