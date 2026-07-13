@@ -109,12 +109,12 @@ async function createCheckout(user, plan) {
   const applyDiscount = credits > 0;
   const amount = applyDiscount ? Math.round(fullAmount / 2) : fullAmount;
   const description = applyDiscount
-    ? `${plan === 'diaspora' ? 'Diaspora' : plan === 'counsel' ? 'Counsel Pro' : 'Family'} plan — 1 year (50% referral reward)`
+    ? `${plan === 'diaspora' ? 'Diaspora' : plan === 'counsel' ? 'Counsel Pro' : 'Family'} — 1 year (50% referral). Card from abroad or UPI in India.`
     : plan === 'diaspora'
-      ? 'Diaspora plan — 1 year'
+      ? 'Diaspora — 1 year. Pay with international card from abroad (UPI if you are in India).'
       : plan === 'counsel'
-        ? 'Counsel Pro — 1 year (city leads)'
-        : 'Family plan — 1 year';
+        ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
+        : 'Family — 1 year. International card from abroad, or UPI/netbanking in India.';
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
@@ -128,7 +128,7 @@ async function createCheckout(user, plan) {
       referralDiscount: applyDiscount,
       message: applyDiscount
         ? `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()} (50% referral). Add Razorpay keys for real checkout.`
-        : `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()}. Add RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET for UPI/card/netbanking.`,
+        : `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()}. Add real Razorpay keys; enable international cards for NRI checkout.`,
     };
   }
 
@@ -175,6 +175,22 @@ async function createCheckout(user, plan) {
     prefill: {
       name: user.name,
       email: user.email,
+    },
+    checkoutConfig: {
+      display: {
+        blocks: {
+          cards: {
+            name: 'Card (works from US / UK / Gulf)',
+            instruments: [{ method: 'card' }],
+          },
+          india: {
+            name: 'UPI / Netbanking (India)',
+            instruments: [{ method: 'upi' }, { method: 'netbanking' }],
+          },
+        },
+        sequence: ['block.cards', 'block.india'],
+        preferences: { show_default_blocks: false },
+      },
     },
   };
 }

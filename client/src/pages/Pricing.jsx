@@ -23,7 +23,7 @@ const plans = [
       'Counsel retain + brief',
       'ZIP export + audit log',
     ],
-    cta: 'Pay with UPI / card',
+    cta: 'Pay with card (works abroad)',
   },
   {
     id: 'diaspora',
@@ -34,9 +34,9 @@ const plans = [
       'Everything in Family',
       'India + US / India + UK packs',
       'NRI / cross-border pathway',
-      'Priority counsel matching',
+      'Pay from abroad with international card',
     ],
-    cta: 'Pay with UPI / card',
+    cta: 'Pay with card from abroad',
   },
   {
     id: 'counsel',
@@ -100,6 +100,23 @@ export default function Pricing() {
           order_id: data.orderId,
           prefill: data.prefill,
           theme: { color: '#2c4d3c' },
+          // NRI-first: card abroad first; UPI/netbanking for India-based payers
+          config: data.checkoutConfig || {
+            display: {
+              blocks: {
+                cards: {
+                  name: 'Card (works from US / UK / Gulf)',
+                  instruments: [{ method: 'card' }],
+                },
+                india: {
+                  name: 'UPI / Netbanking (India)',
+                  instruments: [{ method: 'upi' }, { method: 'netbanking' }],
+                },
+              },
+              sequence: ['block.cards', 'block.india'],
+              preferences: { show_default_blocks: false },
+            },
+          },
           handler: async (response) => {
             try {
               const verified = await api('/api/billing/verify', {
@@ -176,8 +193,8 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 520 }}>
-        Free to start. Paid plans are annual — renew before expiry or paid features lapse.
-        Razorpay (UPI, cards, netbanking) when configured.
+        Free to start. Diaspora buyers: pay with international card from abroad.
+        In India: UPI or netbanking also work. Annual plans via Razorpay.
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
 

@@ -55,7 +55,9 @@ export function LegalTerms() {
         appointments, and lawful use of the service.
       </p>
       <p>
-        Paid plans (Family / Diaspora) are billed annually via Razorpay unless otherwise stated.
+        Paid plans (Family / Diaspora / Counsel Pro) are billed annually in INR via Razorpay.
+        Buyers abroad typically pay with an international debit/credit card. UPI and Indian
+        netbanking remain available for payers in India. We do not require UPI for NRI checkout.
         Features may change; material downgrades of a paid plan during a paid term will be handled
         under our Cancellation & Refunds policy.
       </p>
@@ -126,7 +128,7 @@ export function LegalRefunds() {
       <p>
         Refund requests after 7 days, or after substantial use of paid features, are evaluated
         case-by-case. Approved refunds are processed within <strong>5–7 business days</strong>{' '}
-        after approval; the bank/UPI provider may take additional time to reflect credit.
+        after approval; the card issuer or UPI/bank provider may take additional time to reflect credit.
       </p>
       <p>
         Chargebacks for valid paid periods may lead to account suspension. Write to{' '}
