@@ -135,7 +135,7 @@ export default function Dashboard() {
               <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
                 No estates yet
               </p>
-              <p className="muted">Create one for a parent. You can invite siblings after.</p>
+              <p className="muted">Create one for a parent. Invite siblings next — they join the vault.</p>
             </div>
           ) : (
             estates.map((e) => (

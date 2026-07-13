@@ -10,8 +10,12 @@ function firstName(name) {
 }
 
 export function shareInviteText({ estateName, link, inviterName }) {
-  const who = firstName(inviterName) || 'Family';
-  return `${who} invited you to HeirReady for ${estateName}.\n\nJoin here:\n${link}\n\n(Not legal advice — family continuity vault)`;
+  const who = firstName(inviterName) || 'A sibling';
+  return (
+    `${who} invited you to HeirReady for ${estateName}.\n\n` +
+    `This is for siblings / family — shared vault for Mum/Dad’s banks, LIC, keys (not for inviting parents to the app).\n\n` +
+    `Join here:\n${link}\n\n(Not legal advice)`
+  );
 }
 
 export function shareEmergencyText({ subjectName, url }) {
@@ -36,21 +40,21 @@ export function shareReferralText({ link, inviterName, accountType }) {
   }
   return (
     `Hi —${who ? ` ${who} here.` : ''}\n\n` +
-    `I’m using HeirReady for our parents’ life admin (banks, LIC, keys).\n\n` +
-    `Join free:\n${link}`
+    `I’m using HeirReady so siblings can share our parents’ life admin (banks, LIC, keys).\n\n` +
+    `Join free — parents don’t need an account:\n${link}`
   );
 }
 
-/** Soft outbound to NRI / adult children */
+/** Soft outbound to siblings / adult children — not inviting parents to the app */
 export function shareFamilyOnboardText({ link, city, inviterName }) {
   const place = city?.trim();
   const who = firstName(inviterName);
   const where = place ? ` in ${place}` : '';
   return (
     `Hi${who ? ` — ${who} here` : ''}.\n\n` +
-    `I’m setting up HeirReady for our parents${where} — banks, LIC, property papers, who has the keys, and caregivers, all in one place.\n\n` +
-    `Join free (2 mins):\n${link}\n\n` +
-    `Add what you know when you can.`
+    `I’m setting up HeirReady so we siblings can share Mum/Dad’s life admin${where} — banks, LIC, property, keys, caregivers.\n\n` +
+    `Parents don’t need an account — we map it for them.\n\n` +
+    `Join free (2 mins) and add what you know:\n${link}`
   );
 }
 

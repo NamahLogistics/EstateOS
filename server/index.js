@@ -38,7 +38,7 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, sendPasswordResetEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
@@ -1023,6 +1023,94 @@ app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
   });
 });
 
+/** Estate family thread — open notes for everyone on the estate; email-notify others. */
+app.get('/api/estates/:id/thread', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const posts = (store.estateThreadPosts || [])
+    .filter((p) => p.estateId === access.estate.id && !p.deletedAt)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(-200);
+  res.json({ posts });
+});
+
+app.post('/api/estates/:id/thread', authRequired, async (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+
+  const body = String(req.body?.body || '').trim().slice(0, 2000);
+  if (body.length < 1) return res.status(400).json({ error: 'Write a short note' });
+
+  const author = store.users.find((u) => u.id === req.user.id);
+  const post = {
+    id: uuid(),
+    estateId: access.estate.id,
+    authorId: req.user.id,
+    authorName: author?.name || req.user.name || 'Family',
+    body,
+    createdAt: new Date().toISOString(),
+  };
+
+  mutate((s) => {
+    if (!s.estateThreadPosts) s.estateThreadPosts = [];
+    s.estateThreadPosts.push(post);
+    if (s.estateThreadPosts.length > 5000) {
+      s.estateThreadPosts = s.estateThreadPosts.slice(-4000);
+    }
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'thread_post',
+      detail: body.slice(0, 120),
+    });
+  });
+
+  const fresh = readStore();
+  const estate = fresh.estates.find((e) => e.id === access.estate.id);
+  const recipients = [];
+  const owner = fresh.users.find((u) => u.id === estate?.ownerId);
+  if (owner?.email && owner.id !== req.user.id) {
+    recipients.push({ email: owner.email, name: owner.name });
+  }
+  for (const m of fresh.members.filter((x) => x.estateId === estate.id && x.status === 'active')) {
+    if (m.userId === req.user.id) continue;
+    const u = fresh.users.find((x) => x.id === m.userId);
+    if (u?.email) recipients.push({ email: u.email, name: u.name });
+  }
+  const seen = new Set();
+  const unique = recipients.filter((r) => {
+    const key = r.email.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const base = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+  const link = `${base}/app/estates/${estate.id}?tab=family`;
+  let notified = 0;
+  await Promise.all(
+    unique.map(async (r) => {
+      try {
+        await sendEstateThreadNotify({
+          to: r.email,
+          recipientName: r.name,
+          estateName: estate.subjectName,
+          authorName: post.authorName,
+          body: post.body,
+          link,
+        });
+        notified += 1;
+      } catch (err) {
+        console.error('thread notify failed', r.email, err.message);
+      }
+    })
+  );
+
+  res.status(201).json({ post, notified });
+});
+
 app.get('/api/invites/:token', (req, res) => {
   const store = readStore();
   const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
@@ -1409,7 +1497,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.10.7',
+    version: '1.11.0',
   });
 });
 

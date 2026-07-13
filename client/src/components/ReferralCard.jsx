@@ -165,7 +165,7 @@ export default function ReferralCard({ compact = false }) {
         Tap → pick a chat → send
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Bring families with your link. One person can earn many credits — each paid signup stacks.
+        Bring siblings with your link. One person can earn many credits — each paid signup stacks.
       </p>
 
       <div
@@ -238,7 +238,7 @@ export default function ReferralCard({ compact = false }) {
                 rel="noreferrer"
                 onClick={needCity}
               >
-                WhatsApp family / adult children
+                WhatsApp siblings / family
               </a>
             )}
 

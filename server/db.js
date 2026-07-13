@@ -25,6 +25,7 @@ const empty = () => ({
   counselListings: [],
   careWorkers: [],
   invites: [],
+  estateThreadPosts: [],
   referrals: [],
   leads: [],
   mailOutbox: [],

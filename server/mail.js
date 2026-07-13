@@ -70,13 +70,14 @@ export async function sendEmail({ to, subject, html, text, replyTo, tags }) {
 }
 
 export async function sendInviteEmail({ to, estateName, role, link, inviterName }) {
-  const subject = `${inviterName || 'A family member'} invited you to HeirReady — ${estateName}`;
-  const text = `You've been invited to join the estate for ${estateName} as ${role}.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nHeirReady — family continuity software (not legal advice).`;
+  const subject = `${inviterName || 'A sibling'} invited you to HeirReady — ${estateName}`;
+  const text = `${inviterName || 'A family member'} invited you to join the estate for ${estateName} as ${role}.\n\nThis is for siblings / family sharing Mum/Dad’s life admin — parents don’t need an account.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nHeirReady — not legal advice.`;
   const html = `
     <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
-      <h2 style="font-weight:600">You're invited to HeirReady</h2>
-      <p><strong>${inviterName || 'A family member'}</strong> asked you to join
+      <h2 style="font-weight:600">You’re invited to the family vault</h2>
+      <p><strong>${inviterName || 'A sibling'}</strong> asked you to join
       <strong>${estateName}</strong> as <strong>${role}</strong>.</p>
+      <p style="color:#3a4a42">For brothers, sisters, and co-managing relatives — parents don’t need to sign up.</p>
       <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Accept invite</a></p>
       <p style="font-size:13px;color:#3a4a42">Or open: ${link}</p>
       <p style="font-size:12px;color:#3a4a42">Not legal advice. Link expires in 14 days.</p>
@@ -103,5 +104,35 @@ export async function sendPasswordResetEmail({ to, name, link }) {
     html,
     text,
     tags: [{ name: 'category', value: 'password_reset' }],
+  });
+}
+
+export async function sendEstateThreadNotify({
+  to,
+  recipientName,
+  estateName,
+  authorName,
+  body,
+  link,
+}) {
+  const preview = String(body || '').slice(0, 280);
+  const subject = `${estateName}: new family note from ${authorName || 'someone'}`;
+  const text = `Hi ${recipientName || 'there'},\n\n${authorName || 'A family member'} posted on ${estateName}:\n\n"${preview}"\n\nOpen the family thread:\n${link}\n\nHeirReady — family continuity (not legal advice).`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <p style="display:inline-block;background:#2c4d3c;color:#fff;padding:6px 12px;border-radius:999px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 12px">Family thread</p>
+      <h2 style="margin:0 0 8px;font-weight:600">${estateName}</h2>
+      <p style="margin:0 0 12px"><strong>${authorName || 'A family member'}</strong> posted:</p>
+      <p style="margin:0 0 16px;padding:12px 14px;background:#eef2ef;border-radius:12px;white-space:pre-wrap">${preview.replace(/</g, '&lt;')}</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Open family thread</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">You’re getting this because you’re on this estate. Not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'estate_thread' }],
   });
 }

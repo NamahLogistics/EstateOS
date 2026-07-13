@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
 import CarePanel from '../components/CarePanel.jsx';
+import FamilyThread from '../components/FamilyThread.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
@@ -1168,61 +1169,76 @@ export default function EstatePage() {
       {tab === 'counsel' && <CounselPanel estateId={id} onToast={toast} />}
 
       {tab === 'family' && (
-        <div className="split">
-          <div className="card">
-            <div style={{ padding: '1rem 1.1rem' }}>
-              <strong>People with access</strong>
-            </div>
-            {members.map((m) => (
-              <div key={m.id} className="item-row">
-                <strong>{m.name}</strong>
-                <div className="small muted">
-                  {m.email} · {m.role}
+        <div>
+          <FamilyThread estateId={id} />
+          <div className="split">
+            <div className="card">
+              <div style={{ padding: '1rem 1.1rem' }}>
+                <strong>People with access</strong>
+                <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+                  Adult children and siblings — not the parent’s login.
+                </p>
+              </div>
+              {members.map((m) => (
+                <div key={m.id} className="item-row">
+                  <strong>{m.name}</strong>
+                  <div className="small muted">
+                    {m.email} · {m.role}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {estate.myRole === 'owner' && (
+              <form className="card" style={{ padding: '1.2rem' }} onSubmit={inviteMember}>
+                <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
+                  Invite sibling / family
+                </p>
+                <p className="small muted">
+                  Invite brothers, sisters, or co-managing relatives. Parents don’t need an account —
+                  you map their papers for them.
+                </p>
+                <div className="field">
+                  <label>Email</label>
+                  <input
+                    required
+                    type="email"
+                    value={invite.email}
+                    onChange={(e) => setInvite({ ...invite, email: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Role</label>
+                  <select
+                    value={invite.role}
+                    onChange={(e) => setInvite({ ...invite, role: e.target.value })}
+                  >
+                    <option value="manager">Manager (can unlock / edit)</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </div>
+                <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
+                  Invite
+                </button>
+                {lastInviteLink && (
+                  <a
+                    className="btn btn-ghost"
+                    style={{ width: '100%', marginTop: '0.65rem', textAlign: 'center' }}
+                    href={whatsappShareUrl(
+                      shareInviteText({
+                        estateName: estate.subjectName,
+                        link: lastInviteLink,
+                        inviterName: user?.name,
+                      })
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Share invite on WhatsApp
+                  </a>
+                )}
+              </form>
+            )}
           </div>
-          {estate.myRole === 'owner' && (
-            <form className="card" style={{ padding: '1.2rem' }} onSubmit={inviteMember}>
-              <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-                Invite sibling
-              </p>
-              <p className="small muted">
-                We’ll create a shareable invite link. They can register with that email and join.
-              </p>
-              <div className="field">
-                <label>Email</label>
-                <input required type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Role</label>
-                <select value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
-                  <option value="manager">Manager (can unlock / edit)</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-              </div>
-              <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
-                Invite
-              </button>
-              {lastInviteLink && (
-                <a
-                  className="btn btn-ghost"
-                  style={{ width: '100%', marginTop: '0.65rem', textAlign: 'center' }}
-                  href={whatsappShareUrl(
-                    shareInviteText({
-                      estateName: estate.subjectName,
-                      link: lastInviteLink,
-                      inviterName: user?.name,
-                    })
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Share invite on WhatsApp
-                </a>
-              )}
-            </form>
-          )}
         </div>
       )}
 
