@@ -5,7 +5,97 @@ import { mutate } from './db.js';
 export const FREE_MAX_ESTATES = 1;
 export const FREE_MAX_ITEMS = 5;
 export const PLAN_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+export const PLAN_YEAR_DAYS = 365;
 export const RENEWAL_WARN_DAYS = 30;
+
+/** Annual list prices in paise — keep in sync with billing PLAN_AMOUNTS defaults */
+export const PLAN_LIST_PAISE = {
+  family: 149900,
+  family_care: 299800,
+  diaspora: 1249900,
+  diaspora_care: 2499800,
+  counsel: 149900,
+  care: 299800,
+};
+
+export function planListPaise(plan) {
+  return PLAN_LIST_PAISE[plan] || 0;
+}
+
+/**
+ * Quote for checkout: new/renew (full year + stack) vs mid-year upgrade (prorated delta, keep expiry).
+ * Downgrades while active are rejected.
+ */
+export function quotePlanChange(user, targetPlan, amounts = PLAN_LIST_PAISE) {
+  applyPlanExpiryInPlace(user);
+  const fullAmount = amounts[targetPlan];
+  if (!fullAmount) {
+    const err = new Error('Unknown plan');
+    err.status = 400;
+    throw err;
+  }
+
+  const active = userHasPaidAccess(user);
+  const fromPlan = user?.plan || 'free';
+  const fromAmount = active ? amounts[fromPlan] || 0 : 0;
+  const samePlan =
+    active && (fromPlan === targetPlan || (fromPlan === 'care' && targetPlan === 'family_care'));
+
+  if (!active || fromPlan === 'free' || samePlan) {
+    return {
+      kind: samePlan ? 'renew' : 'new',
+      fromPlan: active ? fromPlan : 'free',
+      toPlan: targetPlan,
+      amount: fullAmount,
+      fullAmount,
+      keepExpiresAt: null,
+      daysLeft: null,
+    };
+  }
+
+  if (fullAmount < fromAmount) {
+    const err = new Error(
+      `Downgrades apply at renewal. You stay on ${fromPlan} until ${user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString() : 'expiry'}, then choose a lower plan.`
+    );
+    err.status = 400;
+    err.code = 'DOWNGRADE_AT_RENEWAL';
+    throw err;
+  }
+
+  if (fullAmount === fromAmount && fromPlan !== targetPlan) {
+    // Lateral switch (same price) — no charge, keep expiry
+    return {
+      kind: 'lateral',
+      fromPlan,
+      toPlan: targetPlan,
+      amount: 0,
+      fullAmount,
+      keepExpiresAt: user.planExpiresAt,
+      daysLeft: Math.ceil(
+        Math.max(0, new Date(user.planExpiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+      ),
+    };
+  }
+
+  // Upgrade: pay prorated difference for remaining days; keep same end date
+  const expiresMs = user.planExpiresAt ? new Date(user.planExpiresAt).getTime() : 0;
+  const daysLeft = Math.max(0, Math.ceil((expiresMs - Date.now()) / (24 * 60 * 60 * 1000)));
+  const fraction = Math.min(1, daysLeft / PLAN_YEAR_DAYS);
+  const delta = fullAmount - fromAmount;
+  let amount = Math.round(delta * fraction);
+  if (delta > 0 && amount > 0 && amount < 100) amount = 100; // Razorpay ₹1 minimum
+
+  return {
+    kind: 'upgrade',
+    fromPlan,
+    toPlan: targetPlan,
+    amount,
+    fullAmount,
+    deltaFull: delta,
+    keepExpiresAt: user.planExpiresAt,
+    daysLeft,
+  };
+}
 
 export function isPaidPlanName(plan) {
   return (

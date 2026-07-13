@@ -9,19 +9,22 @@ import {
   referralInviteLink,
   referralRuleForUser,
 } from './referrals.js';
-import { nextPlanExpiresAt, planPublicFields, applyPlanExpiryInPlace } from './plans.js';
+import {
+  nextPlanExpiresAt,
+  planPublicFields,
+  applyPlanExpiryInPlace,
+  quotePlanChange,
+  PLAN_LIST_PAISE,
+} from './plans.js';
 
-const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900); // ₹1,499
-const DIASPORA_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 1249900); // ₹12,499
+const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || PLAN_LIST_PAISE.family);
+const DIASPORA_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_DIASPORA || PLAN_LIST_PAISE.diaspora);
 const PLAN_AMOUNTS = {
-  // paise (INR)
   family: FAMILY_AMOUNT,
   diaspora: DIASPORA_AMOUNT,
-  counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499
-  /** Base + city care network (2×) */
-  family_care: Number(process.env.RAZORPAY_AMOUNT_FAMILY_CARE || FAMILY_AMOUNT * 2), // ₹2,998
-  diaspora_care: Number(process.env.RAZORPAY_AMOUNT_DIASPORA_CARE || DIASPORA_AMOUNT * 2), // ₹24,998
-  /** @deprecated legacy single care plan → treat like family_care */
+  counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || PLAN_LIST_PAISE.counsel),
+  family_care: Number(process.env.RAZORPAY_AMOUNT_FAMILY_CARE || FAMILY_AMOUNT * 2),
+  diaspora_care: Number(process.env.RAZORPAY_AMOUNT_DIASPORA_CARE || DIASPORA_AMOUNT * 2),
   care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT * 2),
 };
 
@@ -39,7 +42,7 @@ function normalizeCheckoutPlan(raw) {
   if (raw === 'diaspora_care') return 'diaspora_care';
   if (raw === 'family_care') return 'family_care';
   if (raw === 'counsel') return 'counsel';
-  if (raw === 'care') return 'family_care'; // legacy checkout id
+  if (raw === 'care') return 'family_care';
   return 'family';
 }
 
@@ -47,7 +50,7 @@ export function razorpayConfigured() {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 }
 
-/** @deprecated use razorpayConfigured — kept so old health imports don't break mid-deploy */
+/** @deprecated use razorpayConfigured */
 export function stripeConfigured() {
   return razorpayConfigured();
 }
@@ -95,7 +98,11 @@ function activatePlan(userId, plan, paymentMeta = {}) {
     if (u) {
       ensureUserReferralFields(u, s);
       applyPlanExpiryInPlace(u);
-      expiresAt = nextPlanExpiresAt(u);
+      if (paymentMeta.keepExpiresAt) {
+        expiresAt = paymentMeta.keepExpiresAt;
+      } else {
+        expiresAt = nextPlanExpiresAt(u);
+      }
       u.plan = plan;
       u.planPaidAt = new Date().toISOString();
       u.planExpiresAt = expiresAt;
@@ -108,12 +115,14 @@ function activatePlan(userId, plan, paymentMeta = {}) {
     if (!s.leads) s.leads = [];
     s.leads.push({
       id: crypto.randomUUID(),
-      type: 'plan_paid',
+      type: paymentMeta.kind === 'upgrade' ? 'plan_upgraded' : 'plan_paid',
       plan,
       userId,
       paymentId: paymentMeta.paymentId || null,
       orderId: paymentMeta.orderId || null,
       referralDiscount: Boolean(paymentMeta.referralDiscount),
+      kind: paymentMeta.kind || 'new',
+      fromPlan: paymentMeta.fromPlan || null,
       planExpiresAt: expiresAt,
       at: new Date().toISOString(),
     });
@@ -122,48 +131,89 @@ function activatePlan(userId, plan, paymentMeta = {}) {
   return expiresAt;
 }
 
+function checkoutDescription(plan, quote, applyDiscount) {
+  if (quote.kind === 'upgrade') {
+    const rupees = (quote.amount / 100).toLocaleString('en-IN');
+    return `${planLabel(plan)} upgrade — ₹${rupees} for ${quote.daysLeft} days left (same renewal date)${
+      applyDiscount ? ' · 50% referral' : ''
+    }`;
+  }
+  if (quote.kind === 'lateral') {
+    return `${planLabel(plan)} — switch (no charge). Same renewal date.`;
+  }
+  if (applyDiscount) {
+    return `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.`;
+  }
+  if (plan === 'diaspora') return 'Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.';
+  if (plan === 'diaspora_care')
+    return 'Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.';
+  if (plan === 'counsel') return 'Counsel Pro — 1 year (city leads). Card or UPI.';
+  if (plan === 'family_care' || plan === 'care')
+    return 'Family + Care — 1 year (2× Family). Vault + city nurses & maids.';
+  return 'Family — 1 year. Unlimited vault + siblings. Card or UPI.';
+}
+
 async function createCheckout(user, plan) {
   const storeUser = freshUser(user.id) || user;
   ensureUserReferralFields(storeUser, readStore());
-  // Persist any newly generated referral code
   mutate((s) => {
     const u = s.users.find((x) => x.id === user.id);
     if (u) ensureUserReferralFields(u, s);
   });
 
-  const fullAmount = PLAN_AMOUNTS[plan];
+  const quote = quotePlanChange(storeUser, plan, PLAN_AMOUNTS);
   const credits = storeUser.referralDiscountCredits || 0;
-  const applyDiscount = credits > 0;
-  const amount = applyDiscount ? Math.round(fullAmount / 2) : fullAmount;
-  const description = applyDiscount
-    ? `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.`
-    : plan === 'diaspora'
-      ? 'Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.'
-      : plan === 'diaspora_care'
-        ? 'Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.'
-        : plan === 'counsel'
-          ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
-          : plan === 'family_care' || plan === 'care'
-            ? 'Family + Care — 1 year (2× Family). Vault + city nurses & maids.'
-            : 'Family — 1 year. Unlimited vault + siblings. Card or UPI.';
+  const applyDiscount = credits > 0 && quote.amount > 0;
+  const amount = applyDiscount ? Math.max(100, Math.round(quote.amount / 2)) : quote.amount;
+  const description = checkoutDescription(plan, quote, applyDiscount);
+  const activateMeta = {
+    kind: quote.kind,
+    fromPlan: quote.fromPlan,
+    keepExpiresAt: quote.keepExpiresAt || null,
+    referralDiscount: applyDiscount,
+  };
+
+  // Free lateral switch or zero-rupee upgrade edge case
+  if (amount <= 0) {
+    const planExpiresAt = activatePlan(user.id, plan, activateMeta);
+    return {
+      mode: 'direct',
+      plan,
+      planExpiresAt,
+      amount: 0,
+      fullAmount: quote.fullAmount,
+      quote,
+      referralDiscount: false,
+      message:
+        quote.kind === 'lateral'
+          ? `Switched to ${planLabel(plan)} — renews ${new Date(planExpiresAt).toLocaleDateString()}`
+          : `Plan set to ${planLabel(plan)} until ${new Date(planExpiresAt).toLocaleDateString()}`,
+    };
+  }
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
-    const planExpiresAt = activatePlan(user.id, plan, { referralDiscount: applyDiscount });
+    const planExpiresAt = activatePlan(user.id, plan, {
+      ...activateMeta,
+      referralDiscount: applyDiscount,
+    });
     return {
       mode: 'direct',
       plan,
       planExpiresAt,
       amount,
-      fullAmount,
+      fullAmount: quote.fullAmount,
+      quote,
       referralDiscount: applyDiscount,
-      message: applyDiscount
-        ? `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()} (50% referral). Add Razorpay keys for real checkout.`
-        : `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()}. Add real Razorpay keys; enable international cards for NRI checkout.`,
+      message:
+        quote.kind === 'upgrade'
+          ? `Upgraded to ${planLabel(plan)} — paid difference for ${quote.daysLeft} days left. Renews ${new Date(planExpiresAt).toLocaleDateString()}.`
+          : applyDiscount
+            ? `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()} (50% referral).`
+            : `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()}.`,
     };
   }
 
-  // Reserve credit when creating a discounted order (prevents double-use)
   if (applyDiscount) consumeReferralDiscountCredit(user.id);
 
   const order = await razorpayRequest('/orders', {
@@ -173,7 +223,9 @@ async function createCheckout(user, plan) {
     notes: {
       userId: user.id,
       plan,
-      email: user.email,
+      kind: quote.kind,
+      fromPlan: quote.fromPlan || '',
+      keepExpiresAt: quote.keepExpiresAt || '',
       referralDiscount: applyDiscount ? '50' : '0',
     },
   });
@@ -185,7 +237,11 @@ async function createCheckout(user, plan) {
       userId: user.id,
       plan,
       amount,
-      fullAmount,
+      fullAmount: quote.fullAmount,
+      kind: quote.kind,
+      fromPlan: quote.fromPlan,
+      keepExpiresAt: quote.keepExpiresAt,
+      daysLeft: quote.daysLeft,
       referralDiscount: applyDiscount,
       status: 'created',
       at: new Date().toISOString(),
@@ -197,11 +253,12 @@ async function createCheckout(user, plan) {
     plan,
     orderId: order.id,
     amount: order.amount,
-    fullAmount,
+    fullAmount: quote.fullAmount,
     currency: order.currency || 'INR',
     keyId: process.env.RAZORPAY_KEY_ID,
     name: 'HeirReady',
     description,
+    quote,
     referralDiscount: applyDiscount,
     prefill: {
       name: user.name,
@@ -248,6 +305,22 @@ export function registerBillingRoutes(app) {
     });
   });
 
+  app.get('/api/billing/quote', authRequired, (req, res) => {
+    try {
+      const plan = normalizeCheckoutPlan(req.query?.plan || req.body?.plan);
+      const user = freshUser(req.user.id);
+      const quote = quotePlanChange(user, plan, PLAN_AMOUNTS);
+      res.json({
+        ...quote,
+        label: planLabel(plan),
+        amountRupees: quote.amount / 100,
+        fullAmountRupees: quote.fullAmount / 100,
+      });
+    } catch (err) {
+      res.status(err.status || 400).json({ error: err.message, code: err.code });
+    }
+  });
+
   app.get('/api/billing/referral', authRequired, (req, res) => {
     mutate((s) => {
       const u = s.users.find((x) => x.id === req.user.id);
@@ -275,6 +348,7 @@ export function registerBillingRoutes(app) {
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
       next(err);
     }
   });
@@ -285,6 +359,7 @@ export function registerBillingRoutes(app) {
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
       next(err);
     }
   });
@@ -319,6 +394,9 @@ export function registerBillingRoutes(app) {
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
       referralDiscount: Boolean(pending?.referralDiscount),
+      kind: pending?.kind || 'new',
+      fromPlan: pending?.fromPlan || null,
+      keepExpiresAt: pending?.keepExpiresAt || null,
     });
 
     mutate((s) => {
@@ -335,6 +413,7 @@ export function registerBillingRoutes(app) {
       ok: true,
       plan,
       planExpiresAt,
+      kind: pending?.kind || 'new',
       referralDiscount: Boolean(pending?.referralDiscount),
       ...planPublicFields(user || {}),
       ...referralPublicFields(user || {}),

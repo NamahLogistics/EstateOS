@@ -181,9 +181,11 @@ export default function Pricing() {
               });
               setCredits(verified.referralDiscountCredits ?? 0);
               toast(
-                verified.referralDiscount
-                  ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-                  : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                verified.kind === 'upgrade'
+                  ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
+                  : verified.referralDiscount
+                    ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                    : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
               );
             } catch (err) {
               toast(err.message);
@@ -253,8 +255,9 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 560 }}>
-        Annual subscriptions via Razorpay. Base Family / Diaspora for the vault. Add Care (2×) for
-        city nurses & maids. From abroad: international card.
+        Annual subscriptions via Razorpay. Mid-year upgrades: pay only the difference for days
+      left — renewal date stays the same. Downgrades wait until renewal. Care is 2× Family /
+      Diaspora.
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
 
@@ -355,9 +358,17 @@ export default function Pricing() {
                       : 'Current plan'
                     : user?.previousPlan === p.id && user?.plan === 'free'
                       ? 'Renew plan'
-                      : hasCredit
-                        ? 'Pay with 50% credit'
-                        : p.cta}
+                      : user?.planActive &&
+                          user?.plan &&
+                          user.plan !== 'free' &&
+                          user.plan !== p.id &&
+                          p.id !== 'free'
+                        ? hasCredit
+                          ? 'Upgrade with 50% credit'
+                          : 'Upgrade (prorated)'
+                        : hasCredit
+                          ? 'Pay with 50% credit'
+                          : p.cta}
                 </button>
               )}
             </div>
