@@ -47,6 +47,7 @@ import {
   FREE_MAX_ITEMS,
   FREE_MAX_ESTATES,
   isPaidPlan,
+  remainingItemSlots,
 } from './plans.js';
 import { draftFromPhoto } from './scan.js';
 import {
@@ -510,13 +511,15 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
       notes: 'Simple cremation; inform village relatives within 24h.',
     },
   ];
-  try {
-    assertCanAddItems(store, req.user, access.estate.id, samples.length);
-  } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message });
+  const slots = remainingItemSlots(store, req.user, access.estate.id);
+  if (slots === 0) {
+    return res.status(402).json({
+      error: `Free plan vault is full (${FREE_MAX_ITEMS} items). Delete some items or upgrade on Pricing.`,
+    });
   }
+  const toAdd = Number.isFinite(slots) ? samples.slice(0, slots) : samples;
   mutate((s) => {
-    for (const sample of samples) {
+    for (const sample of toAdd) {
       s.items.push({
         id: uuid(),
         estateId: access.estate.id,
@@ -531,10 +534,18 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
       estateId: access.estate.id,
       userId: req.user.id,
       action: 'sample_seeded',
-      detail: 'Loaded India sample Life Map items',
+      detail: `Loaded ${toAdd.length} India sample Life Map items`,
     });
   });
-  res.json({ ok: true, added: samples.length });
+  res.json({
+    ok: true,
+    added: toAdd.length,
+    truncated: toAdd.length < samples.length,
+    message:
+      toAdd.length < samples.length
+        ? `Loaded ${toAdd.length} sample items (free plan max ${FREE_MAX_ITEMS}). Upgrade for the full sample pack.`
+        : `Loaded ${toAdd.length} sample items`,
+  });
 });
 
 // ── Life Map items ────────────────────────────────────

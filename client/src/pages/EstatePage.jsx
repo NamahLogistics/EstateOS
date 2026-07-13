@@ -85,8 +85,8 @@ export default function EstatePage() {
   async function seedDemo() {
     setBusy(true);
     try {
-      await api(`/api/estates/${id}/seed-sample`, { method: 'POST', body: {} });
-      toast('Sample India Life Map loaded');
+      const res = await api(`/api/estates/${id}/seed-sample`, { method: 'POST', body: {} });
+      toast(res.message || `Loaded ${res.added || ''} sample items`);
       await load();
     } catch (err) {
       toast(err.message);

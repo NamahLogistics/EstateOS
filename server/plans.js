@@ -49,6 +49,14 @@ export function assertCanAddItems(store, user, estateId, addCount = 1) {
   }
 }
 
+export function remainingItemSlots(store, user, estateId) {
+  const estate = store.estates.find((e) => e.id === estateId);
+  if (!estate) return 0;
+  if (user.accountType === 'lawyer' || ownerHasPaidPlan(store, estate)) return Infinity;
+  const count = store.items.filter((i) => i.estateId === estateId).length;
+  return Math.max(0, FREE_MAX_ITEMS - count);
+}
+
 export function normalizeCountryPack(pack, userPlan) {
   const allowed = ['IN', 'IN_US', 'IN_UK'];
   let value = allowed.includes(pack) ? pack : 'IN';
