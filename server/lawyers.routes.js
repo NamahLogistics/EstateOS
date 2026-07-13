@@ -46,6 +46,7 @@ function splitList(value, fallback = []) {
 }
 
 function publicLawyer(lawyer) {
+  const ratingCount = Number(lawyer.ratingCount) || 0;
   return {
     id: lawyer.id,
     slug: lawyer.slug,
@@ -59,13 +60,54 @@ function publicLawyer(lawyer) {
     retainerBand: lawyer.retainerBand,
     slaHours: lawyer.slaHours,
     bio: lawyer.bio,
-    rating: lawyer.mattersCompleted > 0 ? lawyer.rating : null,
+    rating: ratingCount > 0 ? lawyer.rating : null,
+    ratingCount,
     mattersCompleted: lawyer.mattersCompleted || 0,
     nriFriendly: !!lawyer.nriFriendly,
     verified: !!lawyer.verified,
     acceptingMatters: lawyer.acceptingMatters !== false,
     verificationRequestedAt: lawyer.verificationRequestedAt || null,
   };
+}
+
+function recomputeLawyerRating(s, lawyerId) {
+  const lawyer = s.lawyers.find((l) => l.id === lawyerId);
+  if (!lawyer) return null;
+  const ratings = (s.engagements || [])
+    .filter((e) => e.lawyerId === lawyerId && Number(e.familyRating) >= 1)
+    .map((e) => Number(e.familyRating));
+  lawyer.ratingCount = ratings.length;
+  lawyer.rating = ratings.length
+    ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+    : null;
+  return lawyer;
+}
+
+function applyFamilyRating(s, row, { rating, review, actorId }) {
+  const value = Number(rating);
+  if (!Number.isFinite(value) || value < 1 || value > 5) {
+    const err = new Error('Rating must be 1–5 stars');
+    err.status = 400;
+    throw err;
+  }
+  if (row.familyRating) {
+    const err = new Error('This matter was already rated');
+    err.status = 409;
+    throw err;
+  }
+  row.familyRating = Math.round(value);
+  row.familyReview = String(review || '')
+    .trim()
+    .slice(0, 500);
+  row.ratedAt = new Date().toISOString();
+  row.ratedBy = actorId;
+  pushTimeline(row, {
+    type: 'rated',
+    actorId,
+    detail: `Family rated ${row.familyRating}/5${row.familyReview ? ` — ${row.familyReview.slice(0, 80)}` : ''}`,
+  });
+  recomputeLawyerRating(s, row.lawyerId);
+  return row;
 }
 
 function selfLawyer(lawyer, user) {
@@ -334,9 +376,10 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
     if (nri === '1' || nri === 'true') list = list.filter((l) => l.nriFriendly);
     list.sort((a, b) => {
       if (!!b.verified !== !!a.verified) return b.verified ? 1 : -1;
-      const ra = a.mattersCompleted > 0 ? a.rating : 0;
-      const rb = b.mattersCompleted > 0 ? b.rating : 0;
-      return rb - ra;
+      const ra = (a.ratingCount || 0) > 0 ? a.rating : 0;
+      const rb = (b.ratingCount || 0) > 0 ? b.rating : 0;
+      if (rb !== ra) return rb - ra;
+      return (b.mattersCompleted || 0) - (a.mattersCompleted || 0);
     });
     res.json({ lawyers: list.map(publicLawyer) });
   });
@@ -642,6 +685,14 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
     }
 
     const message = (req.body?.message || '').trim();
+    const feeNote = String(req.body?.feeNote || req.body?.retainerNote || '')
+      .trim()
+      .slice(0, 280);
+    if (!feeNote && (!profile.retainerBand || /on request/i.test(profile.retainerBand))) {
+      return res.status(400).json({
+        error: 'Add a fee / retainer note (or set retainer band on your profile) before approaching',
+      });
+    }
     const scopes =
       Array.isArray(req.body?.scopes) && req.body.scopes.length
         ? req.body.scopes
@@ -661,6 +712,7 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
       scopes,
       familyBrief: listing.blurb || '',
       lawyerPitch: message,
+      lawyerFeeNote: feeNote || profile.retainerBand || '',
       urgency: listing.urgency || 'normal',
       status: 'approached',
       conflictAck: true,
@@ -689,7 +741,9 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
       firm: profile.firm,
       estateName: estate.subjectName,
       estateId: estate.id,
-      pitch: message,
+      pitch: [message, engagement.lawyerFeeNote ? `Fee/retainer: ${engagement.lawyerFeeNote}` : '']
+        .filter(Boolean)
+        .join('\n\n'),
     });
 
     res.status(201).json({
@@ -1001,33 +1055,110 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
     const store = readStore();
     const eng = store.engagements.find((e) => e.id === req.params.engagementId);
     if (!eng) return res.status(404).json({ error: 'Engagement not found' });
+    if (eng.status === 'closed') {
+      return res.status(400).json({ error: 'Matter already closed' });
+    }
+    if (!['active'].includes(eng.status)) {
+      return res.status(400).json({ error: 'Only active matters can be closed' });
+    }
     const isCounsel = eng.lawyerUserId === req.user.id;
     const access = accessFn(store, req.user.id, eng.estateId);
-    if (!isCounsel && access.role !== 'owner') {
+    const isFamilyCloser = access.ok && access.role === 'owner';
+    if (!isCounsel && !isFamilyCloser) {
       return res.status(403).json({ error: 'Only counsel or owner can close' });
     }
-    mutate((s) => {
+
+    let ratingError = null;
+    const result = mutate((s) => {
       const row = s.engagements.find((e) => e.id === eng.id);
       row.status = 'closed';
       row.closedAt = new Date().toISOString();
       row.updatedAt = row.closedAt;
+      row.closedBy = req.user.id;
       pushTimeline(row, {
         type: 'closed',
         actorId: req.user.id,
         detail: 'Matter closed',
       });
       const lawyer = s.lawyers.find((l) => l.id === row.lawyerId);
-      if (lawyer) {
+      if (lawyer && !row.closedCounted) {
         lawyer.mattersCompleted = (lawyer.mattersCompleted || 0) + 1;
+        row.closedCounted = true;
       }
+
+      if (isFamilyCloser && req.body?.rating != null && req.body?.rating !== '') {
+        try {
+          applyFamilyRating(s, row, {
+            rating: req.body.rating,
+            review: req.body.review,
+            actorId: req.user.id,
+          });
+        } catch (err) {
+          ratingError = err;
+        }
+      }
+
       audit(s, {
         estateId: row.estateId,
         userId: req.user.id,
         action: 'counsel_closed',
-        detail: 'Matter closed',
+        detail: row.familyRating
+          ? `Matter closed · rated ${row.familyRating}/5`
+          : 'Matter closed',
       });
+      return {
+        engagement: row,
+        lawyer: lawyer ? publicLawyer(lawyer) : null,
+      };
     });
-    res.json({ ok: true });
+
+    if (ratingError && !result.engagement.familyRating) {
+      // Matter still closed; surface rating issue separately
+      return res.json({
+        ok: true,
+        closed: true,
+        ratingError: ratingError.message,
+        engagement: result.engagement,
+        lawyer: result.lawyer,
+      });
+    }
+
+    res.json({ ok: true, closed: true, engagement: result.engagement, lawyer: result.lawyer });
+  });
+
+  app.post('/api/counsel/engagements/:engagementId/rate', authRequired, (req, res) => {
+    const store = readStore();
+    const eng = store.engagements.find((e) => e.id === req.params.engagementId);
+    if (!eng) return res.status(404).json({ error: 'Engagement not found' });
+    if (eng.status !== 'closed') {
+      return res.status(400).json({ error: 'Rate after the matter is closed' });
+    }
+    const access = accessFn(store, req.user.id, eng.estateId);
+    if (!access.ok || access.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the estate owner can rate counsel' });
+    }
+
+    try {
+      const updated = mutate((s) => {
+        const row = s.engagements.find((e) => e.id === eng.id);
+        applyFamilyRating(s, row, {
+          rating: req.body?.rating,
+          review: req.body?.review,
+          actorId: req.user.id,
+        });
+        const lawyer = s.lawyers.find((l) => l.id === row.lawyerId);
+        audit(s, {
+          estateId: row.estateId,
+          userId: req.user.id,
+          action: 'counsel_rated',
+          detail: `${row.familyRating}/5`,
+        });
+        return { engagement: row, lawyer: lawyer ? publicLawyer(lawyer) : null };
+      });
+      res.json({ ok: true, ...updated });
+    } catch (err) {
+      res.status(err.status || 400).json({ error: err.message || 'Rating failed' });
+    }
   });
 
   app.get('/api/estates/:id/counsel', authRequired, (req, res) => {

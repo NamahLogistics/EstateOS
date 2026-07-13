@@ -38,6 +38,7 @@ export default function CounselDesk() {
   const [leadsError, setLeadsError] = useState(null);
   const [cityFilter, setCityFilter] = useState('');
   const [pitch, setPitch] = useState({});
+  const [feeNote, setFeeNote] = useState({});
   const [busy, setBusy] = useState(false);
   const [profileForm, setProfileForm] = useState(null);
   const [specialtyOptions, setSpecialtyOptions] = useState(DEFAULT_SPECIALTIES);
@@ -156,6 +157,7 @@ export default function CounselDesk() {
         body: {
           conflictCleared: true,
           message: pitch[listingId] || '',
+          feeNote: feeNote[listingId] || data?.lawyer?.retainerBand || '',
         },
       });
       toast('Approach sent — family notified by email');
@@ -191,6 +193,10 @@ export default function CounselDesk() {
       <p className="muted" style={{ marginTop: 0 }}>
         {lawyer?.firm} · {(lawyer?.cities || []).join(' / ') || 'Set cities'} · intake {lawyer?.retainerBand} ·
         SLA {lawyer?.slaHours}h · plan {plan || 'free'}
+        {lawyer?.rating != null
+          ? ` · ★ ${lawyer.rating}${lawyer.ratingCount ? ` (${lawyer.ratingCount})` : ''}`
+          : ''}
+        {lawyer?.mattersCompleted ? ` · ${lawyer.mattersCompleted} matters closed` : ''}
       </p>
 
       {profileForm && (
@@ -454,19 +460,33 @@ export default function CounselDesk() {
                     </p>
                   )}
                   {!lead.alreadyApproached && lead.canApproach !== false && (
-                    <textarea
-                      rows={2}
-                      placeholder="Short pitch to the family…"
-                      value={pitch[lead.id] || ''}
-                      onChange={(e) => setPitch({ ...pitch, [lead.id]: e.target.value })}
-                      style={{
-                        width: '100%',
-                        marginTop: '0.5rem',
-                        borderRadius: 10,
-                        border: '1px solid var(--line)',
-                        padding: '0.5rem 0.65rem',
-                      }}
-                    />
+                    <>
+                      <textarea
+                        rows={2}
+                        placeholder="Short pitch to the family…"
+                        value={pitch[lead.id] || ''}
+                        onChange={(e) => setPitch({ ...pitch, [lead.id]: e.target.value })}
+                        style={{
+                          width: '100%',
+                          marginTop: '0.5rem',
+                          borderRadius: 10,
+                          border: '1px solid var(--line)',
+                          padding: '0.5rem 0.65rem',
+                        }}
+                      />
+                      <input
+                        placeholder={`Fee / retainer note (default: ${lawyer?.retainerBand || 'required'})`}
+                        value={feeNote[lead.id] ?? ''}
+                        onChange={(e) => setFeeNote({ ...feeNote, [lead.id]: e.target.value })}
+                        style={{
+                          width: '100%',
+                          marginTop: '0.4rem',
+                          borderRadius: 10,
+                          border: '1px solid var(--line)',
+                          padding: '0.5rem 0.65rem',
+                        }}
+                      />
+                    </>
                   )}
                 </div>
                 <div>

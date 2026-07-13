@@ -29,6 +29,8 @@ export default function CounselPanel({ estateId, onToast }) {
   const [busy, setBusy] = useState(false);
   const [newNeed, setNewNeed] = useState('');
   const [newAction, setNewAction] = useState('');
+  const [closeRating, setCloseRating] = useState(5);
+  const [closeReview, setCloseReview] = useState('');
   const [listingForm, setListingForm] = useState({
     city: '',
     blurb: '',
@@ -168,6 +170,53 @@ export default function CounselPanel({ estateId, onToast }) {
         body: fd,
       });
       notify('Document uploaded');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeMatter(engagementId, withRating = false) {
+    setBusy(true);
+    try {
+      const body = {};
+      if (withRating && role === 'owner') {
+        body.rating = Number(closeRating);
+        body.review = closeReview;
+      }
+      const res = await api(`/api/counsel/engagements/${engagementId}/close`, {
+        method: 'POST',
+        body,
+      });
+      notify(
+        res.ratingError
+          ? `Matter closed — rating note: ${res.ratingError}`
+          : withRating
+            ? 'Matter closed and rated'
+            : 'Matter closed'
+      );
+      setCloseReview('');
+      setCloseRating(5);
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rateMatter(engagementId) {
+    setBusy(true);
+    try {
+      await api(`/api/counsel/engagements/${engagementId}/rate`, {
+        method: 'POST',
+        body: { rating: Number(closeRating), review: closeReview },
+      });
+      notify('Thanks — rating saved');
+      setCloseReview('');
+      setCloseRating(5);
       await load();
     } catch (err) {
       notify(err.message);
@@ -492,6 +541,56 @@ export default function CounselPanel({ estateId, onToast }) {
                 </button>
               </form>
             </div>
+
+            <div className="card" style={{ padding: '1.1rem' }}>
+              <strong>Close matter</strong>
+              <p className="small muted" style={{ marginTop: '0.25rem' }}>
+                Closes the engagement and counts toward counsel reputation.
+                {role === 'owner' ? ' You can rate 1–5 stars when closing.' : ''}
+              </p>
+              {role === 'owner' && (
+                <div className="panel-grid" style={{ margin: '0.75rem 0' }}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Rating</label>
+                    <select value={closeRating} onChange={(e) => setCloseRating(e.target.value)}>
+                      {[5, 4, 3, 2, 1].map((n) => (
+                        <option key={n} value={n}>
+                          {n} star{n === 1 ? '' : 's'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Review (optional)</label>
+                    <input
+                      value={closeReview}
+                      onChange={(e) => setCloseReview(e.target.value)}
+                      placeholder="Clear, responsive, good on NRI docs…"
+                    />
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {role === 'owner' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy}
+                    onClick={() => closeMatter(active.id, true)}
+                  >
+                    Close + rate
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => closeMatter(active.id, false)}
+                >
+                  Close matter
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -512,6 +611,11 @@ export default function CounselPanel({ estateId, onToast }) {
                 {e.lawyerPitch && (
                   <p className="small" style={{ margin: '0.35rem 0' }}>
                     {e.lawyerPitch}
+                  </p>
+                )}
+                {e.lawyerFeeNote && (
+                  <p className="small muted" style={{ margin: '0.15rem 0 0' }}>
+                    Fee / retainer: {e.lawyerFeeNote}
                   </p>
                 )}
                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
@@ -766,7 +870,9 @@ export default function CounselPanel({ estateId, onToast }) {
                     </strong>
                     <div className="small muted">
                       {l.firm}
-                      {l.rating != null ? ` · ★ ${l.rating}` : ' · New on HeirReady'}
+                      {l.rating != null
+                        ? ` · ★ ${l.rating}${l.ratingCount ? ` (${l.ratingCount})` : ''}`
+                        : ' · New on HeirReady'}
                       {` · ${l.years}y · ${l.retainerBand}`}
                       {l.mattersCompleted ? ` · ${l.mattersCompleted} matters` : ''}
                     </div>
@@ -803,8 +909,44 @@ export default function CounselPanel({ estateId, onToast }) {
             {engagements
               .filter((e) => e.status === 'closed' || e.status === 'declined')
               .map((e) => (
-                <div key={e.id} className="item-row small muted">
-                  {e.lawyer?.name} · {e.status}
+                <div key={e.id} className="item-row">
+                  <div className="small">
+                    <strong>{e.lawyer?.name}</strong> · {e.status}
+                    {e.familyRating ? ` · ★ ${e.familyRating}/5` : ''}
+                  </div>
+                  {e.familyReview && <p className="small muted">{e.familyReview}</p>}
+                  {e.status === 'closed' && !e.familyRating && role === 'owner' && (
+                    <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <select
+                          value={closeRating}
+                          onChange={(ev) => setCloseRating(ev.target.value)}
+                          style={{ borderRadius: 10, border: '1px solid var(--line)', padding: '0.3rem 0.5rem' }}
+                        >
+                          {[5, 4, 3, 2, 1].map((n) => (
+                            <option key={n} value={n}>
+                              {n}★
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          value={closeReview}
+                          onChange={(ev) => setCloseReview(ev.target.value)}
+                          placeholder="Short review"
+                          style={{ flex: 1, minWidth: 140, borderRadius: 10, border: '1px solid var(--line)', padding: '0.35rem 0.55rem' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ padding: '0.35rem 0.7rem' }}
+                          disabled={busy}
+                          onClick={() => rateMatter(e.id)}
+                        >
+                          Rate
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
           </div>
