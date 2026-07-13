@@ -27,6 +27,9 @@ export default function EmergencyPage() {
   }
   if (!data) return <p className="muted">Loading…</p>;
 
+  const siblingUrl = data.siblingInvite?.url;
+  const ownerFirst = data.ownerFirstName || data.ownerName || 'family';
+
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: 560, margin: '1.5rem auto 3rem' }}>
       <p className="small muted" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
@@ -86,11 +89,37 @@ export default function EmergencyPage() {
         </>
       )}
 
+      <div
+        style={{
+          marginTop: '1.35rem',
+          padding: '1rem 1.1rem',
+          borderRadius: 12,
+          border: '1px solid rgba(47, 107, 82, 0.35)',
+          background: 'rgba(220, 232, 225, 0.45)',
+        }}
+      >
+        <strong>Sibling of {data.subjectName}?</strong>
+        <p className="small muted" style={{ margin: '0.35rem 0 0.75rem', lineHeight: 1.5 }}>
+          {siblingUrl
+            ? `${data.memberCount || ''} on the family map — join the vault ${ownerFirst} set up (banks, care phones, unlockers). Not for strangers.`
+            : `Ask ${ownerFirst} to WhatsApp you the HeirReady family invite so you can join the vault.`}
+        </p>
+        {siblingUrl ? (
+          <a className="btn btn-primary" href={siblingUrl}>
+            Join family vault
+          </a>
+        ) : (
+          <Link className="btn btn-ghost" to="/auth">
+            Sign in to HeirReady
+          </Link>
+        )}
+      </div>
+
       <p className="small muted" style={{ marginTop: '1.2rem' }}>
-        This page does <strong>not</strong> show bank passwords or full vault. Managed by {data.ownerName} on Estate
-        OS. Not legal advice.
+        This page does <strong>not</strong> show bank passwords or full vault. Managed by {data.ownerName} on
+        HeirReady. Not legal advice.
       </p>
-      <Link to="/auth">Sign in to HeirReady</Link>
+      {!siblingUrl && <Link to="/auth">Sign in to HeirReady</Link>}
     </div>
   );
 }

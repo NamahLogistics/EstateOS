@@ -31,6 +31,7 @@ export default function ReferralCard({ compact = false }) {
   const [referral, setReferral] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [careStats, setCareStats] = useState(null);
   const [city, setCity] = useState(() => {
     try {
       localStorage.removeItem('heirready_invite_city');
@@ -45,6 +46,23 @@ export default function ReferralCard({ compact = false }) {
   useEffect(() => {
     if (city.trim()) localStorage.setItem(CITY_KEY, city.trim());
   }, [city]);
+
+  useEffect(() => {
+    if (!city.trim() || isLawyer) {
+      setCareStats(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/care/stats?city=${encodeURIComponent(city.trim())}`)
+      .then(async (r) => {
+        const d = await r.json();
+        if (!cancelled && r.ok) setCareStats(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [city, isLawyer]);
 
   useEffect(() => {
     if (!user || !token) {
@@ -209,6 +227,21 @@ export default function ReferralCard({ compact = false }) {
           ))}
         </datalist>
       </div>
+
+      {careStats && cityReady && !isLawyer && (
+        <p className="small" style={{ margin: '-0.35rem 0 1rem', lineHeight: 1.45 }}>
+          <strong>
+            {careStats.listed} caregiver{careStats.listed === 1 ? '' : 's'} listed in {city.trim()}
+          </strong>
+          <span className="muted">
+            {' '}
+            · goal {careStats.goal} to unlock city browse
+            {careStats.listed < careStats.goal
+              ? ` (${careStats.goal - careStats.listed} more helps)`
+              : ' — density ready'}
+          </span>
+        </p>
+      )}
 
       {loading && <p className="small muted">{t('preparingInvites')}</p>}
       {error && (

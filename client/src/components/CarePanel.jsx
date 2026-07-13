@@ -2,9 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useCareNetwork } from '../careNetwork.js';
+import {
+  buildInviteUrl,
+  shareCareOnboardText,
+  whatsappShareUrl,
+} from '../whatsapp.js';
 import UpgradeGate, { isPlanLimitError } from './UpgradeGate.jsx';
 
-function ComingSoonCard() {
+const CITY_KEY = 'heirready_invite_city_v2';
+const SUGGESTED = ['Lucknow', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Hyderabad', 'Jaipur'];
+
+function ComingSoonCard({ city, onCity, stats, careWa, user }) {
+  const listed = stats?.listed ?? 0;
+  const goal = stats?.goal ?? 12;
+  const pct = Math.round(Math.min(1, listed / goal) * 100);
+
   return (
     <div
       className="card"
@@ -25,30 +37,99 @@ function ComingSoonCard() {
       </p>
       <p className="muted" style={{ marginTop: 0, lineHeight: 1.55, maxWidth: 420 }}>
         Finding nurses, maids, and attendants near your parent isn’t open yet — and there’s nothing to
-        buy. We’re building the caregiver network first.
+        buy. We’re seeding the caregiver network first.
       </p>
-      <p className="small muted" style={{ margin: '0.75rem 0 0' }}>
+
+      <div className="field" style={{ marginTop: '1rem', maxWidth: 320 }}>
+        <label>Parent city</label>
+        <input
+          value={city}
+          onChange={(e) => onCity(e.target.value)}
+          placeholder="e.g. Lucknow"
+          list="care-city-suggest"
+        />
+        <datalist id="care-city-suggest">
+          {SUGGESTED.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </div>
+
+      {city.trim() && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '0.85rem 1rem',
+            borderRadius: 12,
+            background: 'rgba(255,255,255,0.72)',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>
+            {listed} caregiver{listed === 1 ? '' : 's'} listed in {city.trim()}
+          </strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0.55rem' }}>
+            Goal: {goal} to unlock city browse for families. You’re helping seed density — like early
+            Airbnb supply.
+          </p>
+          <div
+            style={{
+              height: 8,
+              borderRadius: 999,
+              background: 'rgba(47, 107, 82, 0.15)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${pct}%`,
+                height: '100%',
+                background: 'var(--forest, #2f6b52)',
+                borderRadius: 999,
+              }}
+            />
+          </div>
+          <p className="small muted" style={{ margin: '0.45rem 0 0' }}>
+            {listed >= goal
+              ? 'Density ready — we’re opening cities carefully.'
+              : `${Math.max(0, goal - listed)} more listings help unlock ${city.trim()}.`}
+          </p>
+        </div>
+      )}
+
+      <p className="small muted" style={{ margin: '0.85rem 0 0' }}>
         Know a good caregiver? Invite them free. They can list now; families browse when we launch.
       </p>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-        <Link className="btn btn-primary" to="/app#grow">
-          WhatsApp invite caregivers
-        </Link>
+        {careWa ? (
+          <a className="btn btn-primary" href={careWa} target="_blank" rel="noreferrer">
+            WhatsApp invite caregivers
+          </a>
+        ) : (
+          <Link className="btn btn-primary" to="/app#grow">
+            WhatsApp invite caregivers
+          </Link>
+        )}
         <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
           Caregiver signup — free
         </Link>
       </div>
+      {!user && (
+        <p className="small muted" style={{ marginTop: '0.75rem' }}>
+          Sign in to attach your referral credit when caregivers join.
+        </p>
+      )}
     </div>
   );
 }
 
 export default function CarePanel({ estateId, onSaved }) {
-  const { api, toast } = useAuth();
+  const { api, toast, user } = useAuth();
   const { comingSoon, ready } = useCareNetwork();
   const [city, setCity] = useState(() => {
     try {
       localStorage.removeItem('heirready_invite_city');
-      return localStorage.getItem('heirready_invite_city_v2') || '';
+      return localStorage.getItem(CITY_KEY) || '';
     } catch {
       return '';
     }
@@ -59,6 +140,50 @@ export default function CarePanel({ estateId, onSaved }) {
   const [unlocked, setUnlocked] = useState(null);
   const [busy, setBusy] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    if (city.trim()) {
+      try {
+        localStorage.setItem(CITY_KEY, city.trim());
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [city]);
+
+  useEffect(() => {
+    if (!city.trim()) {
+      setStats(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/care/stats?city=${encodeURIComponent(city.trim())}`)
+      .then(async (r) => {
+        const d = await r.json();
+        if (!cancelled && r.ok) setStats(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [city]);
+
+  const careWa =
+    user?.referralCode && city.trim()
+      ? whatsappShareUrl(
+          shareCareOnboardText({
+            link: buildInviteUrl({
+              origin: window.location.origin,
+              ref: user.referralCode,
+              type: 'care',
+              city: city.trim(),
+            }),
+            city: city.trim(),
+            inviterName: user.name,
+          })
+        )
+      : null;
 
   async function load(nextCity = city, nextRole = role) {
     setBusy(true);
@@ -108,7 +233,17 @@ export default function CarePanel({ estateId, onSaved }) {
     }
   }
 
-  if (!ready || comingSoon) return <ComingSoonCard />;
+  if (!ready || comingSoon) {
+    return (
+      <ComingSoonCard
+        city={city}
+        onCity={setCity}
+        stats={stats}
+        careWa={careWa}
+        user={user}
+      />
+    );
+  }
 
   return (
     <div className="card" style={{ padding: '1.2rem' }}>

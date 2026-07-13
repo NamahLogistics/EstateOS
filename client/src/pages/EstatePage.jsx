@@ -8,7 +8,7 @@ import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import HousewarmingDone, { SiblingInviteCard } from '../components/HousewarmingDone.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
-import { shareEmergencyText, whatsappShareUrl } from '../whatsapp.js';
+import { shareEmergencyText, shareLightReviewText, whatsappShareUrl } from '../whatsapp.js';
 
 const TABS = [
   'housewarming',
@@ -521,6 +521,63 @@ export default function EstatePage() {
         </div>
       )}
       <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
+      {(() => {
+        const lightDue = estate.nextLightReviewAt && new Date(estate.nextLightReviewAt).getTime() <= Date.now() + 14 * 24 * 60 * 60 * 1000;
+        const showLight =
+          Boolean(housewarming?.progress?.completedAt) &&
+          (lightDue || searchParams.get('review') === '1');
+        if (!showLight) return null;
+        const mapLink = `${window.location.origin}/app/estates/${id}?tab=map`;
+        const wa = whatsappShareUrl(
+          shareLightReviewText({
+            estateName: estate.subjectName,
+            link: mapLink,
+            inviterName: user?.name,
+            lang,
+          })
+        );
+        return (
+          <div
+            className="card"
+            style={{
+              padding: '0.95rem 1.15rem',
+              marginTop: '0.85rem',
+              borderColor: 'rgba(47, 107, 82, 0.4)',
+              background: 'rgba(220, 232, 225, 0.45)',
+            }}
+          >
+            <strong>90-day check-in</strong>
+            <p className="small muted" style={{ margin: '0.35rem 0 0.75rem', lineHeight: 1.5 }}>
+              Same maid/nurse phone? Same LIC/bank? Ping a sibling on WhatsApp, then update the Life Map.
+              {estate.nextLightReviewAt
+                ? ` Due ${new Date(estate.nextLightReviewAt).toLocaleDateString()}.`
+                : ''}
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <a
+                className="btn"
+                style={{
+                  background: '#128C7E',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  padding: '0.55rem 0.95rem',
+                  borderRadius: 12,
+                }}
+                href={wa}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp siblings
+              </a>
+              <button type="button" className="btn btn-ghost" onClick={() => setTab('map')}>
+                Open Life Map
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {(expired?.length > 0 || expiringSoon?.length > 0) && (
         <div className="card" style={{ padding: '0.85rem 1.1rem', marginTop: '0.85rem', borderColor: 'var(--terracotta, #b45309)' }}>
           {expired?.length > 0 && (
@@ -1179,6 +1236,22 @@ export default function EstatePage() {
 
       {tab === 'family' && (
         <div>
+          {searchParams.get('welcome') === '1' && (
+            <div
+              className="card"
+              style={{
+                padding: '1rem 1.15rem',
+                marginBottom: '1rem',
+                borderColor: 'rgba(47, 107, 82, 0.4)',
+                background: 'rgba(220, 232, 225, 0.5)',
+              }}
+            >
+              <strong>You’re in — keep the loop going</strong>
+              <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+                Forward the same family WhatsApp link to another sibling. One link, many joins.
+              </p>
+            </div>
+          )}
           <FamilyThread estateId={id} estateName={estate.subjectName} />
           <div className="split">
             <div className="card">
@@ -1197,14 +1270,13 @@ export default function EstatePage() {
                 </div>
               ))}
             </div>
-            {estate.myRole === 'owner' && (
-              <SiblingInviteCard
-                estateId={id}
-                subjectName={estate.subjectName}
-                inviterName={user?.name}
-                onInvited={() => load().catch(() => {})}
-              />
-            )}
+            <SiblingInviteCard
+              estateId={id}
+              subjectName={estate.subjectName}
+              inviterName={user?.name}
+              canInvite={estate.myRole === 'owner' || estate.myRole === 'manager'}
+              onInvited={() => load().catch(() => {})}
+            />
           </div>
         </div>
       )}

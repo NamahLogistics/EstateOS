@@ -58,6 +58,14 @@ import {
   defaultHousewarmingState,
   HOUSEWARMING_STEPS,
 } from './housewarming.js';
+import {
+  ensureFamilyInvite,
+  findActiveFamilyInvite,
+  familyInvitePublicView,
+  inviteIsAcceptable,
+  consumeInvite,
+  inviteLinkFor,
+} from './familyInvite.js';
 import { computeLifeMapHealth } from './lifeMapHealth.js';
 import {
   assertCanCreateEstate,
@@ -1015,25 +1023,130 @@ app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
 });
 
 // ── Members & invites ─────────────────────────────────
+/** Durable multi-use family invite (Discord-style) — owner or manager. */
+app.get('/api/estates/:id/family-link', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner' && access.role !== 'manager') {
+    return res.status(403).json({ error: 'Only owner or manager can share the family link' });
+  }
+  const role = req.query.role === 'viewer' ? 'viewer' : 'manager';
+  let invite = findActiveFamilyInvite(store, access.estate.id, role);
+  if (!invite) {
+    invite = mutate((s) => {
+      const created = ensureFamilyInvite(s, access.estate.id, {
+        role,
+        invitedBy: req.user.id,
+      });
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'family_link_created',
+        detail: `Multi-use ${role} invite`,
+      });
+      return created;
+    });
+  }
+  const fresh = readStore();
+  const estate = fresh.estates.find((e) => e.id === access.estate.id);
+  res.json({ invite: familyInvitePublicView(invite, fresh, estate) });
+});
+
+app.post('/api/estates/:id/family-link', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner' && access.role !== 'manager') {
+    return res.status(403).json({ error: 'Only owner or manager can share the family link' });
+  }
+  const role = req.body?.role === 'viewer' ? 'viewer' : 'manager';
+  const rotate = Boolean(req.body?.rotate);
+  const invite = mutate((s) => {
+    if (rotate) {
+      for (const inv of s.invites || []) {
+        if (
+          inv.estateId === access.estate.id &&
+          inv.multiUse &&
+          inv.status === 'pending' &&
+          (inv.role || 'manager') === role
+        ) {
+          inv.status = 'revoked';
+          inv.revokedAt = new Date().toISOString();
+        }
+      }
+    }
+    const created = ensureFamilyInvite(s, access.estate.id, {
+      role,
+      invitedBy: req.user.id,
+    });
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: rotate ? 'family_link_rotated' : 'family_link_ensured',
+      detail: `Multi-use ${role} invite`,
+    });
+    return created;
+  });
+  const fresh = readStore();
+  const estate = fresh.estates.find((e) => e.id === access.estate.id);
+  res.status(201).json({ invite: familyInvitePublicView(invite, fresh, estate) });
+});
+
 app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
-  if (access.role !== 'owner') {
-    return res.status(403).json({ error: 'Only owner can invite' });
+  if (access.role !== 'owner' && access.role !== 'manager') {
+    return res.status(403).json({ error: 'Only owner or manager can invite' });
   }
   const email = (req.body?.email || '').trim().toLowerCase();
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
+
+  // Open invite → durable multi-use family link
+  if (!email) {
+    const invite = mutate((s) => {
+      const created = ensureFamilyInvite(s, access.estate.id, {
+        role: role === 'viewer' ? 'viewer' : 'manager',
+        invitedBy: req.user.id,
+      });
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'invite_created',
+        detail: `Open multi-use WhatsApp invite as ${created.role}`,
+      });
+      return created;
+    });
+    const fresh = readStore();
+    const view = familyInvitePublicView(invite, fresh, access.estate);
+    return res.status(201).json({
+      invite: {
+        id: invite.id,
+        email: null,
+        role: invite.role,
+        expiresAt: invite.expiresAt,
+        link: view.link,
+        token: invite.token,
+        emailStatus: 'skipped',
+        openInvite: true,
+        multiUse: true,
+        memberCount: view.memberCount,
+        remaining: view.remaining,
+      },
+    });
+  }
 
   const token = crypto.randomBytes(24).toString('hex');
   const invite = {
     id: uuid(),
     estateId: access.estate.id,
-    email: email || '',
+    email,
     role,
     token,
     invitedBy: req.user.id,
     status: 'pending',
+    multiUse: false,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   };
@@ -1043,37 +1156,36 @@ app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
       estateId: access.estate.id,
       userId: req.user.id,
       action: 'invite_created',
-      detail: email ? `Invite for ${email} as ${role}` : `Open WhatsApp invite as ${role}`,
+      detail: `Invite for ${email} as ${role}`,
     });
   });
   const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
   const link = `${base}/invite/${token}`;
   let emailStatus = 'skipped';
-  if (email) {
-    try {
-      const sent = await sendInviteEmail({
-        to: email,
-        estateName: access.estate.subjectName,
-        role,
-        link,
-        inviterName: req.user.name,
-      });
-      emailStatus = sent.mode;
-    } catch (err) {
-      emailStatus = 'failed';
-      console.error('invite email failed', err.message);
-    }
+  try {
+    const sent = await sendInviteEmail({
+      to: email,
+      estateName: access.estate.subjectName,
+      role,
+      link,
+      inviterName: req.user.name,
+    });
+    emailStatus = sent.mode;
+  } catch (err) {
+    emailStatus = 'failed';
+    console.error('invite email failed', err.message);
   }
   res.status(201).json({
     invite: {
       id: invite.id,
-      email: email || null,
+      email,
       role,
       expiresAt: invite.expiresAt,
       link,
       token,
       emailStatus,
-      openInvite: !email,
+      openInvite: false,
+      multiUse: false,
     },
   });
 });
@@ -1182,28 +1294,34 @@ app.post('/api/estates/:id/thread', authRequired, async (req, res) => {
 
 app.get('/api/invites/:token', (req, res) => {
   const store = readStore();
-  const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
-  if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
-  if (new Date(invite.expiresAt) < new Date()) {
-    return res.status(410).json({ error: 'Invite expired' });
+  const invite = store.invites.find((i) => i.token === req.params.token);
+  if (!invite || !inviteIsAcceptable(invite)) {
+    return res.status(404).json({ error: 'Invite not found or already used' });
   }
   const estate = store.estates.find((e) => e.id === invite.estateId);
   const openInvite = !invite.email;
+  const members = (store.members || []).filter(
+    (m) => m.estateId === invite.estateId && m.status === 'active'
+  );
   res.json({
     email: invite.email || null,
     openInvite,
+    multiUse: Boolean(invite.multiUse),
     role: invite.role,
     estateName: estate?.subjectName,
     expiresAt: invite.expiresAt,
+    memberCount: members.length + 1,
+    remaining: invite.multiUse
+      ? Math.max(0, (invite.maxUses ?? 25) - (invite.useCount || 0))
+      : 1,
   });
 });
 
 app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
   const store = readStore();
-  const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
-  if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
-  if (new Date(invite.expiresAt) < new Date()) {
-    return res.status(410).json({ error: 'Invite expired' });
+  const invite = store.invites.find((i) => i.token === req.params.token);
+  if (!invite || !inviteIsAcceptable(invite)) {
+    return res.status(404).json({ error: 'Invite not found or already used' });
   }
   const estate = store.estates.find((e) => e.id === invite.estateId);
   if (!estate) return res.status(404).json({ error: 'Estate not found' });
@@ -1223,14 +1341,18 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
     (m) => m.estateId === invite.estateId && m.userId === req.user.id && m.status === 'active'
   );
   if (already) {
-    return res.json({ ok: true, estateId: invite.estateId, alreadyMember: true });
+    const familyInvite = findActiveFamilyInvite(store, invite.estateId, 'manager');
+    return res.json({
+      ok: true,
+      estateId: invite.estateId,
+      alreadyMember: true,
+      familyInviteLink: familyInvite ? inviteLinkFor(familyInvite.token) : null,
+    });
   }
 
   mutate((s) => {
     const inv = s.invites.find((i) => i.id === invite.id);
-    inv.status = 'accepted';
-    inv.acceptedAt = new Date().toISOString();
-    if (!inv.email) inv.email = req.user.email;
+    consumeInvite(inv, req.user.email);
     const exists = s.members.find(
       (m) => m.estateId === invite.estateId && m.userId === req.user.id
     );
@@ -1251,6 +1373,11 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
       if (!ids.includes(req.user.id)) ids.push(req.user.id);
       e.unlockRules.unlockerUserIds = ids;
     }
+    // Keep a durable family link alive for the forward-loop
+    ensureFamilyInvite(s, invite.estateId, {
+      role: 'manager',
+      invitedBy: req.user.id,
+    });
     audit(s, {
       estateId: invite.estateId,
       userId: req.user.id,
@@ -1259,7 +1386,13 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
     });
   });
 
-  const owner = store.users.find((u) => u.id === estate.ownerId);
+  const fresh = readStore();
+  const owner = fresh.users.find((u) => u.id === estate.ownerId);
+  const familyInvite = findActiveFamilyInvite(fresh, invite.estateId, 'manager');
+  const familyInviteLink = familyInvite ? inviteLinkFor(familyInvite.token) : null;
+  const memberCount =
+    (fresh.members || []).filter((m) => m.estateId === invite.estateId && m.status === 'active')
+      .length + 1;
   const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
   if (owner?.email && owner.id !== req.user.id) {
     sendSiblingJoinedEmail({
@@ -1274,18 +1407,29 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
     notifyUsers({
       userIds: [owner.id],
       title: `${req.user.name || 'A sibling'} joined ${estate.subjectName}`,
-      body: 'Invite another sibling while you’re at it.',
+      body: `${memberCount} on the map — forward the family link to another sibling.`,
       url: `/app/estates/${estate.id}?tab=family`,
       type: 'sibling_joined',
       estateId: estate.id,
     });
   }
+  // Loop: new joiner gets a nudge to invite the next sibling
+  notifyUsers({
+    userIds: [req.user.id],
+    title: `You’re on ${estate.subjectName}`,
+    body: 'WhatsApp the same family link to another sibling while it’s open.',
+    url: `/app/estates/${estate.id}?tab=family&welcome=1`,
+    type: 'sibling_joined_loop',
+    estateId: estate.id,
+  });
 
   res.json({
     ok: true,
     estateId: invite.estateId,
     celebrated: true,
-    message: `You’re in — ${owner?.name || 'the owner'} was notified`,
+    memberCount,
+    familyInviteLink,
+    message: `You’re in — ${owner?.name || 'the owner'} was notified. Invite another sibling with the same link.`,
   });
 });
 
@@ -1293,22 +1437,58 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
-  if (access.role !== 'owner') {
-    return res.status(403).json({ error: 'Only owner can invite' });
+  if (access.role !== 'owner' && access.role !== 'manager') {
+    return res.status(403).json({ error: 'Only owner or manager can invite' });
   }
   const email = (req.body?.email || '').trim().toLowerCase();
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
 
-  const invitee = email ? store.users.find((u) => u.email === email) : null;
+  // Open WhatsApp invite → durable multi-use family link
+  if (!email) {
+    const invite = mutate((s) => {
+      const created = ensureFamilyInvite(s, access.estate.id, {
+        role: role === 'viewer' ? 'viewer' : 'manager',
+        invitedBy: req.user.id,
+      });
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'member_invited',
+        detail: `Open multi-use WhatsApp invite as ${created.role}`,
+      });
+      return created;
+    });
+    const fresh = readStore();
+    const view = familyInvitePublicView(invite, fresh, access.estate);
+    return res.status(201).json({
+      member: null,
+      invite: {
+        id: invite.id,
+        email: null,
+        role: invite.role,
+        token: invite.token,
+        link: view.link,
+        emailStatus: 'skipped',
+        status: invite.status,
+        openInvite: true,
+        multiUse: true,
+        memberCount: view.memberCount,
+        remaining: view.remaining,
+      },
+    });
+  }
+
+  const invitee = store.users.find((u) => u.email === email);
   const token = crypto.randomBytes(24).toString('hex');
   const invite = {
     id: uuid(),
     estateId: access.estate.id,
-    email: email || '',
+    email,
     role,
     token,
     invitedBy: req.user.id,
     status: 'pending',
+    multiUse: false,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   };
@@ -1343,14 +1523,14 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
       estateId: access.estate.id,
       userId: req.user.id,
       action: 'member_invited',
-      detail: email ? `Invited ${email} as ${role}` : `Open WhatsApp invite as ${role}`,
+      detail: `Invited ${email} as ${role}`,
     });
   });
 
   const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
   const publicLink = `${base}/invite/${token}`;
   let emailStatus = 'skipped';
-  if (email && (invite.status === 'pending' || !member)) {
+  if (invite.status === 'pending' || !member) {
     try {
       const sent = await sendInviteEmail({
         to: email,
@@ -1370,13 +1550,14 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
     member: member ? { ...member, name: invitee.name, email } : null,
     invite: {
       id: invite.id,
-      email: email || null,
+      email,
       role,
       token,
       link: publicLink,
       emailStatus,
       status: invite.status,
-      openInvite: !email,
+      openInvite: false,
+      multiUse: false,
     },
   });
 });
@@ -1643,7 +1824,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.15.0',
+    version: '1.16.0',
     push: pushConfigured(),
   });
 });
@@ -1772,6 +1953,10 @@ app.post('/api/estates/:id/housewarming', authRequired, async (req, res) => {
     mutate((s) => {
       const e = s.estates.find((x) => x.id === access.estate.id);
       if (e) scheduleLightReview(e);
+      ensureFamilyInvite(s, access.estate.id, {
+        role: 'manager',
+        invitedBy: req.user.id,
+      });
     });
     const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
     const link = `${base}/app/estates/${access.estate.id}?tab=housewarming`;
@@ -1893,6 +2078,14 @@ app.get('/api/public/emergency/:token', (req, res) => {
       backupContact: i.backupContact || null,
       kind: i.category,
     }));
+  const familyInvite = findActiveFamilyInvite(store, estate.id, 'manager');
+  const ownerFirst =
+    String(owner?.name || '')
+      .trim()
+      .split(/\s+/)[0] || null;
+  const memberCount =
+    (store.members || []).filter((m) => m.estateId === estate.id && m.status === 'active').length +
+    1;
   res.json({
     subjectName: estate.subjectName,
     subjectRelation: estate.subjectRelation,
@@ -1901,6 +2094,15 @@ app.get('/api/public/emergency/:token', (req, res) => {
     requireProof: estate.unlockRules?.requireProof !== false,
     unlockers,
     ownerName: owner?.name,
+    ownerFirstName: ownerFirst,
+    memberCount,
+    /** Soft network loop: fridge QR → sibling can join if family link is live */
+    siblingInvite: familyInvite
+      ? {
+          url: inviteLinkFor(familyInvite.token),
+          memberCount,
+        }
+      : null,
     contacts,
     firstSteps: [
       'Call the unlockers listed here',

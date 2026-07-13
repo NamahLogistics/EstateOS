@@ -157,7 +157,7 @@ export async function runReminderPass() {
               userIds: [owner.id],
               title: `${estate.subjectName}: 90-day check-in`,
               body: 'Same maid/nurse phone? Same LIC/bank?',
-              url: `/app/estates/${estate.id}`,
+              url: `/app/estates/${estate.id}?review=1`,
               type: 'light_review',
               estateId: estate.id,
             });

@@ -38,6 +38,36 @@ export function registerCareRoutes(app) {
     res.json({ roles: CARE_ROLES });
   });
 
+  /** Aggregate city density — no PII, safe while browse is coming soon (Airbnb seed meter). */
+  app.get('/api/care/stats', (req, res) => {
+    const store = readStore();
+    ensureCareArrays(store);
+    const city = String(req.query.city || '').trim();
+    const goal = 12;
+    let list = (store.careWorkers || []).filter((c) => c.acceptingWork !== false);
+    if (city) {
+      const needle = city.toLowerCase();
+      list = list.filter((c) =>
+        (c.cities || []).some((x) => String(x).toLowerCase().includes(needle))
+      );
+    }
+    const listed = list.length;
+    const byRole = {};
+    for (const w of list) {
+      const r = w.role || 'other';
+      byRole[r] = (byRole[r] || 0) + 1;
+    }
+    res.json({
+      city: city || null,
+      listed,
+      goal,
+      progress: Math.min(1, listed / goal),
+      unlockHint: listed >= goal ? 'density_ready' : 'need_more',
+      byRole,
+      comingSoon: CARE_NETWORK_COMING_SOON,
+    });
+  });
+
   app.get('/api/care/me', authRequired, (req, res) => {
     const store = readStore();
     ensureCareArrays(store);

@@ -178,6 +178,29 @@ export function shareLightReviewText({ estateName, link, inviterName, lang = 'en
   );
 }
 
+/** Soft invite for family counsel — not an advice forum */
+export function shareCounselInviteText({ link, city, inviterName, estateName, lang = 'en' }) {
+  const who = firstName(inviterName);
+  const place = city?.trim();
+  if (lang === 'hi') {
+    const where = place ? ` (${place})` : '';
+    const hiOpen = who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n';
+    return (
+      hiOpen +
+      (estateName ? `हम ${estateName} के लिए HeirReady पर परिवार का नक्शा बना रहे हैं${where}।\n\n` : '') +
+      `अगर आप उत्तराधिकार / संपत्ति वकील हैं, मुफ़्त Counsel डेस्क पर जुड़ें — शहर लीड मिल सकते हैं:\n${link}`
+    );
+  }
+  const where = place ? ` in ${place}` : '';
+  return (
+    `Hi${who ? ` — ${who} here` : ''}.\n\n` +
+    (estateName
+      ? `We’re mapping ${estateName} on HeirReady${where}.\n\n`
+      : `Families use HeirReady for parent life admin${where}.\n\n`) +
+    `If you’re succession / property counsel, join the free Counsel desk — city leads may reach you:\n${link}`
+  );
+}
+
 export function buildInviteUrl({ origin, ref, type, city }) {
   const base = String(origin || '').replace(/\/$/, '');
   const params = new URLSearchParams({ mode: 'register' });

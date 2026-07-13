@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import {
@@ -35,21 +35,18 @@ export default function HousewarmingDone({
   const { api, toast, user } = useAuth();
   const { t, lang } = useI18n();
   const [inviteLink, setInviteLink] = useState('');
+  const [memberCount, setMemberCount] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function ensureInviteLink() {
     if (inviteLink) return inviteLink;
     setBusy(true);
     try {
-      const res = await api(`/api/estates/${estateId}/members`, {
-        method: 'POST',
-        body: { role: 'manager' },
-      });
-      const link =
-        res.invite?.link ||
-        (res.invite?.token ? `${window.location.origin}/invite/${res.invite.token}` : '');
+      const res = await api(`/api/estates/${estateId}/family-link?role=manager`);
+      const link = res.invite?.link || '';
       if (!link) throw new Error('Could not create invite link');
       setInviteLink(link);
+      if (res.invite?.memberCount != null) setMemberCount(res.invite.memberCount);
       return link;
     } catch (err) {
       toast(err.message);
@@ -58,6 +55,11 @@ export default function HousewarmingDone({
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    ensureInviteLink().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estateId]);
 
   const qrSrc = emergencyUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(emergencyUrl)}`
@@ -106,7 +108,8 @@ export default function HousewarmingDone({
         {completedAt
           ? `Finished ${new Date(completedAt).toLocaleDateString()}. `
           : ''}
-        Invite a sibling on WhatsApp, then put the fridge QR where anyone at home can scan it.
+        One family link works for every sibling — forward the same WhatsApp message. Then put the fridge QR where anyone at home can scan it.
+        {memberCount != null ? ` ${memberCount} on the map now.` : ''}
       </p>
 
       <div className="panel-grid" style={{ marginTop: '1rem' }}>
@@ -131,10 +134,10 @@ export default function HousewarmingDone({
               style={{ width: '100%', marginTop: '0.5rem' }}
               onClick={async () => {
                 await navigator.clipboard.writeText(inviteLink).catch(() => {});
-                toast('Invite link copied');
+                toast('Family link copied — same link for every sibling');
               }}
             >
-              Copy invite link
+              Copy family link
             </button>
           )}
         </div>
@@ -178,19 +181,52 @@ export default function HousewarmingDone({
 }
 
 /** Shared WA-first sibling invite form for Family tab */
-export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvited }) {
+export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvited, canInvite = true }) {
   const { api, toast, user } = useAuth();
   const { t, lang } = useI18n();
   const [role, setRole] = useState('manager');
   const [email, setEmail] = useState('');
   const [lastLink, setLastLink] = useState('');
+  const [memberCount, setMemberCount] = useState(null);
+  const [remaining, setRemaining] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  async function loadFamilyLink() {
+    try {
+      const res = await api(`/api/estates/${estateId}/family-link?role=${role}`);
+      const link = res.invite?.link || '';
+      if (link) setLastLink(link);
+      if (res.invite?.memberCount != null) setMemberCount(res.invite.memberCount);
+      if (res.invite?.remaining != null) setRemaining(res.invite.remaining);
+      return link;
+    } catch {
+      return '';
+    }
+  }
+
+  useEffect(() => {
+    if (!canInvite) return;
+    loadFamilyLink().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estateId, role, canInvite]);
 
   async function createInvite({ withEmail = false } = {}) {
     setBusy(true);
     try {
-      const body = { role };
-      if (withEmail && email.trim()) body.email = email.trim().toLowerCase();
+      if (!withEmail) {
+        const res = await api(`/api/estates/${estateId}/family-link`, {
+          method: 'POST',
+          body: { role },
+        });
+        const link = res.invite?.link || '';
+        if (!link) throw new Error('No invite link returned');
+        setLastLink(link);
+        if (res.invite?.memberCount != null) setMemberCount(res.invite.memberCount);
+        if (res.invite?.remaining != null) setRemaining(res.invite.remaining);
+        onInvited?.(link, res);
+        return link;
+      }
+      const body = { role, email: email.trim().toLowerCase() };
       const res = await api(`/api/estates/${estateId}/members`, { method: 'POST', body });
       const link =
         res.invite?.link ||
@@ -236,12 +272,39 @@ export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvite
     }
   }
 
+  if (!canInvite) {
+    return (
+      <div className="card" style={{ padding: '1.2rem' }}>
+        <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
+          {t('inviteSibling')}
+        </p>
+        <p className="small muted">Ask an owner or manager to share the family WhatsApp link.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="card" style={{ padding: '1.2rem' }}>
       <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
         {t('inviteSibling')}
       </p>
       <p className="small muted">{t('inviteSiblingBlurb')}</p>
+      {(memberCount != null || remaining != null) && (
+        <p className="small" style={{ margin: '0 0 0.85rem', lineHeight: 1.45 }}>
+          {memberCount != null ? (
+            <strong>
+              {memberCount} on the map
+              {memberCount < 3 ? ' — forward this link to another sibling' : ''}
+            </strong>
+          ) : null}
+          {remaining != null ? (
+            <span className="muted">
+              {memberCount != null ? ' · ' : ''}
+              {remaining} joins left on this link
+            </span>
+          ) : null}
+        </p>
+      )}
 
       <div className="field">
         <label>{t('role')}</label>
@@ -261,13 +324,13 @@ export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvite
         {t('shareInviteWa')}
       </button>
       <p className="small muted" style={{ margin: '0.5rem 0 1rem' }}>
-        No email needed — they set theirs when they join.
+        Same link for every sibling — no email needed. They set theirs when they join.
       </p>
 
       <form onSubmit={emailInvite}>
         <div className="field">
           <label>
-            {t('email')} <span className="muted">(optional)</span>
+            {t('email')} <span className="muted">(optional · single-use)</span>
           </label>
           <input
             type="email"
@@ -288,10 +351,10 @@ export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvite
           style={{ width: '100%', marginTop: '0.65rem' }}
           onClick={async () => {
             await navigator.clipboard.writeText(lastLink).catch(() => {});
-            toast('Invite link copied');
+            toast('Family link copied');
           }}
         >
-          Copy last invite link
+          Copy family link
         </button>
       )}
     </div>

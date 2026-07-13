@@ -105,7 +105,9 @@ export default function InvitePage() {
       <p className="muted">
         You’re invited as <strong>{info.role}</strong>
         {openInvite
-          ? ' — create your account with any email to join this family vault.'
+          ? info.multiUse
+            ? ` — this family link works for multiple siblings (${info.memberCount || '?'} already on the map). Create your account with any email.`
+            : ' — create your account with any email to join this family vault.'
           : ` (${info.email}).`}
       </p>
 

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import {
+  buildInviteUrl,
+  shareCounselInviteText,
+  whatsappShareUrl,
+} from '../whatsapp.js';
 
 const SCOPE_OPTIONS = [
   'succession',
@@ -13,7 +18,7 @@ const SCOPE_OPTIONS = [
 ];
 
 export default function CounselPanel({ estateId, onToast }) {
-  const { api, toast } = useAuth();
+  const { api, toast, user } = useAuth();
   const notify = onToast || toast;
   const [counsel, setCounsel] = useState(null);
   const [lawyers, setLawyers] = useState([]);
@@ -656,6 +661,43 @@ export default function CounselPanel({ estateId, onToast }) {
                 <span> · Listing paused</span>
               ) : null}
             </p>
+            {user?.referralCode && (
+              <div style={{ marginBottom: '1rem' }}>
+                <a
+                  className="btn"
+                  style={{
+                    background: '#128C7E',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    padding: '0.65rem 1rem',
+                    borderRadius: 12,
+                    display: 'inline-block',
+                  }}
+                  href={whatsappShareUrl(
+                    shareCounselInviteText({
+                      link: buildInviteUrl({
+                        origin: window.location.origin,
+                        ref: user.referralCode,
+                        type: 'lawyer',
+                        city: listingForm.city || listing?.city,
+                      }),
+                      city: listingForm.city || listing?.city,
+                      inviterName: user.name,
+                      estateName: counsel?.estateName || undefined,
+                    })
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  WhatsApp invite your family counsel
+                </a>
+                <p className="small muted" style={{ margin: '0.45rem 0 0' }}>
+                  Soft ask — not an advice forum. They join Counsel desk free; you may get a referral credit if they pay later.
+                </p>
+              </div>
+            )}
             <div className="field">
               <label>City</label>
               <input
