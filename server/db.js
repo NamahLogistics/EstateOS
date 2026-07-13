@@ -23,6 +23,7 @@ const empty = () => ({
   legalActions: [],
   counselNeeds: [],
   invites: [],
+  referrals: [],
   leads: [],
   mailOutbox: [],
   pendingPayments: [],

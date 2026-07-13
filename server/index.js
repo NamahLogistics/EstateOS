@@ -49,6 +49,10 @@ import {
   isPaidPlan,
 } from './plans.js';
 import { draftFromPhoto } from './scan.js';
+import {
+  attachReferralOnRegister,
+  ensureUserReferralFields,
+} from './referrals.js';
 
 const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -127,6 +131,8 @@ function publicUser(user) {
     email: user.email,
     plan: user.plan,
     accountType: user.accountType || 'family',
+    referralCode: user.referralCode || null,
+    referralDiscountCredits: user.referralDiscountCredits || 0,
   };
 }
 
@@ -154,7 +160,7 @@ function publicEstate(estate, store, userId) {
 
 // ── Auth ──────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, accountType } = req.body || {};
+  const { name, email, password, accountType, referralCode, ref } = req.body || {};
   if (!name?.trim() || !email?.trim() || !password || password.length < 6) {
     return res.status(400).json({ error: 'Name, email, and password (6+) required' });
   }
@@ -165,7 +171,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
   const passwordHash = await hashPassword(password);
   const type = accountType === 'lawyer' ? 'lawyer' : 'family';
-  const user = {
+  let user = {
     id: uuid(),
     name: name.trim(),
     email: normalized,
@@ -175,6 +181,8 @@ app.post('/api/auth/register', async (req, res) => {
     createdAt: new Date().toISOString(),
   };
   mutate((s) => {
+    attachReferralOnRegister(s, user, referralCode || ref);
+    ensureUserReferralFields(user, s);
     s.users.push(user);
     if (type === 'lawyer') {
       s.lawyers.push({
@@ -1119,7 +1127,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.1',
+    version: '1.4.2',
   });
 });
 
