@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import { useI18n } from '../i18n.jsx';
 import { useCareNetwork } from '../careNetwork.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 
@@ -29,6 +30,7 @@ function formFromWorker(worker) {
 
 export default function CareDesk() {
   const { api, toast, user } = useAuth();
+  const { t } = useI18n();
   const { comingSoon: careComingSoon } = useCareNetwork();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -67,7 +69,7 @@ export default function CareDesk() {
     }
   }
 
-  if (!data || !form) return <p className="muted">Loading care desk…</p>;
+  if (!data || !form) return <p className="muted">{t('loadingCare')}</p>;
 
   const roles = data.roles?.length ? data.roles : DEFAULT_ROLES;
   const worker = data.worker;
@@ -75,14 +77,14 @@ export default function CareDesk() {
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
       <p className="small muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
-        Care desk
+        {t('careDesk')}
       </p>
       <h1 className="display" style={{ fontSize: '2.3rem', margin: '0.2rem 0 0.4rem' }}>
         {worker?.name || user.name}
       </h1>
       <p className="muted" style={{ marginTop: 0 }}>
         {(worker?.cities || []).join(' / ') || 'Set cities'} · {worker?.roleLabel || worker?.role} ·{' '}
-        {worker?.acceptingWork === false ? 'Not accepting work' : 'Accepting work'}
+        {worker?.acceptingWork === false ? 'Not accepting work' : t('acceptingWork')}
       </p>
 
       {careComingSoon && (
@@ -100,11 +102,10 @@ export default function CareDesk() {
             className="small muted"
             style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
           >
-            Coming soon for families
+            {t('comingSoonFamilies')}
           </p>
           <p className="muted" style={{ margin: '0.35rem 0 0' }}>
-            Keep your profile ready. Families can’t browse yet — city care unlock is coming soon. You’re free to join
-            and list.
+            {t('careComingSoonBlurb')}
           </p>
         </div>
       )}
@@ -116,25 +117,23 @@ export default function CareDesk() {
       <form className="card" style={{ padding: '1.15rem', margin: '1.25rem 0' }} onSubmit={save}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <strong>Your care profile</strong>
+            <strong>{t('yourCareProfile')}</strong>
             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-              {careComingSoon
-                ? 'List free now — families will see you when city care launches.'
-                : 'Families on Family + Care or Diaspora + Care see you in their city.'}
+              {careComingSoon ? t('careProfileSoon') : t('careProfileLive')}
             </p>
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.85rem' }} disabled={busy}>
-            Save profile
+            {t('saveProfile')}
           </button>
         </div>
 
         <div className="panel-grid" style={{ marginTop: '1rem' }}>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Display name</label>
+            <label>{t('displayName')}</label>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Role</label>
+            <label>{t('role')}</label>
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -144,7 +143,7 @@ export default function CareDesk() {
             </select>
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Cities (comma-separated)</label>
+            <label>{t('citiesLabel')}</label>
             <input
               required
               value={form.cities}
@@ -153,7 +152,7 @@ export default function CareDesk() {
             />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Phone (shown to paid families)</label>
+            <label>{t('phone')}</label>
             <input
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -195,7 +194,7 @@ export default function CareDesk() {
           </div>
         </div>
         <div className="field" style={{ marginTop: '0.9rem' }}>
-          <label>Short bio</label>
+          <label>{t('shortBio')}</label>
           <textarea
             rows={3}
             value={form.bio}
@@ -209,7 +208,7 @@ export default function CareDesk() {
             checked={form.acceptingWork}
             onChange={(e) => setForm({ ...form, acceptingWork: e.target.checked })}
           />
-          Accepting new work
+          {t('acceptingWork')}
         </label>
       </form>
 

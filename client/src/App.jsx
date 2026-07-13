@@ -52,7 +52,7 @@ function Shell({ children }) {
             {t('estates')}
           </Link>
           <a className="nav-link" href="/app#grow" onClick={goInvite}>
-            Invite
+            {t('invite')}
           </a>
         </>
       )}
@@ -63,13 +63,13 @@ function Shell({ children }) {
       )}
       {user?.accountType === 'care' && (
         <Link className="nav-link" to="/app/care" onClick={() => setMenuOpen(false)}>
-          Care desk
+          {t('careDesk')}
         </Link>
       )}
       <Link className="nav-link" to="/pricing" onClick={() => setMenuOpen(false)}>
         {t('pricing')}
       </Link>
-      <button type="button" className="nav-link nav-link-btn" onClick={toggle}>
+      <button type="button" className="nav-link nav-link-btn" onClick={toggle} title={t('langHint')} aria-label={t('langHint')}>
         {t('lang')}
       </button>
       {user ? (
@@ -145,24 +145,24 @@ function Shell({ children }) {
         <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
-            Pricing
+            {t('pricing')}
           </Link>
           <Link className="small muted" to="/terms">
-            Terms
+            {t('terms')}
           </Link>
           <Link className="small muted" to="/privacy">
-            Privacy
+            {t('privacy')}
           </Link>
           <Link className="small muted" to="/refunds">
-            Refunds
+            {t('refunds')}
           </Link>
           <Link className="small muted" to="/shipping">
-            Shipping
+            {t('shipping')}
           </Link>
           <Link className="small muted" to="/contact">
-            Contact
+            {t('contact')}
           </Link>
-          <span className="small muted">Not legal advice</span>
+          <span className="small muted">{t('notLegalAdvice')}</span>
         </footer>
       </div>
       <InstallBanner />

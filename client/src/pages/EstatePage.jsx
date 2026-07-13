@@ -23,10 +23,10 @@ const TABS = [
   'audit',
 ];
 
-function statusBadge(status) {
-  if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
-  if (status === 'unlock_pending') return <span className="badge badge-pending">Unlock pending</span>;
-  return <span className="badge badge-locked">Locked</span>;
+function statusBadge(status, t) {
+  if (status === 'unlocked') return <span className="badge badge-unlocked">{t('unlocked')}</span>;
+  if (status === 'unlock_pending') return <span className="badge badge-pending">{t('unlockPending')}</span>;
+  return <span className="badge badge-locked">{t('locked')}</span>;
 }
 
 function fileAbsoluteUrl(file) {
@@ -465,7 +465,7 @@ export default function EstatePage() {
   }
 
   if (!data) {
-    return <p className="muted">Loading estate…</p>;
+    return <p className="muted">{t('loadingEstate')}</p>;
   }
 
   const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired, limits, countryPacks, housewarming } = data;
@@ -474,12 +474,12 @@ export default function EstatePage() {
     housewarming: t('housewarming'),
     map: t('lifeMap'),
     interview: t('interview'),
-    findcare: 'Find care',
+    findcare: t('findCare'),
     rules: t('unlockRules'),
     unlock: t('unlock'),
     execute: t('execution'),
     counsel: t('counsel'),
-    family: 'Family chat',
+    family: t('familyChat'),
     emergency: t('emergency'),
     audit: t('audit'),
   };
@@ -495,7 +495,7 @@ export default function EstatePage() {
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
       <Link to="/app" className="small muted">
-        ← All estates
+        {t('allEstates')}
       </Link>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'start', marginTop: '0.6rem' }}>
         <div>
@@ -503,13 +503,13 @@ export default function EstatePage() {
             {estate.subjectName}
           </h1>
           <p className="muted" style={{ margin: 0 }}>
-            {estate.subjectRelation} · {packLabel} · {items.length} vault items
+            {estate.subjectRelation} · {packLabel} · {items.length} {t('vaultItems')}
             {estate.nextReviewAt
               ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
               : ''}
           </p>
         </div>
-        {statusBadge(estate.status)}
+        {statusBadge(estate.status, t)}
       </div>
       {limits && !limits.paid && (
         <div className="upgrade-limit-banner">
@@ -555,10 +555,10 @@ export default function EstatePage() {
           style={{ padding: '0.4rem 0.85rem' }}
           onClick={() => setTab('family')}
         >
-          Family chat
+          {t('familyChat')}
         </button>
         <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={exportZip}>
-          Export ZIP
+          {t('exportZip')}
         </button>
         <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={completeReview} disabled={busy}>
           Mark {t('review')} done
@@ -964,7 +964,7 @@ export default function EstatePage() {
                 <a
                   className="btn btn-primary"
                   href={whatsappShareUrl(
-                    shareEmergencyText({ subjectName: estate.subjectName, url: emergencyUrl })
+                    shareEmergencyText({ subjectName: estate.subjectName, url: emergencyUrl, lang })
                   )}
                   target="_blank"
                   rel="noreferrer"
@@ -1182,9 +1182,9 @@ export default function EstatePage() {
           <div className="split">
             <div className="card">
               <div style={{ padding: '1rem 1.1rem' }}>
-                <strong>People with access</strong>
+                <strong>{t('peopleWithAccess')}</strong>
                 <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
-                  Adult children and siblings — not the parent’s login.
+                  {t('peopleAccessBlurb')}
                 </p>
               </div>
               {members.map((m) => (
@@ -1199,14 +1199,13 @@ export default function EstatePage() {
             {estate.myRole === 'owner' && (
               <form className="card" style={{ padding: '1.2rem' }} onSubmit={inviteMember}>
                 <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-                  Invite sibling / family
+                  {t('inviteSibling')}
                 </p>
                 <p className="small muted">
-                  Invite brothers, sisters, or co-managing relatives. Parents don’t need an account —
-                  you map their papers for them.
+                  {t('inviteSiblingBlurb')}
                 </p>
                 <div className="field">
-                  <label>Email</label>
+                  <label>{t('email')}</label>
                   <input
                     required
                     type="email"
@@ -1215,7 +1214,7 @@ export default function EstatePage() {
                   />
                 </div>
                 <div className="field">
-                  <label>Role</label>
+                  <label>{t('role')}</label>
                   <select
                     value={invite.role}
                     onChange={(e) => setInvite({ ...invite, role: e.target.value })}
@@ -1225,7 +1224,7 @@ export default function EstatePage() {
                   </select>
                 </div>
                 <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
-                  Invite
+                  {t('invite')}
                 </button>
                 {lastInviteLink && (
                   <a
@@ -1236,12 +1235,13 @@ export default function EstatePage() {
                         estateName: estate.subjectName,
                         link: lastInviteLink,
                         inviterName: user?.name,
+                        lang,
                       })
                     )}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Share invite on WhatsApp
+                    {t('shareInviteWa')}
                   </a>
                 )}
               </form>

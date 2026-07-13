@@ -11,8 +11,23 @@
   --danger: #8f2f2f;
   --ok: #2f6b45;
   --shadow: 0 18px 50px rgba(15, 31, 26, 0.09);
-  --font-display: 'Newsreader', 'Times New Roman', serif;
-  --font-body: 'Sora', system-ui, sans-serif;
+  --font-display: 'Newsreader', 'Noto Sans Devanagari', 'Times New Roman', serif;
+  --font-body: 'Sora', 'Noto Sans Devanagari', system-ui, sans-serif;
+}
+
+html[data-lang='hi'] {
+  --font-display: 'Noto Sans Devanagari', 'Newsreader', sans-serif;
+  --font-body: 'Noto Sans Devanagari', 'Sora', system-ui, sans-serif;
+}
+html[data-lang='hi'] body {
+  letter-spacing: 0.01em;
+  line-height: 1.55;
+}
+html[data-lang='hi'] .display,
+html[data-lang='hi'] .brand,
+html[data-lang='hi'] .brand-hero {
+  font-family: var(--font-display);
+  letter-spacing: 0;
 }
 
 * { box-sizing: border-box; }

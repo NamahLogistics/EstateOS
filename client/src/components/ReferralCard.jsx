@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import { useI18n } from '../i18n.jsx';
 import {
   buildInviteUrl,
   shareCareOnboardText,
@@ -26,6 +27,7 @@ const waBtn = {
 
 export default function ReferralCard({ compact = false }) {
   const { user, api, toast, setUser, token } = useAuth();
+  const { t, lang } = useI18n();
   const [referral, setReferral] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -99,10 +101,11 @@ export default function ReferralCard({ compact = false }) {
               link: links.family,
               city,
               inviterName: user?.name,
+              lang,
             })
           )
         : null,
-    [links.family, city, user?.name]
+    [links.family, city, user?.name, lang]
   );
 
   const careWa = useMemo(
@@ -113,10 +116,11 @@ export default function ReferralCard({ compact = false }) {
               link: links.care,
               city,
               inviterName: user?.name,
+              lang,
             })
           )
         : null,
-    [links.care, city, user?.name]
+    [links.care, city, user?.name, lang]
   );
 
   const lawyerWa = useMemo(
@@ -127,10 +131,11 @@ export default function ReferralCard({ compact = false }) {
               link: links.lawyer,
               inviterName: user?.name,
               accountType: 'lawyer',
+              lang,
             })
           )
         : null,
-    [links.lawyer, user?.name]
+    [links.lawyer, user?.name, lang]
   );
 
   if (!user) return null;
@@ -141,7 +146,7 @@ export default function ReferralCard({ compact = false }) {
   function needCity(e) {
     if (cityReady) return;
     e.preventDefault();
-    toast('Type a city first — it goes in the WhatsApp message');
+    toast(t('needCityFirst'));
   }
 
   return (
@@ -159,13 +164,13 @@ export default function ReferralCard({ compact = false }) {
         className="small muted"
         style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
       >
-        Invite on WhatsApp
+        {t('inviteWhatsApp')}
       </p>
       <p className="display" style={{ fontSize: compact ? '1.25rem' : '1.45rem', margin: '0.25rem 0 0.35rem' }}>
-        Tap → pick a chat → send
+        {t('tapPickSend')}
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Bring siblings with your link. One person can earn many credits — each paid signup stacks.
+        {t('bringSiblings')}
       </p>
 
       <div
@@ -179,23 +184,23 @@ export default function ReferralCard({ compact = false }) {
           color: 'var(--ink-soft)',
         }}
       >
-        <strong style={{ color: 'var(--ink)' }}>How 50% credits work</strong>
+        <strong style={{ color: 'var(--ink)' }}>{t('careCreditsTitle')}</strong>
         <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem' }}>
-          <li>They join free with your link → linked to you (no credit yet).</li>
-          <li>They pay a plan later — even next year → you get <strong>1 credit</strong>.</li>
-          <li>Invite many people → credits <strong>stack</strong> (10 paid friends = 10 credits).</li>
-          <li>Each credit = 50% off one checkout (upgrade or renew). Credits don’t expire.</li>
-          <li>Caregiver free joins don’t earn credits. One credit per person, first payment only.</li>
+          <li>{t('careCredits1')}</li>
+          <li>{t('careCredits2')}</li>
+          <li>{t('careCredits3')}</li>
+          <li>{t('careCredits4')}</li>
+          <li>{t('careCredits5')}</li>
         </ul>
       </div>
 
       <div className="field" style={{ marginBottom: '1rem' }}>
-        <label>City in the message</label>
+        <label>{t('cityInMessage')}</label>
         <input
           list="heirready-cities"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="Your city"
+          placeholder={t('yourCity')}
           required
         />
         <datalist id="heirready-cities">
@@ -205,7 +210,7 @@ export default function ReferralCard({ compact = false }) {
         </datalist>
       </div>
 
-      {loading && <p className="small muted">Preparing your WhatsApp invites…</p>}
+      {loading && <p className="small muted">{t('preparingInvites')}</p>}
       {error && (
         <p className="small" style={{ color: 'var(--danger, #8f2f2f)' }}>
           {error}
@@ -215,9 +220,9 @@ export default function ReferralCard({ compact = false }) {
       {ready ? (
         <>
           <p className="small" style={{ marginBottom: '0.85rem' }}>
-            Your code: <strong style={{ letterSpacing: '0.06em' }}>{code}</strong>
+            {t('yourCode')}: <strong style={{ letterSpacing: '0.06em' }}>{code}</strong>
             {' · '}
-            Credits ready:{' '}
+            {t('creditsReady')}:{' '}
             <strong>{referral?.referralDiscountCredits ?? user.referralDiscountCredits ?? 0}</strong>
             {(referral?.referralRewardCount || user.referralRewardCount) ? (
               <>
@@ -238,7 +243,7 @@ export default function ReferralCard({ compact = false }) {
                 rel="noreferrer"
                 onClick={needCity}
               >
-                WhatsApp siblings / family
+                {t('waSiblings')}
               </a>
             )}
 
@@ -251,7 +256,7 @@ export default function ReferralCard({ compact = false }) {
                 rel="noreferrer"
                 onClick={needCity}
               >
-                WhatsApp nurses / maids
+                {t('waCare')}
               </a>
             )}
 
@@ -263,18 +268,18 @@ export default function ReferralCard({ compact = false }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                WhatsApp other advocates
+                {t('waAdvocates')}
               </a>
             )}
           </div>
 
           <p className="small muted" style={{ margin: '0.85rem 0 0' }}>
-            Opens WhatsApp with a ready message — choose who to send it to.
+            {t('opensWhatsApp')}
           </p>
         </>
       ) : (
         !loading &&
-        !error && <p className="small muted">No referral code yet — hard-refresh the page (Cmd+Shift+R).</p>
+        !error && <p className="small muted">{t('noRefCode')}</p>
       )}
     </div>
   );

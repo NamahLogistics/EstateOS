@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import { useI18n } from '../i18n.jsx';
 
 const REF_KEY = 'estate_os_ref';
 const CITY_KEY = 'heirready_invite_city_v2';
@@ -25,6 +26,7 @@ function modeFromParams(params) {
 
 export default function AuthPage() {
   const { user, login, register, toast } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const resetToken = (params.get('token') || '').trim();
@@ -135,13 +137,13 @@ export default function AuthPage() {
         });
         localStorage.removeItem(REF_KEY);
         if (form.city) localStorage.setItem(CITY_KEY, form.city);
-        toast('Welcome to HeirReady');
+        toast(t('welcome'));
         navigate(homeFor(data.user?.accountType));
         return;
       }
 
       const data = await login({ email: form.email, password: form.password });
-      toast('Welcome to HeirReady');
+      toast(t('welcome'));
       navigate(homeFor(data.user?.accountType));
     } catch (err) {
       toast(err.message);
@@ -156,29 +158,29 @@ export default function AuthPage() {
 
   const title =
     mode === 'forgot'
-      ? 'Forgot password'
+      ? t('forgotTitle')
       : mode === 'reset'
-        ? 'Choose a new password'
+        ? t('resetTitle')
         : mode === 'register'
           ? isLawyer
-            ? 'Join as counsel'
+            ? t('joinCounsel')
             : isCare
-              ? 'Join as caregiver'
-              : 'Create account'
-          : 'Sign in';
+              ? t('joinCare')
+              : t('createAccount')
+          : t('signIn');
 
   const subtitle =
     mode === 'forgot'
-      ? 'We’ll email you a link to reset it (expires in 1 hour).'
+      ? t('forgotBlurb')
       : mode === 'reset'
-        ? 'Enter a new password twice so there’s no typo.'
+        ? t('resetBlurb')
         : mode === 'register'
           ? isLawyer
-            ? 'Counsel desk, city leads, and matter briefs — for advocates.'
+            ? t('authCounselBlurb')
             : isCare
-              ? 'List your cities and role free — families will find you when city care launches.'
-              : 'Families map estates. Counsel and care network when you need them.'
-          : 'Welcome back.';
+              ? t('authCareBlurb')
+              : t('authFamilyBlurb')
+          : t('welcomeBack');
 
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
@@ -215,7 +217,7 @@ export default function AuthPage() {
                 setForgotSent(false);
               }}
             >
-              Back to sign in
+              {t('backSignIn')}
             </button>
           </div>
         ) : (
@@ -223,18 +225,18 @@ export default function AuthPage() {
             {mode === 'register' && (
               <>
                 <div className="field">
-                  <label>I am</label>
+                  <label>{t('iAm')}</label>
                   <select
                     value={form.accountType}
                     onChange={(e) => setForm({ ...form, accountType: e.target.value })}
                   >
-                    <option value="family">Family / adult child</option>
-                    <option value="lawyer">Lawyer / counsel</option>
-                    <option value="care">Nurse / maid / caregiver</option>
+                    <option value="family">{t('familyAdult')}</option>
+                    <option value="lawyer">{t('lawyerCounsel')}</option>
+                    <option value="care">{t('nurseCare')}</option>
                   </select>
                 </div>
                 <div className="field">
-                  <label>Your name</label>
+                  <label>{t('yourName')}</label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -245,16 +247,16 @@ export default function AuthPage() {
                 {isCare && (
                   <>
                     <div className="field">
-                      <label>Primary city</label>
+                      <label>{t('primaryCity')}</label>
                       <input
                         value={form.city}
                         onChange={(e) => setForm({ ...form, city: e.target.value })}
                         required
-                        placeholder="Your city"
+                        placeholder={t('yourCity')}
                       />
                     </div>
                     <div className="field">
-                      <label>Role</label>
+                      <label>{t('role')}</label>
                       <select
                         value={form.role}
                         onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -268,7 +270,7 @@ export default function AuthPage() {
                       </select>
                     </div>
                     <div className="field">
-                      <label>Phone</label>
+                      <label>{t('phone')}</label>
                       <input
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -279,16 +281,16 @@ export default function AuthPage() {
                 )}
                 {!isCare && !isLawyer && (
                   <div className="field">
-                    <label>Parent’s city (optional)</label>
+                    <label>{t('parentsCity')}</label>
                     <input
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      placeholder="Your city"
+                      placeholder={t('yourCity')}
                     />
                   </div>
                 )}
                 <div className="field">
-                  <label>Referral code (optional)</label>
+                  <label>{t('referralOptional')}</label>
                   <input
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value.trim().toUpperCase())}
@@ -300,7 +302,7 @@ export default function AuthPage() {
 
             {(mode === 'register' || mode === 'login' || mode === 'forgot') && (
               <div className="field">
-                <label>Email</label>
+                <label>{t('email')}</label>
                 <input
                   type="email"
                   value={form.email}
@@ -314,7 +316,7 @@ export default function AuthPage() {
 
             {(mode === 'register' || mode === 'login' || mode === 'reset') && (
               <div className="field">
-                <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
+                <label>{mode === 'reset' ? t('newPassword') : t('password')}</label>
                 <input
                   type="password"
                   value={form.password}
@@ -329,7 +331,7 @@ export default function AuthPage() {
 
             {(mode === 'register' || mode === 'reset') && (
               <div className="field">
-                <label>Confirm password</label>
+                <label>{t('confirmPassword')}</label>
                 <input
                   type="password"
                   value={form.passwordConfirm}
@@ -344,14 +346,14 @@ export default function AuthPage() {
 
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
               {busy
-                ? 'Please wait…'
+                ? t('pleaseWait')
                 : mode === 'forgot'
-                  ? 'Email reset link'
+                  ? t('emailResetLink')
                   : mode === 'reset'
-                    ? 'Update password'
+                    ? t('updatePassword')
                     : mode === 'register'
-                      ? 'Create account'
-                      : 'Sign in'}
+                      ? t('createAccount')
+                      : t('signIn')}
             </button>
           </form>
         )}
@@ -367,14 +369,14 @@ export default function AuthPage() {
                 setForgotSent(false);
               }}
             >
-              Forgot password?
+              {t('forgotPassword')}
             </button>
           </p>
         )}
 
         {mode !== 'reset' && (
           <p className="small muted" style={{ marginTop: '1rem', marginBottom: 0 }}>
-            {mode === 'register' ? 'Already have an account?' : mode === 'forgot' ? 'Remembered it?' : 'New here?'}{' '}
+            {mode === 'register' ? t('alreadyAccount') : mode === 'forgot' ? t('remembered') : t('newHere')}{' '}
             <button
               type="button"
               className="btn btn-ghost"
@@ -384,7 +386,7 @@ export default function AuthPage() {
                 setMode(mode === 'register' ? 'login' : mode === 'forgot' ? 'login' : 'register');
               }}
             >
-              {mode === 'register' || mode === 'forgot' ? 'Sign in' : 'Create account'}
+              {mode === 'register' || mode === 'forgot' ? t('signIn') : t('createAccount')}
             </button>
           </p>
         )}

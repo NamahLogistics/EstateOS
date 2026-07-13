@@ -9,21 +9,57 @@ function firstName(name) {
   return n.split(/\s+/)[0];
 }
 
-export function shareInviteText({ estateName, link, inviterName }) {
-  const who = firstName(inviterName) || 'A sibling';
+export function shareInviteText({ estateName, link, inviterName, lang = 'en' }) {
+  const who = firstName(inviterName);
+  if (lang === 'hi') {
+    return (
+      `${who || 'परिवार'} ने आपको HeirReady पर ${estateName} के लिए बुलाया है।\n\n` +
+      `यह भाई-बहन / परिवार के लिए है — माँ-पापा के बैंक, एलआईसी, चाबियों की साझा तिजोरी (माता-पिता को ऐप पर नहीं बुलाते)।\n\n` +
+      `यहाँ जुड़ें:\n${link}\n\n(कानूनी सलाह नहीं)`
+    );
+  }
+  const whoEn = who || 'A sibling';
   return (
-    `${who} invited you to HeirReady for ${estateName}.\n\n` +
+    `${whoEn} invited you to HeirReady for ${estateName}.\n\n` +
     `This is for siblings / family — shared vault for Mum/Dad’s banks, LIC, keys (not for inviting parents to the app).\n\n` +
     `Join here:\n${link}\n\n(Not legal advice)`
   );
 }
 
-export function shareEmergencyText({ subjectName, url }) {
+export function shareEmergencyText({ subjectName, url, lang = 'en' }) {
+  if (lang === 'hi') {
+    return (
+      `${subjectName} का आपातकालीन कार्ड (HeirReady)।\n\n` +
+      `खोलने वाले और पहले कदम:\n${url}\n\n` +
+      `बैंक पासवर्ड नहीं दिखते।`
+    );
+  }
   return `Emergency card for ${subjectName} (HeirReady).\n\nScan / open for unlockers + first steps:\n${url}\n\nDoes not show bank passwords.`;
 }
 
-export function shareReferralText({ link, inviterName, accountType }) {
+export function shareReferralText({ link, inviterName, accountType, lang = 'en' }) {
   const who = firstName(inviterName);
+  if (lang === 'hi') {
+    if (accountType === 'lawyer') {
+      return (
+        `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+        `मैं HeirReady वकील डेस्क पर हूँ (शहर लीड + उत्तराधिकार मामले)।\n\n` +
+        `वकील के रूप में जुड़ें (शुरुआत मुफ़्त):\n${link}`
+      );
+    }
+    if (accountType === 'care') {
+      return (
+        `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+        `विदेश में रहने वाले परिवार HeirReady से नर्स / आया ढूँढते हैं।\n\n` +
+        `मुफ़्त में अपना नाम लिखें:\n${link}`
+      );
+    }
+    return (
+      `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+      `मैं HeirReady इस्तेमाल कर रहा/रही हूँ ताकि भाई-बहन माता-पिता के कागज़ (बैंक, एलआईसी, चाबियाँ) साथ संभाल सकें।\n\n` +
+      `मुफ़्त जुड़ें — माता-पिता का खाता ज़रूरी नहीं:\n${link}`
+    );
+  }
   if (accountType === 'lawyer') {
     return (
       `Hi —${who ? ` ${who} here.` : ''}\n\n` +
@@ -46,9 +82,18 @@ export function shareReferralText({ link, inviterName, accountType }) {
 }
 
 /** Soft outbound to siblings / adult children — not inviting parents to the app */
-export function shareFamilyOnboardText({ link, city, inviterName }) {
+export function shareFamilyOnboardText({ link, city, inviterName, lang = 'en' }) {
   const place = city?.trim();
   const who = firstName(inviterName);
+  if (lang === 'hi') {
+    const where = place ? ` (${place})` : '';
+    return (
+      `नमस्ते${who ? ` — ${who}` : ''}।\n\n` +
+      `मैं HeirReady सेट कर रहा/रही हूँ ताकि हम भाई-बहन माँ-पापा के कागज़${where} साथ रख सकें — बैंक, एलआईसी, संपत्ति, चाबियाँ, देखभाल वाले।\n\n` +
+      `माता-पिता का खाता नहीं चाहिए — हम उनके लिए मैप करते हैं।\n\n` +
+      `मुफ़्त जुड़ें (२ मिनट) और जो जानते हो जोड़ें:\n${link}`
+    );
+  }
   const where = place ? ` in ${place}` : '';
   return (
     `Hi${who ? ` — ${who} here` : ''}.\n\n` +
@@ -59,9 +104,18 @@ export function shareFamilyOnboardText({ link, city, inviterName }) {
 }
 
 /** Soft outbound to nurses / maids / agencies */
-export function shareCareOnboardText({ link, city, inviterName }) {
+export function shareCareOnboardText({ link, city, inviterName, lang = 'en' }) {
   const place = city?.trim();
   const who = firstName(inviterName);
+  if (lang === 'hi') {
+    const where = place ? ` ${place} में` : '';
+    return (
+      `नमस्ते${who ? ` — ${who}` : ''}।\n\n` +
+      `जिनके माता-पिता${where} हैं, वे परिवार HeirReady से नर्स, आया और अटेंडेंट ढूँढते हैं।\n\n` +
+      `मुफ़्त लिखें — शहर, फ़ोन, रेट:\n${link}\n\n` +
+      `जुड़ने का कोई शुल्क नहीं।`
+    );
+  }
   const where = place ? ` in ${place}` : '';
   return (
     `Hi${who ? ` — ${who} here` : ''}.\n\n` +

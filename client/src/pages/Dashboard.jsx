@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import { useI18n } from '../i18n.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 
-function statusBadge(status) {
-  if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
-  if (status === 'unlock_pending') return <span className="badge badge-pending">Unlock pending</span>;
-  return <span className="badge badge-locked">Locked</span>;
+function statusBadge(status, t) {
+  if (status === 'unlocked') return <span className="badge badge-unlocked">{t('unlocked')}</span>;
+  if (status === 'unlock_pending') return <span className="badge badge-pending">{t('unlockPending')}</span>;
+  return <span className="badge badge-locked">{t('locked')}</span>;
 }
 
 export default function Dashboard() {
   const { api, toast, user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [estates, setEstates] = useState([]);
   const [form, setForm] = useState({
@@ -35,10 +37,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (window.location.hash !== '#grow') return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       document.getElementById('grow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, []);
 
   async function createEstate(e) {
@@ -47,7 +49,7 @@ export default function Dashboard() {
     try {
       const res = await api('/api/estates', { method: 'POST', body: form });
       setForm({ subjectName: '', subjectRelation: 'Parent', countryPack: 'IN', notes: '' });
-      toast('Estate created — start Digital Housewarming');
+      toast(t('estateCreated'));
       const estateId = res.estate?.id || res.id;
       if (estateId) {
         navigate(`/app/estates/${estateId}?tab=housewarming`);
@@ -79,25 +81,25 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
         <div>
           <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>
-            Your estates
+            {t('yourEstates')}
           </h1>
           <p className="muted">
-            One estate per parent.
+            {t('oneEstatePerParent')}
             {user?.plan === 'free' || !user?.plan
-              ? ' Free: 1 estate, 5 vault items.'
+              ? t('freePlanHint')
               : user?.planExpiresAt
                 ? ` Plan: ${user.plan} · renews ${new Date(user.planExpiresAt).toLocaleDateString()}.`
                 : ` Plan: ${user.plan}.`}
             {user?.needsRenewal ? (
               <>
                 {' '}
-                <Link to="/pricing">Renew soon</Link>
+                <Link to="/pricing">{t('renewSoon')}</Link>
               </>
             ) : null}
             {user?.planLapsedAt || (user?.previousPlan && user?.plan === 'free') ? (
               <>
                 {' '}
-                <Link to="/pricing">Plan lapsed — renew</Link>
+                <Link to="/pricing">{t('planLapsed')}</Link>
               </>
             ) : null}
           </p>
@@ -111,8 +113,7 @@ export default function Dashboard() {
       {freeAtEstateCap && (
         <div className="upgrade-limit-banner">
           <p className="small">
-            <strong>Free plan: one parent.</strong> Upgrade to Family to map another estate and unlock
-            unlimited vault items.
+            <strong>{t('freeOneParent')}</strong> {t('upgradeFamily')}
           </p>
           <button
             type="button"
@@ -123,7 +124,7 @@ export default function Dashboard() {
               setUpgradeOpen(true);
             }}
           >
-            Upgrade
+            {t('upgrade')}
           </button>
         </div>
       )}
@@ -133,9 +134,9 @@ export default function Dashboard() {
           {estates.length === 0 ? (
             <div style={{ padding: '1.4rem' }}>
               <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-                No estates yet
+                {t('noEstatesYet')}
               </p>
-              <p className="muted">Create one for a parent. Invite siblings next — they join the vault.</p>
+              <p className="muted">{t('createOneInvite')}</p>
             </div>
           ) : (
             estates.map((e) => (
@@ -145,10 +146,10 @@ export default function Dashboard() {
                     <strong style={{ fontSize: '1.05rem' }}>{e.subjectName}</strong>
                     <div className="small muted">
                       {e.subjectRelation} · {packLabel[e.countryPack || e.country] || e.country} ·{' '}
-                      {e.itemCount} items · {e.myRole}
+                      {e.itemCount} {t('vaultItems')} · {e.myRole}
                     </div>
                   </div>
-                  {statusBadge(e.status)}
+                  {statusBadge(e.status, t)}
                 </div>
               </Link>
             ))
@@ -169,13 +170,13 @@ export default function Dashboard() {
           }}
         >
           <p className="display" style={{ fontSize: '1.35rem', marginTop: 0 }}>
-            New estate · Digital Housewarming
+            {t('newEstateHw')}
           </p>
           <p className="small muted" style={{ marginTop: 0 }}>
-            Create the file, then run a 20‑minute call script — bills and caregivers, not a death dossier.
+            {t('newEstateHwBlurb')}
           </p>
           <div className="field">
-            <label>Parent / subject name</label>
+            <label>{t('subjectName')}</label>
             <input
               required
               value={form.subjectName}
@@ -184,7 +185,7 @@ export default function Dashboard() {
             />
           </div>
           <div className="field">
-            <label>Relation</label>
+            <label>{t('subjectRelation')}</label>
             <input
               value={form.subjectRelation}
               onChange={(e) => setForm({ ...form, subjectRelation: e.target.value })}
@@ -192,7 +193,7 @@ export default function Dashboard() {
             />
           </div>
           <div className="field">
-            <label>Country pack</label>
+            <label>{t('countryPack')}</label>
             <select
               value={form.countryPack}
               onChange={(e) => {
@@ -211,7 +212,7 @@ export default function Dashboard() {
             </select>
           </div>
           <div className="field">
-            <label>Notes</label>
+            <label>{t('notes')}</label>
             <textarea
               rows={3}
               value={form.notes}
@@ -220,7 +221,7 @@ export default function Dashboard() {
             />
           </div>
           <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
-            {busy ? 'Creating…' : freeAtEstateCap ? 'Upgrade to add another estate' : 'Create estate'}
+            {busy ? t('creating') : freeAtEstateCap ? t('upgradeAddEstate') : t('createCta')}
           </button>
         </form>
       </div>

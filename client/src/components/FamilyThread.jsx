@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import { useI18n } from '../i18n.jsx';
 
 export default function FamilyThread({ estateId }) {
   const { api, toast, user } = useAuth();
+  const { t } = useI18n();
   const [posts, setPosts] = useState([]);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,14 +63,13 @@ export default function FamilyThread({ estateId }) {
         className="small muted"
         style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
       >
-        Family thread
+        {t('familyThread')}
       </p>
       <p className="display" style={{ fontSize: '1.35rem', margin: '0.3rem 0 0.35rem' }}>
-        Open notes for everyone on this estate
+        {t('familyThreadTitle')}
       </p>
       <p className="muted small" style={{ marginTop: 0, lineHeight: 1.5 }}>
-        Siblings and family with access see this. Each new note emails the others — parents don’t need
-        an account.
+        {t('familyThreadBlurb')}
       </p>
 
       <div
@@ -81,9 +82,9 @@ export default function FamilyThread({ estateId }) {
         }}
       >
         {loading ? (
-          <p className="small muted">Loading thread…</p>
+          <p className="small muted">{t('loadingThread')}</p>
         ) : posts.length === 0 ? (
-          <p className="small muted">No notes yet — post the first update for the family.</p>
+          <p className="small muted">{t('noNotesYet')}</p>
         ) : (
           posts.map((p) => {
             const mine = p.authorId === user?.id;
@@ -114,7 +115,7 @@ export default function FamilyThread({ estateId }) {
 
       <form onSubmit={submit}>
         <div className="field" style={{ marginBottom: '0.65rem' }}>
-          <label>New note</label>
+          <label>{t('newNote')}</label>
           <textarea
             rows={3}
             value={body}
@@ -125,7 +126,7 @@ export default function FamilyThread({ estateId }) {
           />
         </div>
         <button type="submit" className="btn btn-primary" disabled={busy || !body.trim()}>
-          {busy ? 'Sending…' : 'Post & notify family'}
+          {busy ? t('sending') : t('postNotify')}
         </button>
       </form>
     </div>
