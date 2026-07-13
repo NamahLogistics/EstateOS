@@ -189,7 +189,7 @@ export function normalizeCountryPack(pack, userOrPlan, { strict = false } = {}) 
   if ((value === 'IN_US' || value === 'IN_UK') && !canUseCrossBorderPack(userOrPlan)) {
     if (strict) {
       const err = new Error(
-        'India + US / India + UK packs need Diaspora (₹12,499/yr). Upgrade on Pricing.'
+        'India + US / India + UK packs need Diaspora (₹24,998/yr). Upgrade on Pricing.'
       );
       err.status = 402;
       err.code = 'PLAN_LIMIT';

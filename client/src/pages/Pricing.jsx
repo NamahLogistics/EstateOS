@@ -30,7 +30,7 @@ const plans = [
   {
     id: 'diaspora',
     name: 'Diaspora',
-    price: '₹12,499/yr',
+    price: '₹24,998/yr',
     blurb: 'You’re abroad — parents’ papers are in India',
     features: [
       'Everything in Family',
@@ -294,7 +294,7 @@ export default function Pricing() {
                       ? '₹750'
                       : p.id === 'care'
                         ? '₹1,499'
-                        : '₹6,250'}
+                        : '₹12,499'}
                   </span>
                 )}
               </p>

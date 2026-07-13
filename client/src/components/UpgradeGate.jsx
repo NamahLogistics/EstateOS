@@ -36,7 +36,7 @@ const COPY = {
     features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
     cta: 'Upgrade to Family — ₹1,499/yr',
     href: '/pricing?plan=family',
-    note: 'Need India+US or India+UK execution packs? Diaspora is ₹12,499/yr.',
+    note: 'Need India+US or India+UK execution packs? Diaspora is ₹24,998/yr.',
   },
   near: {
     plan: 'family',
@@ -50,14 +50,14 @@ const COPY = {
   diaspora: {
     plan: 'diaspora',
     title: 'Cross-border packs need Diaspora',
-    body: 'India + US / India + UK pathways are for NRI families. Diaspora includes everything in Family plus apostille, embassy, and foreign-bank tasks — ₹12,499/year.',
+    body: 'India + US / India + UK pathways are for NRI families. Diaspora includes everything in Family plus apostille, embassy, and foreign-bank tasks — ₹24,998/year.',
     features: [
       'Everything in Family',
       'India + US and India + UK packs',
       'NRI / cross-border execution pathway',
       'Care Network (city nurses & maids) included',
     ],
-    cta: 'Upgrade to Diaspora — ₹12,499/yr',
+    cta: 'Upgrade to Diaspora — ₹24,998/yr',
     href: '/pricing?plan=diaspora',
     note: 'Family (₹1,499) still works for India-only checklists if you stay on the India pack.',
   },
@@ -81,9 +81,10 @@ const COPY = {
     features: [
       'India + US / India + UK execution packs',
       'Everything in Family included',
+      'Care Network included',
       'Pay with international card from abroad',
     ],
-    cta: 'Choose Diaspora — ₹12,499/yr',
+    cta: 'Choose Diaspora — ₹24,998/yr',
     href: '/pricing?plan=diaspora',
     note: null,
     secondaryCta: 'Continue with Family — ₹1,499/yr',

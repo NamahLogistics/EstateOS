@@ -15,7 +15,7 @@ const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900); // �
 const PLAN_AMOUNTS = {
   // paise (INR)
   family: FAMILY_AMOUNT,
-  diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 1249900), // ₹12,499
+  diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 2499800), // ₹24,998 (2× prior)
   counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499 — counsel lead board
   /** City nurses/maids — 2× Family */
   care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT * 2), // ₹2,998
