@@ -136,13 +136,16 @@ const dict = {
     // Landing (first viewport + how it works)
     heroLine:
       'You’re abroad. Their banks, LIC, flat papers, and caregivers still sit in India. Map it once — so family isn’t guessing on WhatsApp when something happens.',
-    startFree: 'Start free — map one parent',
+    startFree: 'Start free — fridge QR in minutes',
+    seePricing: 'See pricing',
     openEstates: 'Open your estates',
     iProvideCare: 'I provide care',
     howFromAbroad: 'How it works from abroad',
-    howLead: 'Built so the adult child overseas can set it up — the parent only confirms the essentials.',
+    howLead:
+      'No sales call. Create a parent map, get a fridge QR + sibling invite link — even solo. Fill banks when Mum/Dad are free.',
     whileAbroad: 'While you’re abroad',
-    whileAbroadBody: 'Interview a parent on a call, scan passbook photos, invite siblings. Hindi or English.',
+    whileAbroadBody:
+      'Start solo or on a video call. Scan passbook photos, invite siblings on WhatsApp. Hindi or English.',
     whenHappens: 'When something happens',
     whenHappensBody:
       'Appointed unlockers open Execution Mode with proof. India — or India+US / India+UK — tasks appear in order.',
@@ -152,6 +155,11 @@ const dict = {
     notLegal: 'Not a will. Not a bank. Not a substitute for licensed legal advice.',
     cityCare: 'City care',
     forAdvocates: 'For advocates',
+    landingProofTitle: 'What you get in the first sitting',
+    landingProof1: 'Fridge QR for unlockers + care phones (no bank passwords)',
+    landingProof2: 'One WhatsApp family link — every sibling can join',
+    landingProof3: 'Life Map for banks, LIC, keys — fill now or later',
+    landingProofCta: 'Free for one parent · upgrade when you need more',
 
     // Misc
     exportZip: 'Export ZIP',
@@ -325,13 +333,16 @@ const dict = {
 
     heroLine:
       'आप विदेश में हैं। उनके बैंक, एलआईसी, फ़्लैट के कागज़ और देखभाल वाले भारत में हैं। एक बार मैप करें — ताकि कुछ होने पर परिवार व्हाट्सऐप पर अटक न जाए।',
-    startFree: 'मुफ़्त शुरू करें — एक माता/पिता',
+    startFree: 'मुफ़्त शुरू करें — मिनटों में फ्रिज QR',
+    seePricing: 'कीमतें देखें',
     openEstates: 'अपनी फ़ाइलें खोलें',
     iProvideCare: 'मैं देखभाल करता/करती हूँ',
     howFromAbroad: 'विदेश से कैसे काम करता है',
-    howLead: 'बड़े बेटे-बेटी विदेश से सेटअप कर सकें — माता/पिता सिर्फ ज़रूरी बातें बताएँ।',
+    howLead:
+      'कोई सेल्स कॉल नहीं। माता/पिता का नक्शा बनाएँ, फ्रिज QR और भाई-बहन का लिंक पाएँ — अकेले भी। बैंक बाद में भरें।',
     whileAbroad: 'जब आप बाहर हों',
-    whileAbroadBody: 'कॉल पर बातचीत, पासबुक फ़ोटो, भाई-बहनों को बुलाएँ। हिंदी या अंग्रेज़ी।',
+    whileAbroadBody:
+      'अकेले शुरू करें या वीडियो कॉल पर। पासबुक फ़ोटो, व्हाट्सऐप पर भाई-बहन। हिंदी या अंग्रेज़ी।',
     whenHappens: 'जब कुछ हो जाए',
     whenHappensBody:
       'नियुक्त लोग प्रमाण के साथ काम की सूची खोलते हैं। भारत — या भारत+अमेरिका / भारत+ब्रिटेन — काम क्रम से आते हैं।',
@@ -341,6 +352,11 @@ const dict = {
     notLegal: 'यह वसीयत नहीं। बैंक नहीं। कानूनी सलाह का विकल्प नहीं।',
     cityCare: 'शहर देखभाल',
     forAdvocates: 'अधिवक्ताओं के लिए',
+    landingProofTitle: 'पहली बैठक में क्या मिलता है',
+    landingProof1: 'फ्रिज QR — खोलने वाले + देखभाल फ़ोन (बैंक पासवर्ड नहीं)',
+    landingProof2: 'एक व्हाट्सऐप परिवार लिंक — हर भाई-बहन जुड़ सकता है',
+    landingProof3: 'बैंक, एलआईसी, चाबियों का Life Map — अभी या बाद में',
+    landingProofCta: 'एक माता/पिता मुफ़्त · ज़रूरत पर अपग्रेड',
 
     exportZip: 'ZIP निर्यात',
     markReviewDone: 'सालाना समीक्षा पूर्ण करें',

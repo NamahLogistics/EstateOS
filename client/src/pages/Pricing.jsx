@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useCareNetwork } from '../careNetwork.js';
+import { track } from '../analytics.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate from '../components/UpgradeGate.jsx';
 
@@ -131,16 +132,35 @@ export default function Pricing() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlight]);
 
+  useEffect(() => {
+    if (!user) return;
+    if (searchParams.get('checkout') !== '1') return;
+    const plan = searchParams.get('plan');
+    if (!plan || plan === 'free') return;
+    const key = `hr_autocheckout_${plan}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    track('checkout_auto_after_auth', { plan });
+    if (plan === 'family') setAbroadGateOpen(true);
+    else checkout(plan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   async function checkout(plan) {
-    if (plan === 'free') return;
+    if (plan === 'free') {
+      window.location.assign(user ? '/app' : '/auth?mode=register');
+      return;
+    }
     if (careComingSoon && (plan === 'family_care' || plan === 'diaspora_care' || plan === 'care')) {
       toast('City care network is coming soon — not available to purchase yet');
       return;
     }
     if (!user) {
-      toast('Create an account first, then choose a plan');
+      track('checkout_needs_auth', { plan });
+      window.location.assign(`/auth?mode=register&plan=${encodeURIComponent(plan)}&checkout=1`);
       return;
     }
+    track('checkout_start', { plan });
     setBusy(true);
     try {
       const data = await api('/api/billing/checkout', { method: 'POST', body: { plan } });
@@ -464,11 +484,24 @@ export default function Pricing() {
         })}
       </div>
 
-      <form className="card" style={{ padding: '1.25rem', marginTop: '1.5rem', maxWidth: 520 }} onSubmit={joinWaitlist}>
-        <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-          Prefer a human onboarding?
+      <form
+        className="card"
+        style={{
+          padding: '1.25rem',
+          marginTop: '2rem',
+          maxWidth: 520,
+          opacity: 0.92,
+          borderStyle: 'dashed',
+        }}
+        onSubmit={joinWaitlist}
+      >
+        <p className="display" style={{ fontSize: '1.15rem', marginTop: 0 }}>
+          Stuck? Email us (optional)
         </p>
-        <p className="muted small">Leave your email — we help set up the first estate for your family.</p>
+        <p className="muted small">
+          Self-serve is the default — create an estate and finish housewarming in-app. Only leave a note
+          if something is broken.
+        </p>
         <div className="field">
           <label>Name</label>
           <input value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
@@ -492,7 +525,7 @@ export default function Pricing() {
             <option value="caregiver">I provide care</option>
           </select>
         </div>
-        <button className="btn btn-primary">Request onboarding</button>
+        <button className="btn btn-ghost">Send note</button>
       </form>
     </section>
   );

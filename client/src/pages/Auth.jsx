@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
+import { track } from '../analytics.js';
 
 const REF_KEY = 'estate_os_ref';
 const CITY_KEY = 'heirready_invite_city_v2';
+const PLAN_KEY = 'heirready_checkout_plan';
 
 function typeFromParam(raw) {
   if (raw === 'lawyer') return 'lawyer';
@@ -37,6 +39,8 @@ export default function AuthPage() {
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
   const typeFromUrl = typeFromParam(params.get('type'));
   const cityFromUrl = (params.get('city') || '').trim();
+  const planFromUrl = (params.get('plan') || '').trim();
+  const wantsCheckout = params.get('checkout') === '1';
   const [referralCode, setReferralCode] = useState(() => {
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
@@ -80,10 +84,28 @@ export default function AuthPage() {
     if (resetToken) setMode('reset');
     else if (params.get('mode') === 'forgot') setMode('forgot');
     else if (params.get('mode') === 'login') setMode('login');
-  }, [refFromUrl, typeFromUrl, cityFromUrl, resetToken, params]);
+    if (planFromUrl) {
+      try {
+        sessionStorage.setItem(PLAN_KEY, planFromUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [refFromUrl, typeFromUrl, cityFromUrl, resetToken, params, planFromUrl]);
 
-  if (user) return <Navigate to={homeFor(user.accountType)} replace />;
-
+  if (user) {
+    const pendingPlan = planFromUrl || (() => {
+      try {
+        return sessionStorage.getItem(PLAN_KEY) || '';
+      } catch {
+        return '';
+      }
+    })();
+    if (wantsCheckout && pendingPlan && pendingPlan !== 'free' && user.accountType === 'family') {
+      return <Navigate to={`/pricing?plan=${encodeURIComponent(pendingPlan)}&checkout=1`} replace />;
+    }
+    return <Navigate to={homeFor(user.accountType)} replace />;
+  }
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -137,8 +159,31 @@ export default function AuthPage() {
         });
         localStorage.removeItem(REF_KEY);
         if (form.city) localStorage.setItem(CITY_KEY, form.city);
+        track('signup', {
+          accountType: data.user?.accountType,
+          planIntent: planFromUrl || null,
+          checkout: wantsCheckout,
+        });
         toast(t('welcome'));
-        navigate(homeFor(data.user?.accountType));
+        const pendingPlan =
+          planFromUrl ||
+          (() => {
+            try {
+              return sessionStorage.getItem(PLAN_KEY) || '';
+            } catch {
+              return '';
+            }
+          })();
+        if (
+          wantsCheckout &&
+          pendingPlan &&
+          pendingPlan !== 'free' &&
+          (data.user?.accountType || 'family') === 'family'
+        ) {
+          navigate(`/pricing?plan=${encodeURIComponent(pendingPlan)}&checkout=1`);
+        } else {
+          navigate(homeFor(data.user?.accountType));
+        }
         return;
       }
 

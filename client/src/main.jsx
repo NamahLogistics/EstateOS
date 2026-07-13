@@ -5,9 +5,12 @@ import App from './App.jsx';
 import { AuthProvider } from './auth.jsx';
 import { I18nProvider } from './i18n.jsx';
 import { registerServiceWorker } from './pwa.js';
+import { initAnalytics, track } from './analytics.js';
 import './styles.css';
 
 registerServiceWorker();
+initAnalytics();
+track('app_boot');
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

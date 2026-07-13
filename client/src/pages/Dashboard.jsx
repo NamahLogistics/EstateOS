@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
+import { track } from '../analytics.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 
@@ -51,6 +52,7 @@ export default function Dashboard() {
       setForm({ subjectName: '', subjectRelation: 'Parent', countryPack: 'IN', notes: '' });
       toast(t('estateCreated'));
       const estateId = res.estate?.id || res.id;
+      track('estate_created', { estateId });
       if (estateId) {
         navigate(`/app/estates/${estateId}?tab=housewarming`);
       } else {
@@ -107,7 +109,7 @@ export default function Dashboard() {
       </div>
 
       <div style={{ marginTop: '1.15rem', maxWidth: 640 }}>
-        <ReferralCard />
+        {estates.length > 0 ? <ReferralCard /> : null}
       </div>
 
       {freeAtEstateCap && (

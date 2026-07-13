@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth.jsx';
+import { track } from '../analytics.js';
 
 export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTab, onCompleted }) {
   const { api, toast } = useAuth();
@@ -29,11 +30,16 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
         body: { stepId, ...opts },
       });
       onUpdated?.(res.housewarming);
+      if (opts.completeAll || opts.soloFastTrack) {
+        track('housewarming_solo_or_finish', { estateId, solo: Boolean(opts.soloFastTrack) });
+      } else if (opts.complete) {
+        track('housewarming_step', { estateId, stepId });
+      }
       if (res.justCompleted || res.housewarming?.progress?.completedAt) {
         toast('Housewarming complete — invite a sibling next');
         onCompleted?.(res);
       } else {
-        toast(opts.completeAll ? 'Housewarming complete' : 'Step saved');
+        toast(opts.completeAll || opts.soloFastTrack ? 'Housewarming complete' : 'Step saved');
       }
     } catch (err) {
       toast(err.message);
@@ -51,12 +57,36 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
           className="small muted"
           style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}
         >
-          Child-led · {meta.duration || '~20 min'}
+          Child-led · solo OK · {meta.duration || '~20 min'}
         </p>
         <h2 className="display" style={{ fontSize: '1.75rem', margin: '0.25rem 0 0.5rem' }}>
           {meta.title || 'Digital Housewarming'}
         </h2>
         <p style={{ marginTop: 0, color: 'var(--ink-soft)' }}>{meta.framing}</p>
+
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '0.95rem 1rem',
+            borderRadius: 12,
+            background: 'rgba(220, 232, 225, 0.65)',
+            border: '1px solid rgba(47, 107, 82, 0.35)',
+          }}
+        >
+          <strong>Solo right now? Fine.</strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0.75rem', lineHeight: 1.5 }}>
+            Get the fridge QR + family invite link in one tap. Fill banks and care phones later — or on a
+            call with Mum/Dad when you have them.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={() => markStep(active?.id || 'create', { soloFastTrack: true, completeAll: true })}
+          >
+            Solo — show fridge QR + invite link
+          </button>
+        </div>
 
         <div
           style={{
@@ -68,7 +98,7 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
           }}
         >
           <div className="small muted" style={{ fontWeight: 700 }}>
-            Open the call with
+            Or open the call with
           </div>
           <p style={{ margin: '0.35rem 0 0', whiteSpace: 'pre-wrap' }}>{meta.openWith?.en}</p>
           {meta.openWith?.hi && (
@@ -174,14 +204,6 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
               onClick={() => markStep(active.id, { complete: true })}
             >
               {completed.has(active.id) ? 'Step done' : 'Mark step done'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={busy}
-              onClick={() => markStep(active.id, { completeAll: true })}
-            >
-              Finish housewarming
             </button>
             <button
               type="button"

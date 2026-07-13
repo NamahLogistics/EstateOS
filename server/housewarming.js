@@ -5,10 +5,10 @@
 
 export const HOUSEWARMING_META = {
   title: 'Digital Housewarming',
-  duration: '~20 minutes',
-  audience: 'Adult child abroad (or visiting) — with parent on a call or at home',
+  duration: '~20 minutes (or solo in minutes)',
+  audience: 'Adult child abroad — solo now, or with parent on a call / at home',
   framing:
-    'This is not a death dossier. You are moving monthly life admin onto a secure dashboard so you can help from abroad — electricity, maid salary, insurance renewals, who has the keys.',
+    'This is not a death dossier. Move monthly life admin onto a secure dashboard so you can help from abroad — electricity, maid salary, insurance renewals, who has the keys. You can start alone and fill details later.',
   openWith: {
     en: 'Mama/Papa — I want to set up a simple digital checklist for the house so I can help with bills and caregivers from abroad. It takes twenty minutes. No lawyers today.',
     hi: 'मम्मा/पापा — मैं घर के बिल और देखभाल वाले लोगों का एक सादा डिजिटल चेकलिस्ट बनाना चाहता/चाहती हूँ ताकि विदेश से मदद कर सकूँ। बीस मिनट लगेंगे। आज कोई वकील की बात नहीं।',

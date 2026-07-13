@@ -41,12 +41,26 @@ export default function Landing() {
                 <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
                   {user ? t('openEstates') : t('startFree')}
                 </Link>
-                <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
-                  {t('iProvideCare')}
+                <Link className="btn btn-ghost" to="/pricing?plan=diaspora">
+                  {t('seePricing')}
                 </Link>
               </>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="section-how">
+        <h2 className="display section-how-title">{t('landingProofTitle')}</h2>
+        <p className="section-lead">{t('landingProofCta')}</p>
+        <div className="panel-grid">
+          {[t('landingProof1'), t('landingProof2'), t('landingProof3')].map((body) => (
+            <div key={body} className="feature-block">
+              <p className="feature-body" style={{ margin: 0 }}>
+                {body}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
