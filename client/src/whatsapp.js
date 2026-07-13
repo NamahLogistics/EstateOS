@@ -2,8 +2,16 @@ export function whatsappShareUrl(text) {
   return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }
 
+/** First name only — reads better in WhatsApp */
+function firstName(name) {
+  const n = String(name || '').trim();
+  if (!n) return '';
+  return n.split(/\s+/)[0];
+}
+
 export function shareInviteText({ estateName, link, inviterName }) {
-  return `${inviterName || 'Family'} invited you to HeirReady for ${estateName}.\n\nJoin here:\n${link}\n\n(Not legal advice — family continuity vault)`;
+  const who = firstName(inviterName) || 'Family';
+  return `${who} invited you to HeirReady for ${estateName}.\n\nJoin here:\n${link}\n\n(Not legal advice — family continuity vault)`;
 }
 
 export function shareEmergencyText({ subjectName, url }) {
@@ -11,45 +19,51 @@ export function shareEmergencyText({ subjectName, url }) {
 }
 
 export function shareReferralText({ link, inviterName, accountType }) {
+  const who = firstName(inviterName);
   if (accountType === 'lawyer') {
     return (
-      `Hi — I’m ${inviterName || 'an advocate'} on HeirReady Counsel desk (city leads + matter briefs).\n\n` +
-      `Join as counsel here:\n${link}`
+      `Hi —${who ? ` ${who} here.` : ''}\n\n` +
+      `I’m on HeirReady Counsel desk (city leads + matter briefs for succession).\n\n` +
+      `Join as counsel (free to start):\n${link}`
     );
   }
   if (accountType === 'care') {
     return (
-      `Hi — I’m ${inviterName || 'listed'} on HeirReady. Families abroad look for nurses / maids here.\n\n` +
-      `Join free and set your city:\n${link}`
+      `Hi —${who ? ` ${who} here.` : ''}\n\n` +
+      `Families abroad use HeirReady to find nurses / maids.\n\n` +
+      `List yourself free:\n${link}`
     );
   }
   return (
-    `Hi — I’m using HeirReady to map our parents’ life admin (banks, LIC, who has the keys).\n\n` +
-    `Join free with my link:\n${link}`
+    `Hi —${who ? ` ${who} here.` : ''}\n\n` +
+    `I’m using HeirReady for our parents’ life admin (banks, LIC, keys).\n\n` +
+    `Join free:\n${link}`
   );
 }
 
-/** Soft outbound to NRI / adult children — city-focused */
+/** Soft outbound to NRI / adult children */
 export function shareFamilyOnboardText({ link, city, inviterName }) {
-  const place = city?.trim() || 'India';
-  const who = inviterName?.trim() || 'I';
+  const place = city?.trim();
+  const who = firstName(inviterName);
+  const where = place ? ` in ${place}` : '';
   return (
-    `Hi — ${who} here.\n\n` +
-    `I’m setting up HeirReady for our parents in ${place} — banks, LIC, property papers, who has the keys, and caregivers in one place.\n\n` +
-    `Join free (takes a couple of minutes):\n${link}\n\n` +
-    `Would love if you can add what you know too.`
+    `Hi${who ? ` — ${who} here` : ''}.\n\n` +
+    `I’m setting up HeirReady for our parents${where} — banks, LIC, property papers, who has the keys, and caregivers, all in one place.\n\n` +
+    `Join free (2 mins):\n${link}\n\n` +
+    `Add what you know when you can.`
   );
 }
 
-/** Soft outbound to nurses / maids / agencies — free join */
+/** Soft outbound to nurses / maids / agencies */
 export function shareCareOnboardText({ link, city, inviterName }) {
-  const place = city?.trim() || 'your city';
-  const who = inviterName?.trim() || 'I';
+  const place = city?.trim();
+  const who = firstName(inviterName);
+  const where = place ? ` in ${place}` : '';
   return (
-    `Hi — ${who} here.\n\n` +
-    `Families with parents in ${place} use HeirReady to find nurses, maids, and attendants.\n\n` +
-    `You can list free — just city, phone, and your rate:\n${link}\n\n` +
-    `No fee to join. Families on Care plans can find you.`
+    `Hi${who ? ` — ${who} here` : ''}.\n\n` +
+    `Families with parents${where} use HeirReady to find nurses, maids, and attendants.\n\n` +
+    `List free — city, phone, rate:\n${link}\n\n` +
+    `No fee to join.`
   );
 }
 
