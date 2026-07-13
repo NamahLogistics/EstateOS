@@ -145,6 +145,39 @@ export function shareCareOnboardText({ link, city, inviterName, lang = 'en' }) {
   );
 }
 
+export function shareFamilyNoteText({ estateName, authorName, body, link, lang = 'en' }) {
+  const who = firstName(authorName);
+  const preview = String(body || '').slice(0, 280);
+  if (lang === 'hi') {
+    return (
+      `${who ? `${who}` : 'परिवार'} — ${estateName} पर नोट:\n\n` +
+      `"${preview}"\n\n` +
+      `HeirReady पर खोलें:\n${link}`
+    );
+  }
+  return (
+    `${who || 'Family'} posted on ${estateName}:\n\n` +
+    `"${preview}"\n\n` +
+    `Open on HeirReady:\n${link}`
+  );
+}
+
+export function shareLightReviewText({ estateName, link, inviterName, lang = 'en' }) {
+  const who = firstName(inviterName);
+  if (lang === 'hi') {
+    return (
+      `${who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n'}` +
+      `${estateName} का हल्का चेक: वही आया/नर्स? वही एलआईसी/बैंक?\n\n` +
+      `HeirReady पर अपडेट करें:\n${link}`
+    );
+  }
+  return (
+    `Hi${who ? ` — ${who} here` : ''}.\n\n` +
+    `Quick check on ${estateName}: same maid/nurse phone? Same LIC/bank?\n\n` +
+    `Update on HeirReady:\n${link}`
+  );
+}
+
 export function buildInviteUrl({ origin, ref, type, city }) {
   const base = String(origin || '').replace(/\/$/, '');
   const params = new URLSearchParams({ mode: 'register' });

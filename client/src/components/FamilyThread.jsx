@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
+import { shareFamilyNoteText, whatsappShareUrl } from '../whatsapp.js';
 
-export default function FamilyThread({ estateId }) {
+const waMini = {
+  padding: '0.35rem 0.7rem',
+  background: '#128C7E',
+  color: '#fff',
+  border: 'none',
+  fontWeight: 600,
+  fontSize: '0.8rem',
+  textDecoration: 'none',
+  display: 'inline-block',
+  borderRadius: 8,
+};
+
+export default function FamilyThread({ estateId, estateName }) {
   const { api, toast, user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [posts, setPosts] = useState([]);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastPost, setLastPost] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -26,6 +40,19 @@ export default function FamilyThread({ estateId }) {
     load().catch(() => {});
   }, [estateId]);
 
+  function noteWaHref(post) {
+    const link = `${window.location.origin}/app/estates/${estateId}?tab=family`;
+    return whatsappShareUrl(
+      shareFamilyNoteText({
+        estateName: estateName || 'Family file',
+        authorName: post.authorName || user?.name,
+        body: post.body,
+        link,
+        lang,
+      })
+    );
+  }
+
   async function submit(e) {
     e.preventDefault();
     if (!body.trim()) return;
@@ -36,11 +63,12 @@ export default function FamilyThread({ estateId }) {
         body: { body: body.trim() },
       });
       setPosts((p) => [...p, res.post]);
+      setLastPost(res.post);
       setBody('');
       toast(
         res.notified > 0
           ? `Posted — emailed ${res.notified} family member${res.notified === 1 ? '' : 's'}`
-          : 'Posted — invite siblings so they get email alerts'
+          : 'Posted — share on WhatsApp or invite siblings'
       );
     } catch (err) {
       toast(err.message);
@@ -107,11 +135,29 @@ export default function FamilyThread({ estateId }) {
                 <p style={{ margin: '0.3rem 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
                   {p.body}
                 </p>
+                <a
+                  className="btn"
+                  style={{ ...waMini, marginTop: '0.45rem' }}
+                  href={noteWaHref(p)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  WhatsApp
+                </a>
               </div>
             );
           })
         )}
       </div>
+
+      {lastPost && (
+        <p className="small" style={{ margin: '0 0 0.75rem' }}>
+          Just posted —{' '}
+          <a href={noteWaHref(lastPost)} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
+            share this note on WhatsApp
+          </a>
+        </p>
+      )}
 
       <form onSubmit={submit}>
         <div className="field" style={{ marginBottom: '0.65rem' }}>

@@ -162,3 +162,61 @@ export async function sendHousewarmingCompleteEmail({ to, name, estateName, link
     tags: [{ name: 'category', value: 'housewarming_complete' }],
   });
 }
+
+export async function sendSiblingJoinedEmail({
+  to,
+  ownerName,
+  siblingName,
+  estateName,
+  link,
+}) {
+  const subject = `${siblingName} joined ${estateName} on HeirReady`;
+  const text =
+    `Hi ${ownerName || 'there'},\n\n` +
+    `Good news: ${siblingName} just joined the family vault for ${estateName}.\n\n` +
+    `Invite another sibling while you’re at it:\n${link}\n\n` +
+    `HeirReady — not legal advice.`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">Sibling joined</h2>
+      <p style="margin:0 0 12px">Hi ${ownerName || 'there'}, <strong>${siblingName}</strong> joined <strong>${estateName}</strong>.</p>
+      <p style="margin:0 0 16px">Invite another sibling so more of the family can add what they know.</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Open family tab</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">Not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'sibling_joined' }],
+  });
+}
+
+export async function sendLightReviewNudgeEmail({ to, name, estateName, link, waText }) {
+  const subject = `${estateName}: quick check-in — same maid? same LIC?`;
+  const text =
+    `Hi ${name || 'there'},\n\n` +
+    `It’s been about 90 days since you set up ${estateName} on HeirReady.\n\n` +
+    `Quick check: same maid / nurse phone? Same LIC / bank? Any new caregiver?\n\n` +
+    `Open the Life Map:\n${link}\n\n` +
+    (waText ? `WhatsApp a sibling:\n${waText}\n\n` : '') +
+    `HeirReady — not legal advice.`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">90-day check-in</h2>
+      <p style="margin:0 0 12px">Hi ${name || 'there'}, a light nudge for <strong>${estateName}</strong>.</p>
+      <p style="margin:0 0 16px">Same maid / nurse phone? Same LIC or bank? Add anything new — takes a few minutes.</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Open Life Map</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">Not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'light_review' }],
+  });
+}

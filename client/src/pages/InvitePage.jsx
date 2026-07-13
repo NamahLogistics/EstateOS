@@ -37,7 +37,7 @@ export default function InvitePage() {
     setBusy(true);
     try {
       const res = await api(`/api/invites/${token}/accept`, { method: 'POST', body: {} });
-      toast('Invite accepted');
+      toast(res.message || 'Invite accepted');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);
@@ -54,7 +54,7 @@ export default function InvitePage() {
       if (!email) throw new Error('Email required');
       const session = await register({ ...form, email, accountType: 'family' });
       const res = await acceptWithToken(session.token);
-      toast('Welcome — invite accepted');
+      toast(res.message || 'Welcome — invite accepted');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);
@@ -70,7 +70,7 @@ export default function InvitePage() {
       const email = (form.email || info.email || '').trim().toLowerCase();
       const session = await login({ email, password: form.password });
       const res = await acceptWithToken(session.token);
-      toast('Invite accepted');
+      toast(res.message || 'Invite accepted');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);

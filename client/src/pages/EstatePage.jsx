@@ -481,6 +481,20 @@ export default function EstatePage() {
               ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
               : ''}
           </p>
+          {estate.health && (
+            <p className="small" style={{ margin: '0.45rem 0 0', lineHeight: 1.5 }}>
+              <strong>Life Map {estate.health.scoreLabel}</strong>
+              <span className="muted">
+                {' — '}
+                {estate.health.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
+              </span>
+              {estate.health.next ? (
+                <span className="muted"> · Next: {estate.health.next.hint}</span>
+              ) : (
+                <span style={{ color: 'var(--forest, #2f6b52)' }}> · Ready</span>
+              )}
+            </p>
+          )}
         </div>
         {statusBadge(estate.status, t)}
       </div>
@@ -1165,7 +1179,7 @@ export default function EstatePage() {
 
       {tab === 'family' && (
         <div>
-          <FamilyThread estateId={id} />
+          <FamilyThread estateId={id} estateName={estate.subjectName} />
           <div className="split">
             <div className="card">
               <div style={{ padding: '1rem 1.1rem' }}>

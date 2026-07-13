@@ -1,18 +1,20 @@
 import crypto from 'crypto';
 import { mutate, readStore } from './db.js';
-import { sendEmail } from './mail.js';
+import { sendEmail, sendLightReviewNudgeEmail } from './mail.js';
 import {
   applyPlanExpiryInPlace,
   RENEWAL_WARN_DAYS,
   userHasPaidAccess,
 } from './plans.js';
 
+const LIGHT_REVIEW_MS = 90 * 24 * 60 * 60 * 1000;
+
 export async function runReminderPass() {
   const store = readStore();
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
   let sent = 0;
-  const app = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(/\/$/, '');
+  const app = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
 
   for (const user of store.users) {
     if (applyPlanExpiryInPlace(user)) {
@@ -46,6 +48,7 @@ export async function runReminderPass() {
   for (const estate of store.estates) {
     const owner = store.users.find((u) => u.id === estate.ownerId);
     if (!owner?.email) continue;
+    const estateLink = `${app}/app/estates/${estate.id}`;
 
     // Yearly review
     if (estate.nextReviewAt) {
@@ -55,8 +58,8 @@ export async function runReminderPass() {
           await sendEmail({
             to: owner.email,
             subject: `Yearly review: ${estate.subjectName}'s Life Map`,
-            text: `It's time to review the Life Map for ${estate.subjectName}.\n\nOpen: ${app}/app/estates/${estate.id}\n\nMark reviewed when done so we remind you again next year.`,
-            html: `<p>Time to review <strong>${estate.subjectName}</strong>'s Life Map.</p><p><a href="${app}/app/estates/${estate.id}">Open estate</a></p>`,
+            text: `It's time to review the Life Map for ${estate.subjectName}.\n\nOpen: ${estateLink}\n\nMark reviewed when done so we remind you again next year.`,
+            html: `<p>Time to review <strong>${estate.subjectName}</strong>'s Life Map.</p><p><a href="${estateLink}">Open estate</a></p>`,
           });
           mutate((s) => {
             const e = s.estates.find((x) => x.id === estate.id);
@@ -65,6 +68,39 @@ export async function runReminderPass() {
           sent++;
         } catch (err) {
           console.error('review reminder failed', err.message);
+        }
+      }
+    }
+
+    // 90-day light check-in (after housewarming)
+    const lightDueAt = estate.nextLightReviewAt;
+    if (lightDueAt && estate.housewarming?.completedAt) {
+      const lightDue = new Date(lightDueAt).getTime();
+      if (lightDue <= now) {
+        const key = `light:${estate.id}:${lightDueAt.slice(0, 10)}`;
+        if (estate.lastLightReviewAlertKey !== key) {
+          const waText =
+            `Hi — quick check on ${estate.subjectName}: same maid/nurse phone? Same LIC/bank?\n\n` +
+            `Update on HeirReady:\n${estateLink}`;
+          try {
+            await sendLightReviewNudgeEmail({
+              to: owner.email,
+              name: owner.name,
+              estateName: estate.subjectName,
+              link: estateLink,
+              waText,
+            });
+            mutate((s) => {
+              const e = s.estates.find((x) => x.id === estate.id);
+              if (e) {
+                e.lastLightReviewAlertKey = key;
+                e.nextLightReviewAt = new Date(now + LIGHT_REVIEW_MS).toISOString();
+              }
+            });
+            sent++;
+          } catch (err) {
+            console.error('light review nudge failed', err.message);
+          }
         }
       }
     }
@@ -83,8 +119,8 @@ export async function runReminderPass() {
         await sendEmail({
           to: owner.email,
           subject: `Expiring documents: ${estate.subjectName}`,
-          text: `These Life Map items expire within 30 days:\n\n${list}\n\n${app}/app/estates/${estate.id}`,
-          html: `<p>Expiring soon for <strong>${estate.subjectName}</strong>:</p><pre>${list}</pre><p><a href="${app}/app/estates/${estate.id}">Open estate</a></p>`,
+          text: `These Life Map items expire within 30 days:\n\n${list}\n\n${estateLink}`,
+          html: `<p>Expiring soon for <strong>${estate.subjectName}</strong>:</p><pre>${list}</pre><p><a href="${estateLink}">Open estate</a></p>`,
         });
         mutate((s) => {
           const e = s.estates.find((x) => x.id === estate.id);
@@ -118,3 +154,12 @@ export function ensureEstateDefaults(estate) {
   }
   return estate;
 }
+
+/** Call when housewarming completes or yearly review is marked done */
+export function scheduleLightReview(estate, fromMs = Date.now()) {
+  estate.nextLightReviewAt = new Date(fromMs + LIGHT_REVIEW_MS).toISOString();
+  estate.lastLightReviewAlertKey = null;
+  return estate;
+}
+
+export { LIGHT_REVIEW_MS };

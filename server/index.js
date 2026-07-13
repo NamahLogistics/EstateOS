@@ -38,15 +38,16 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
-import { runReminderPass, ensureEstateDefaults } from './reminders.js';
+import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
   housewarmingPublic,
   defaultHousewarmingState,
   HOUSEWARMING_STEPS,
 } from './housewarming.js';
+import { computeLifeMapHealth } from './lifeMapHealth.js';
 import {
   assertCanCreateEstate,
   assertCanAddItems,
@@ -215,6 +216,7 @@ function publicEstate(estate, store, userId) {
     itemCount,
     memberCount: members.length + 1,
     myRole: myRole || 'viewer',
+    health: computeLifeMapHealth(estate, store),
   };
 }
 
@@ -1131,7 +1133,7 @@ app.get('/api/invites/:token', (req, res) => {
   });
 });
 
-app.post('/api/invites/:token/accept', authRequired, (req, res) => {
+app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
   const store = readStore();
   const invite = store.invites.find((i) => i.token === req.params.token && i.status === 'pending');
   if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
@@ -1191,7 +1193,25 @@ app.post('/api/invites/:token/accept', authRequired, (req, res) => {
       detail: `${req.user.email} joined as ${invite.role}`,
     });
   });
-  res.json({ ok: true, estateId: invite.estateId });
+
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
+  if (owner?.email && owner.id !== req.user.id) {
+    sendSiblingJoinedEmail({
+      to: owner.email,
+      ownerName: owner.name,
+      siblingName: req.user.name || req.user.email,
+      estateName: estate.subjectName,
+      link: `${base}/app/estates/${estate.id}?tab=family`,
+    }).catch((err) => console.error('sibling joined email failed', err.message));
+  }
+
+  res.json({
+    ok: true,
+    estateId: invite.estateId,
+    celebrated: true,
+    message: `You’re in — ${owner?.name || 'the owner'} was notified`,
+  });
 });
 
 app.post('/api/estates/:id/members', authRequired, async (req, res) => {
@@ -1520,7 +1540,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.13.0',
+    version: '1.14.0',
   });
 });
 
@@ -1645,6 +1665,10 @@ app.post('/api/estates/:id/housewarming', authRequired, async (req, res) => {
   if (!result) return res.status(404).json({ error: 'Estate not found' });
 
   if (justCompleted) {
+    mutate((s) => {
+      const e = s.estates.find((x) => x.id === access.estate.id);
+      if (e) scheduleLightReview(e);
+    });
     const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
     const link = `${base}/app/estates/${access.estate.id}?tab=housewarming`;
     sendHousewarmingCompleteEmail({
@@ -1703,6 +1727,7 @@ app.post('/api/estates/:id/review/complete', authRequired, (req, res) => {
     e.nextReviewAt = next.toISOString();
     e.reviewReminderSentAt = null;
     e.lastReviewedAt = new Date().toISOString();
+    scheduleLightReview(e);
     audit(s, {
       estateId: e.id,
       userId: req.user.id,

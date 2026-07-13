@@ -148,6 +148,22 @@ export default function Dashboard() {
                       {e.subjectRelation} · {packLabel[e.countryPack || e.country] || e.country} ·{' '}
                       {e.itemCount} {t('vaultItems')} · {e.myRole}
                     </div>
+                    {e.health && (
+                      <div className="small" style={{ marginTop: '0.35rem', lineHeight: 1.45 }}>
+                        <span style={{ fontWeight: 700, color: e.health.ready ? 'var(--forest, #2f6b52)' : 'var(--ink)' }}>
+                          Life Map {e.health.scoreLabel}
+                        </span>
+                        <span className="muted">
+                          {' · '}
+                          {e.health.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
+                        </span>
+                        {e.health.next && (
+                          <div className="muted" style={{ marginTop: '0.15rem' }}>
+                            Next: {e.health.next.hint}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {statusBadge(e.status, t)}
                 </div>
