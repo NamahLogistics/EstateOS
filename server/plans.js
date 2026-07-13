@@ -171,10 +171,19 @@ export function remainingItemSlots(store, user, estateId) {
   return Math.max(0, FREE_MAX_ITEMS - count);
 }
 
-export function normalizeCountryPack(pack, userOrPlan) {
+export function normalizeCountryPack(pack, userOrPlan, { strict = false } = {}) {
   const allowed = ['IN', 'IN_US', 'IN_UK'];
   let value = allowed.includes(pack) ? pack : 'IN';
   if ((value === 'IN_US' || value === 'IN_UK') && !canUseCrossBorderPack(userOrPlan)) {
+    if (strict) {
+      const err = new Error(
+        'India + US / India + UK packs need Diaspora (₹12,499/yr). Upgrade on Pricing.'
+      );
+      err.status = 402;
+      err.code = 'PLAN_LIMIT';
+      err.upgradePlan = 'diaspora';
+      throw err;
+    }
     value = 'IN';
   }
   return value;

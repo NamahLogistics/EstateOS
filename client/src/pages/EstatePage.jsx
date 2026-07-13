@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
-import UpgradeGate, { isPlanLimitError } from '../components/UpgradeGate.jsx';
+import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
 import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsapp.js';
 
@@ -132,7 +132,7 @@ export default function EstatePage() {
 
   function handleLimitError(err, reason = 'items') {
     if (isPlanLimitError(err)) {
-      openUpgrade(reason);
+      openUpgrade(upgradeReasonFromError(err, reason));
       return true;
     }
     return false;
@@ -280,6 +280,12 @@ export default function EstatePage() {
     const mode = e.target.mode.value;
     const requireProof = e.target.requireProof.checked;
     const countryPack = e.target.countryPack?.value;
+    const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+    if ((countryPack === 'IN_US' || countryPack === 'IN_UK') && !diaspora) {
+      openUpgrade('diaspora');
+      e.target.countryPack.value = data?.estate?.countryPack || data?.estate?.country || 'IN';
+      return;
+    }
     setBusy(true);
     try {
       await api(`/api/estates/${id}`, {
@@ -296,7 +302,7 @@ export default function EstatePage() {
       toast('Unlock rules saved');
       await load();
     } catch (err) {
-      toast(err.message);
+      if (!handleLimitError(err, 'diaspora')) toast(err.message);
     } finally {
       setBusy(false);
     }
@@ -975,7 +981,18 @@ export default function EstatePage() {
           </p>
           <div className="field">
             <label>Country pack</label>
-            <select name="countryPack" defaultValue={estate.countryPack || estate.country || 'IN'}>
+            <select
+              name="countryPack"
+              defaultValue={estate.countryPack || estate.country || 'IN'}
+              onChange={(e) => {
+                const v = e.target.value;
+                const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+                if ((v === 'IN_US' || v === 'IN_UK') && !diaspora) {
+                  e.target.value = estate.countryPack || estate.country || 'IN';
+                  openUpgrade('diaspora');
+                }
+              }}
+            >
               {(countryPacks || [
                 { id: 'IN', label: 'India' },
                 { id: 'IN_US', label: 'India + US' },
@@ -983,7 +1000,7 @@ export default function EstatePage() {
               ]).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.label}
-                  {p.needsDiaspora ? ' (Diaspora plan)' : ''}
+                  {p.needsDiaspora ? ' — Diaspora plan' : ''}
                 </option>
               ))}
             </select>

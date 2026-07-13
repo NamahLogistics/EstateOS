@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
+import UpgradeGate from '../components/UpgradeGate.jsx';
 
 const plans = [
   {
@@ -16,27 +17,28 @@ const plans = [
     id: 'family',
     name: 'Family',
     price: '₹1,499/yr',
-    blurb: 'Siblings + counsel-ready',
+    blurb: 'India vault + siblings + counsel',
     features: [
       'Unlimited vault items',
       'Invite links + WhatsApp share',
       'Counsel retain + brief',
       'ZIP export + audit log',
+      'India execution checklist',
     ],
-    cta: 'Pay with card (works abroad)',
+    cta: 'Get Family',
   },
   {
     id: 'diaspora',
     name: 'Diaspora',
     price: '₹12,499/yr',
-    blurb: 'When family spans countries',
+    blurb: 'You’re abroad — parents’ papers are in India',
     features: [
       'Everything in Family',
       'India + US / India + UK packs',
       'NRI / cross-border pathway',
-      'Pay from abroad with international card',
+      'Pay with international card from abroad',
     ],
-    cta: 'Pay with card from abroad',
+    cta: 'Get Diaspora',
   },
   {
     id: 'counsel',
@@ -66,9 +68,12 @@ function loadRazorpay() {
 
 export default function Pricing() {
   const { user, api, toast, setUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [lead, setLead] = useState({ name: '', email: '', interest: 'family' });
   const [busy, setBusy] = useState(false);
   const [credits, setCredits] = useState(0);
+  const [abroadGateOpen, setAbroadGateOpen] = useState(false);
+  const highlight = searchParams.get('plan') || '';
 
   useEffect(() => {
     if (!user) {
@@ -80,7 +85,13 @@ export default function Pricing() {
       .catch(() => setCredits(user.referralDiscountCredits || 0));
   }, [user?.id]);
 
-  async function choose(plan) {
+  useEffect(() => {
+    if (!highlight) return;
+    const el = document.getElementById(`plan-${highlight}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlight]);
+
+  async function checkout(plan) {
     if (plan === 'free') return;
     if (!user) {
       toast('Create an account first, then choose a plan');
@@ -100,7 +111,6 @@ export default function Pricing() {
           order_id: data.orderId,
           prefill: data.prefill,
           theme: { color: '#2c4d3c' },
-          // NRI-first: card abroad first; UPI/netbanking for India-based payers
           config: data.checkoutConfig || {
             display: {
               blocks: {
@@ -167,6 +177,14 @@ export default function Pricing() {
     }
   }
 
+  function choose(plan) {
+    if (plan === 'family') {
+      setAbroadGateOpen(true);
+      return;
+    }
+    checkout(plan);
+  }
+
   async function joinWaitlist(e) {
     e.preventDefault();
     try {
@@ -189,14 +207,38 @@ export default function Pricing() {
 
   return (
     <section style={{ padding: '1.5rem 0 3rem' }}>
+      <UpgradeGate
+        open={abroadGateOpen}
+        onClose={() => setAbroadGateOpen(false)}
+        reason="abroad_checkout"
+        onPrimary={() => checkout('diaspora')}
+        onSecondary={() => checkout('family')}
+      />
+
       <h1 className="display" style={{ fontSize: '2.4rem', marginBottom: '0.4rem' }}>
         Pricing
       </h1>
-      <p className="muted" style={{ maxWidth: 520 }}>
-        Free to start. Diaspora buyers: pay with international card from abroad.
-        In India: UPI or netbanking also work. Annual plans via Razorpay.
+      <p className="muted" style={{ maxWidth: 540 }}>
+        Annual subscriptions via Razorpay. In India: UPI or netbanking. From abroad: international card
+        (best on Diaspora).
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
+
+      <div className="upgrade-limit-banner" style={{ marginTop: '1.1rem', maxWidth: 640 }}>
+        <p className="small">
+          <strong>Living outside India?</strong> Family covers the India vault. Diaspora adds India+US /
+          India+UK pathways when something happens — that’s the NRI plan.
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ padding: '0.45rem 0.95rem' }}
+          disabled={busy}
+          onClick={() => checkout('diaspora')}
+        >
+          Choose Diaspora
+        </button>
+      </div>
 
       {user ? (
         <div style={{ marginTop: '1.25rem', maxWidth: 640 }}>
@@ -209,55 +251,68 @@ export default function Pricing() {
       )}
 
       <div className="panel-grid" style={{ marginTop: '1.5rem' }}>
-        {plans.map((p) => (
-          <div key={p.id} className="card" style={{ padding: '1.25rem' }}>
-            <p
-              className="small muted"
-              style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}
+        {plans.map((p) => {
+          const featured = p.id === 'diaspora' || highlight === p.id;
+          return (
+            <div
+              key={p.id}
+              id={`plan-${p.id}`}
+              className="card"
+              style={{
+                padding: '1.25rem',
+                outline: featured ? '2px solid var(--sage-deep)' : undefined,
+                outlineOffset: featured ? '2px' : undefined,
+              }}
             >
-              {p.name}
-            </p>
-            <p className="display" style={{ fontSize: '2rem', margin: '0.35rem 0' }}>
-              {p.price}
-              {hasCredit && p.id !== 'free' && (
-                <span className="small" style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
-                  Your price with referral credit: ~
-                  {p.id === 'family' || p.id === 'counsel' ? '₹750' : '₹6,250'}
-                </span>
-              )}
-            </p>
-            <p className="muted" style={{ marginTop: 0 }}>
-              {p.blurb}
-            </p>
-            <ul style={{ paddingLeft: '1.1rem', color: 'var(--ink-soft)', lineHeight: 1.55 }}>
-              {p.features.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-            {p.id === 'free' ? (
-              <Link className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }} to="/auth?mode=register">
-                {p.cta}
-              </Link>
-            ) : (
-              <button
-                className={`btn ${p.id === 'family' || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ width: '100%', marginTop: '0.5rem' }}
-                disabled={busy}
-                onClick={() => choose(p.id)}
+              <p
+                className="small muted"
+                style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}
               >
-                {user?.plan === p.id && user?.planActive
-                  ? user?.needsRenewal
-                    ? 'Renew now'
-                    : 'Current plan'
-                  : user?.previousPlan === p.id && user?.plan === 'free'
-                    ? 'Renew plan'
-                    : hasCredit
-                      ? 'Pay with 50% credit'
-                      : p.cta}
-              </button>
-            )}
-          </div>
-        ))}
+                {p.name}
+                {p.id === 'diaspora' ? ' · recommended abroad' : ''}
+              </p>
+              <p className="display" style={{ fontSize: '2rem', margin: '0.35rem 0' }}>
+                {p.price}
+                {hasCredit && p.id !== 'free' && (
+                  <span className="small" style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
+                    Your price with referral credit: ~
+                    {p.id === 'family' || p.id === 'counsel' ? '₹750' : '₹6,250'}
+                  </span>
+                )}
+              </p>
+              <p className="muted" style={{ marginTop: 0 }}>
+                {p.blurb}
+              </p>
+              <ul style={{ paddingLeft: '1.1rem', color: 'var(--ink-soft)', lineHeight: 1.55 }}>
+                {p.features.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              {p.id === 'free' ? (
+                <Link className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }} to="/auth?mode=register">
+                  {p.cta}
+                </Link>
+              ) : (
+                <button
+                  className={`btn ${p.id === 'diaspora' || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ width: '100%', marginTop: '0.5rem' }}
+                  disabled={busy}
+                  onClick={() => choose(p.id)}
+                >
+                  {user?.plan === p.id && user?.planActive
+                    ? user?.needsRenewal
+                      ? 'Renew now'
+                      : 'Current plan'
+                    : user?.previousPlan === p.id && user?.plan === 'free'
+                      ? 'Renew plan'
+                      : hasCredit
+                        ? 'Pay with 50% credit'
+                        : p.cta}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <form className="card" style={{ padding: '1.25rem', marginTop: '1.5rem', maxWidth: 520 }} onSubmit={joinWaitlist}>
@@ -281,8 +336,8 @@ export default function Pricing() {
         <div className="field">
           <label>Interest</label>
           <select value={lead.interest} onChange={(e) => setLead({ ...lead, interest: e.target.value })}>
-            <option value="family">Family plan</option>
-            <option value="diaspora">Diaspora plan</option>
+            <option value="diaspora">Diaspora (abroad / NRI)</option>
+            <option value="family">Family (India)</option>
             <option value="counsel">Counsel / law firm</option>
           </select>
         </div>

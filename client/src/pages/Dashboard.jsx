@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
-import UpgradeGate, { isPlanLimitError } from '../components/UpgradeGate.jsx';
+import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 
 function statusBadge(status) {
   if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
@@ -22,6 +22,7 @@ export default function Dashboard() {
   });
   const [busy, setBusy] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState('estate');
 
   async function load() {
     const data = await api('/api/estates');
@@ -46,8 +47,10 @@ export default function Dashboard() {
         await load();
       }
     } catch (err) {
-      if (isPlanLimitError(err)) setUpgradeOpen(true);
-      else toast(err.message);
+      if (isPlanLimitError(err)) {
+        setUpgradeReason(upgradeReasonFromError(err, 'estate'));
+        setUpgradeOpen(true);
+      } else toast(err.message);
     } finally {
       setBusy(false);
     }
@@ -63,7 +66,7 @@ export default function Dashboard() {
 
   return (
     <section style={{ paddingBottom: '2rem' }}>
-      <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason="estate" />
+      <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
         <div>
           <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>
@@ -102,7 +105,10 @@ export default function Dashboard() {
             type="button"
             className="btn btn-primary"
             style={{ padding: '0.45rem 0.95rem' }}
-            onClick={() => setUpgradeOpen(true)}
+            onClick={() => {
+              setUpgradeReason('estate');
+              setUpgradeOpen(true);
+            }}
           >
             Upgrade
           </button>
@@ -146,6 +152,7 @@ export default function Dashboard() {
           onSubmit={(e) => {
             if (freeAtEstateCap) {
               e.preventDefault();
+              setUpgradeReason('estate');
               setUpgradeOpen(true);
               return;
             }
@@ -179,15 +186,19 @@ export default function Dashboard() {
             <label>Country pack</label>
             <select
               value={form.countryPack}
-              onChange={(e) => setForm({ ...form, countryPack: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value;
+                if ((v === 'IN_US' || v === 'IN_UK') && !diaspora) {
+                  setUpgradeReason('diaspora');
+                  setUpgradeOpen(true);
+                  return;
+                }
+                setForm({ ...form, countryPack: v });
+              }}
             >
               <option value="IN">India</option>
-              <option value="IN_US" disabled={!diaspora}>
-                India + US {diaspora ? '' : '(Diaspora plan)'}
-              </option>
-              <option value="IN_UK" disabled={!diaspora}>
-                India + UK {diaspora ? '' : '(Diaspora plan)'}
-              </option>
+              <option value="IN_US">India + US — Diaspora plan</option>
+              <option value="IN_UK">India + UK — Diaspora plan</option>
             </select>
           </div>
           <div className="field">

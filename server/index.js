@@ -341,8 +341,10 @@ app.post('/api/estates', authRequired, (req, res) => {
     return res.status(400).json({ error: 'Parent / subject name required' });
   }
   const store = readStore();
+  let pack;
   try {
     assertCanCreateEstate(store, req.user);
+    pack = normalizeCountryPack(countryPack || country || 'IN', req.user, { strict: true });
   } catch (err) {
     return res.status(err.status || 400).json({
       error: err.message,
@@ -350,7 +352,6 @@ app.post('/api/estates', authRequired, (req, res) => {
       upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
     });
   }
-  const pack = normalizeCountryPack(countryPack || country || 'IN', req.user);
   const estate = {
     id: uuid(),
     ownerId: req.user.id,
@@ -480,13 +481,24 @@ app.patch('/api/estates/:id', authRequired, (req, res) => {
     return res.status(403).json({ error: 'Only owner/manager can edit estate' });
   }
   const owner = store.users.find((u) => u.id === access.estate.ownerId);
+  if (req.body?.countryPack != null || req.body?.country != null) {
+    try {
+      normalizeCountryPack(req.body.countryPack || req.body.country, owner || 'free', { strict: true });
+    } catch (err) {
+      return res.status(err.status || 400).json({
+        error: err.message,
+        code: err.code || (err.status === 402 ? 'PLAN_LIMIT' : undefined),
+        upgradePlan: err.upgradePlan || 'diaspora',
+      });
+    }
+  }
   const updated = mutate((s) => {
     const estate = s.estates.find((e) => e.id === req.params.id);
     const { subjectName, subjectRelation, country, countryPack, notes, unlockRules } = req.body || {};
     if (subjectName != null) estate.subjectName = subjectName.trim();
     if (subjectRelation != null) estate.subjectRelation = subjectRelation.trim();
     if (countryPack != null || country != null) {
-      const pack = normalizeCountryPack(countryPack || country, owner || 'free');
+      const pack = normalizeCountryPack(countryPack || country, owner || 'free', { strict: true });
       estate.countryPack = pack;
       estate.country = pack === 'IN' ? 'IN' : pack;
     }
@@ -1260,7 +1272,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.8.3',
+    version: '1.8.4',
   });
 });
 
