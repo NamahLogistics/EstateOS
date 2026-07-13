@@ -3,6 +3,34 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
 
+const DEFAULT_SPECIALTIES = [
+  'succession',
+  'property',
+  'probate',
+  'nri',
+  'disputes',
+  'insurance',
+  'banking-claims',
+  'family-settlement',
+];
+
+function profileFormFromLawyer(lawyer) {
+  return {
+    name: lawyer?.name || '',
+    firm: lawyer?.firm || '',
+    cities: (lawyer?.cities || []).join(', '),
+    specialties: lawyer?.specialties || ['succession'],
+    languages: (lawyer?.languages || []).join(', '),
+    barId: lawyer?.barId || '',
+    years: lawyer?.years ?? 1,
+    retainerBand: lawyer?.retainerBand || '',
+    slaHours: lawyer?.slaHours ?? 24,
+    bio: lawyer?.bio || '',
+    nriFriendly: lawyer?.nriFriendly !== false,
+    acceptingMatters: lawyer?.acceptingMatters !== false,
+  };
+}
+
 export default function CounselDesk() {
   const { api, toast, user } = useAuth();
   const [data, setData] = useState(null);
@@ -11,10 +39,14 @@ export default function CounselDesk() {
   const [cityFilter, setCityFilter] = useState('');
   const [pitch, setPitch] = useState({});
   const [busy, setBusy] = useState(false);
+  const [profileForm, setProfileForm] = useState(null);
+  const [specialtyOptions, setSpecialtyOptions] = useState(DEFAULT_SPECIALTIES);
 
   async function loadDesk() {
     const res = await api('/api/counsel/desk');
     setData(res);
+    if (res.specialtyOptions?.length) setSpecialtyOptions(res.specialtyOptions);
+    setProfileForm(profileFormFromLawyer(res.lawyer));
     return res;
   }
 
@@ -46,6 +78,42 @@ export default function CounselDesk() {
       })
       .catch((e) => toast(e.message));
   }, []);
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    if (!profileForm) return;
+    setBusy(true);
+    try {
+      const res = await api('/api/lawyers/me', {
+        method: 'PATCH',
+        body: {
+          ...profileForm,
+          years: Number(profileForm.years),
+          slaHours: Number(profileForm.slaHours),
+        },
+      });
+      setData((d) => ({ ...d, lawyer: res.lawyer }));
+      setProfileForm(profileFormFromLawyer(res.lawyer));
+      toast('Profile saved — visible in family directory');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestVerification() {
+    setBusy(true);
+    try {
+      const res = await api('/api/lawyers/me/request-verification', { method: 'POST', body: {} });
+      setData((d) => ({ ...d, lawyer: res.lawyer }));
+      toast(res.message || 'Verification requested');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function accept(id) {
     setBusy(true);
@@ -90,7 +158,7 @@ export default function CounselDesk() {
           message: pitch[listingId] || '',
         },
       });
-      toast('Approach sent — waiting for family to accept');
+      toast('Approach sent — family notified by email');
       await Promise.all([loadDesk(), loadLeads()]);
     } catch (err) {
       toast(err.message);
@@ -110,10 +178,176 @@ export default function CounselDesk() {
       </p>
       <h1 className="display" style={{ fontSize: '2.3rem', margin: '0.2rem 0 0.4rem' }}>
         {lawyer?.name || user.name}
+        {lawyer?.verified ? (
+          <span className="badge badge-unlocked" style={{ marginLeft: '0.65rem', verticalAlign: 'middle' }}>
+            Verified
+          </span>
+        ) : (
+          <span className="badge badge-pending" style={{ marginLeft: '0.65rem', verticalAlign: 'middle' }}>
+            Unverified
+          </span>
+        )}
       </h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        {lawyer?.firm} · intake {lawyer?.retainerBand} · SLA {lawyer?.slaHours}h · plan {plan || 'free'}
+        {lawyer?.firm} · {(lawyer?.cities || []).join(' / ') || 'Set cities'} · intake {lawyer?.retainerBand} ·
+        SLA {lawyer?.slaHours}h · plan {plan || 'free'}
       </p>
+
+      {profileForm && (
+        <form className="card" style={{ padding: '1.15rem', margin: '1.25rem 0' }} onSubmit={saveProfile}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <strong>Your counsel profile</strong>
+              <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                Families see this in the directory. Complete it before approaching leads.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {!lawyer?.verified && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: '0.4rem 0.75rem' }}
+                  disabled={busy || !!lawyer?.verificationRequestedAt}
+                  onClick={requestVerification}
+                >
+                  {lawyer?.verificationRequestedAt ? 'Verification pending' : 'Request verification'}
+                </button>
+              )}
+              <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.85rem' }} disabled={busy}>
+                Save profile
+              </button>
+            </div>
+          </div>
+
+          <div className="panel-grid" style={{ marginTop: '1rem' }}>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Display name</label>
+              <input
+                value={profileForm.name}
+                onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Firm</label>
+              <input
+                value={profileForm.firm}
+                onChange={(e) => setProfileForm({ ...profileForm, firm: e.target.value })}
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Cities (comma-separated)</label>
+              <input
+                value={profileForm.cities}
+                onChange={(e) => setProfileForm({ ...profileForm, cities: e.target.value })}
+                placeholder="Pune, Mumbai"
+                required
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Bar / enrollment ID</label>
+              <input
+                value={profileForm.barId}
+                onChange={(e) => setProfileForm({ ...profileForm, barId: e.target.value })}
+                placeholder="e.g. MH/1234/2012"
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Years of practice</label>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={profileForm.years}
+                onChange={(e) => setProfileForm({ ...profileForm, years: e.target.value })}
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Retainer band</label>
+              <input
+                value={profileForm.retainerBand}
+                onChange={(e) => setProfileForm({ ...profileForm, retainerBand: e.target.value })}
+                placeholder="₹25k–50k consult"
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Response SLA (hours)</label>
+              <input
+                type="number"
+                min={1}
+                max={168}
+                value={profileForm.slaHours}
+                onChange={(e) => setProfileForm({ ...profileForm, slaHours: e.target.value })}
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Languages</label>
+              <input
+                value={profileForm.languages}
+                onChange={(e) => setProfileForm({ ...profileForm, languages: e.target.value })}
+                placeholder="English, Hindi, Marathi"
+              />
+            </div>
+          </div>
+
+          <div className="field" style={{ marginTop: '0.9rem' }}>
+            <label>Specialties</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {specialtyOptions.map((s) => {
+                const on = profileForm.specialties.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`btn ${on ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}
+                    onClick={() =>
+                      setProfileForm({
+                        ...profileForm,
+                        specialties: on
+                          ? profileForm.specialties.filter((x) => x !== s)
+                          : [...profileForm.specialties, s],
+                      })
+                    }
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Bio (shown to families)</label>
+            <textarea
+              rows={3}
+              value={profileForm.bio}
+              onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+              placeholder="Succession & NRI property matters. Pune High Court practice…"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+            <label className="small" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={profileForm.nriFriendly}
+                onChange={(e) => setProfileForm({ ...profileForm, nriFriendly: e.target.checked })}
+              />
+              NRI-friendly
+            </label>
+            <label className="small" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={profileForm.acceptingMatters}
+                onChange={(e) => setProfileForm({ ...profileForm, acceptingMatters: e.target.checked })}
+              />
+              Accepting new matters (show in directory)
+            </label>
+          </div>
+        </form>
+      )}
 
       <div style={{ margin: '1.25rem 0', maxWidth: 640 }}>
         <ReferralCard compact />

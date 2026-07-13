@@ -556,13 +556,24 @@ export default function CounselPanel({ estateId, onToast }) {
               <div key={l.id} className="item-row">
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <div>
-                    <strong>{l.name}</strong>
+                    <strong>
+                      {l.name}
+                      {l.verified ? (
+                        <span className="badge badge-unlocked" style={{ marginLeft: '0.45rem' }}>
+                          Verified
+                        </span>
+                      ) : null}
+                    </strong>
                     <div className="small muted">
-                      {l.firm} · ★ {l.rating} · {l.years}y · {l.retainerBand}
+                      {l.firm}
+                      {l.rating != null ? ` · ★ ${l.rating}` : ' · New on HeirReady'}
+                      {` · ${l.years}y · ${l.retainerBand}`}
+                      {l.mattersCompleted ? ` · ${l.mattersCompleted} matters` : ''}
                     </div>
                     <div className="small muted">
-                      {l.cities.join(', ')} · {l.specialties.join(', ')}
+                      {(l.cities || []).join(', ')} · {(l.specialties || []).join(', ')}
                       {l.nriFriendly ? ' · NRI' : ''}
+                      {l.barId && !/pending/i.test(l.barId) ? ` · Bar ${l.barId}` : ''}
                     </div>
                     <p className="small" style={{ margin: '0.35rem 0 0' }}>
                       {l.bio}

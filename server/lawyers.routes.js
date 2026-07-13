@@ -6,9 +6,76 @@ import {
   purgeDemoCounsel,
 } from './lawyers.js';
 import { userHasPaidAccess } from './plans.js';
+import {
+  notifyFamilyOfApproach,
+  notifyLawyerOfRequest,
+  notifyMatterActive,
+  notifyMatterDeclined,
+  notifyVerificationRequest,
+} from './counselNotify.js';
 import crypto from 'crypto';
 
 const uuid = () => crypto.randomUUID();
+
+const SPECIALTY_OPTIONS = [
+  'succession',
+  'property',
+  'probate',
+  'nri',
+  'disputes',
+  'insurance',
+  'banking-claims',
+  'family-settlement',
+];
+
+function splitList(value, fallback = []) {
+  if (Array.isArray(value)) {
+    return value.map((x) => String(x).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[,|/]/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+  return fallback;
+}
+
+function publicLawyer(lawyer) {
+  return {
+    id: lawyer.id,
+    slug: lawyer.slug,
+    name: lawyer.name,
+    firm: lawyer.firm,
+    cities: lawyer.cities || [],
+    specialties: lawyer.specialties || [],
+    languages: lawyer.languages || [],
+    barId: lawyer.barId,
+    years: lawyer.years,
+    retainerBand: lawyer.retainerBand,
+    slaHours: lawyer.slaHours,
+    bio: lawyer.bio,
+    rating: lawyer.mattersCompleted > 0 ? lawyer.rating : null,
+    mattersCompleted: lawyer.mattersCompleted || 0,
+    nriFriendly: !!lawyer.nriFriendly,
+    verified: !!lawyer.verified,
+    acceptingMatters: lawyer.acceptingMatters !== false,
+    verificationRequestedAt: lawyer.verificationRequestedAt || null,
+  };
+}
+
+function selfLawyer(lawyer, user) {
+  return {
+    ...publicLawyer(lawyer),
+    email: user?.email || null,
+  };
+}
+
+function adminAuthorized(req) {
+  const key = process.env.ADMIN_API_KEY;
+  if (!key) return false;
+  return req.get('X-Admin-Key') === key || req.body?.adminKey === key;
+}
 
 function publicListing(listing, estate, owner) {
   return {
@@ -119,28 +186,6 @@ export function seedLawyersIfNeeded() {
   return stats;
 }
 
-function publicLawyer(lawyer) {
-  return {
-    id: lawyer.id,
-    slug: lawyer.slug,
-    name: lawyer.name,
-    firm: lawyer.firm,
-    cities: lawyer.cities,
-    specialties: lawyer.specialties,
-    languages: lawyer.languages,
-    barId: lawyer.barId,
-    years: lawyer.years,
-    retainerBand: lawyer.retainerBand,
-    slaHours: lawyer.slaHours,
-    bio: lawyer.bio,
-    rating: lawyer.rating,
-    mattersCompleted: lawyer.mattersCompleted,
-    nriFriendly: lawyer.nriFriendly,
-    verified: lawyer.verified,
-    acceptingMatters: lawyer.acceptingMatters,
-  };
-}
-
 function getEngagementAccess(store, userId, estateId) {
   return store.engagements.find(
     (e) =>
@@ -180,7 +225,12 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       list = list.filter((l) => l.specialties.some((x) => x.toLowerCase().includes(s)));
     }
     if (nri === '1' || nri === 'true') list = list.filter((l) => l.nriFriendly);
-    list.sort((a, b) => b.rating - a.rating);
+    list.sort((a, b) => {
+      if (!!b.verified !== !!a.verified) return b.verified ? 1 : -1;
+      const ra = a.mattersCompleted > 0 ? a.rating : 0;
+      const rb = b.mattersCompleted > 0 ? b.rating : 0;
+      return rb - ra;
+    });
     res.json({ lawyers: list.map(publicLawyer) });
   });
 
@@ -188,7 +238,121 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     const store = readStore();
     const profile = store.lawyers.find((l) => l.userId === req.user.id);
     if (!profile) return res.status(404).json({ error: 'Not a counsel account' });
-    res.json({ lawyer: publicLawyer(profile) });
+    res.json({ lawyer: selfLawyer(profile, req.user), specialtyOptions: SPECIALTY_OPTIONS });
+  });
+
+  app.patch('/api/lawyers/me', authRequired, (req, res) => {
+    const store = readStore();
+    const profile = store.lawyers.find((l) => l.userId === req.user.id);
+    if (!profile) return res.status(404).json({ error: 'Not a counsel account' });
+
+    const body = req.body || {};
+    const cities = body.cities !== undefined ? splitList(body.cities, profile.cities) : null;
+    const specialties =
+      body.specialties !== undefined ? splitList(body.specialties, profile.specialties) : null;
+    const languages =
+      body.languages !== undefined ? splitList(body.languages, profile.languages) : null;
+
+    if (cities && !cities.length) {
+      return res.status(400).json({ error: 'Add at least one city' });
+    }
+    if (specialties && !specialties.length) {
+      return res.status(400).json({ error: 'Add at least one specialty' });
+    }
+
+    const updated = mutate((s) => {
+      const row = s.lawyers.find((l) => l.id === profile.id);
+      if (!row) return null;
+      if (body.name !== undefined) row.name = String(body.name).trim() || row.name;
+      if (body.firm !== undefined) row.firm = String(body.firm).trim() || row.firm;
+      if (cities) row.cities = cities;
+      if (specialties) row.specialties = specialties;
+      if (languages) row.languages = languages;
+      if (body.barId !== undefined) {
+        const nextBar = String(body.barId).trim();
+        if (nextBar && nextBar !== row.barId) {
+          row.barId = nextBar;
+          row.verified = false;
+          row.verificationRequestedAt = null;
+        } else if (nextBar) {
+          row.barId = nextBar;
+        }
+      }
+      if (body.years !== undefined) {
+        const y = Number(body.years);
+        if (Number.isFinite(y) && y >= 0 && y <= 60) row.years = y;
+      }
+      if (body.retainerBand !== undefined) {
+        row.retainerBand = String(body.retainerBand).trim() || row.retainerBand;
+      }
+      if (body.slaHours !== undefined) {
+        const h = Number(body.slaHours);
+        if (Number.isFinite(h) && h >= 1 && h <= 168) row.slaHours = h;
+      }
+      if (body.bio !== undefined) row.bio = String(body.bio).trim().slice(0, 800);
+      if (body.nriFriendly !== undefined) row.nriFriendly = !!body.nriFriendly;
+      if (body.acceptingMatters !== undefined) row.acceptingMatters = !!body.acceptingMatters;
+      row.updatedAt = new Date().toISOString();
+
+      const user = s.users.find((u) => u.id === req.user.id);
+      if (user && body.name !== undefined && String(body.name).trim()) {
+        user.name = String(body.name).trim();
+      }
+      return row;
+    });
+
+    if (!updated) return res.status(404).json({ error: 'Profile not found' });
+    res.json({ lawyer: selfLawyer(updated, req.user) });
+  });
+
+  app.post('/api/lawyers/me/request-verification', authRequired, async (req, res) => {
+    const store = readStore();
+    const profile = store.lawyers.find((l) => l.userId === req.user.id);
+    if (!profile) return res.status(404).json({ error: 'Not a counsel account' });
+    if (profile.verified) return res.json({ ok: true, lawyer: selfLawyer(profile, req.user) });
+    const barId = String(profile.barId || '').trim();
+    if (!barId || /pending/i.test(barId)) {
+      return res.status(400).json({ error: 'Add a real bar / enrollment ID before requesting verification' });
+    }
+
+    mutate((s) => {
+      const row = s.lawyers.find((l) => l.id === profile.id);
+      if (row) row.verificationRequestedAt = new Date().toISOString();
+    });
+
+    await notifyVerificationRequest({
+      lawyerName: profile.name,
+      email: req.user.email,
+      barId: profile.barId,
+      firm: profile.firm,
+      cities: profile.cities,
+      lawyerId: profile.id,
+    });
+
+    const fresh = readStore().lawyers.find((l) => l.id === profile.id);
+    res.json({
+      ok: true,
+      message: 'Verification requested — HeirReady will review your bar ID',
+      lawyer: selfLawyer(fresh, req.user),
+    });
+  });
+
+  app.post('/api/admin/lawyers/:id/verify', async (req, res) => {
+    if (!adminAuthorized(req)) {
+      return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
+    }
+    const verified = req.body?.verified !== false;
+    const updated = mutate((s) => {
+      const row = s.lawyers.find((l) => l.id === req.params.id);
+      if (!row) return null;
+      row.verified = verified;
+      row.verifiedAt = verified ? new Date().toISOString() : null;
+      if (verified) row.verificationRequestedAt = null;
+      row.updatedAt = new Date().toISOString();
+      return row;
+    });
+    if (!updated) return res.status(404).json({ error: 'Lawyer not found' });
+    res.json({ ok: true, lawyer: publicLawyer(updated) });
   });
 
   app.get('/api/counsel/desk', authRequired, (req, res) => {
@@ -212,11 +376,12 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     const paid = userHasPaidAccess(req.user);
     res.json({
-      lawyer: profile ? publicLawyer(profile) : null,
+      lawyer: profile ? selfLawyer(profile, req.user) : null,
       engagements: enriched,
       leadsUnlocked: paid,
       plan: req.user.plan || 'free',
       planExpiresAt: req.user.planExpiresAt || null,
+      specialtyOptions: SPECIALTY_OPTIONS,
       stats: {
         requested: enriched.filter((e) => e.status === 'requested' || e.status === 'approached').length,
         active: enriched.filter((e) => ['engaged', 'active'].includes(e.status)).length,
@@ -282,7 +447,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     });
   });
 
-  app.post('/api/counsel/leads/:listingId/approach', authRequired, (req, res) => {
+  app.post('/api/counsel/leads/:listingId/approach', authRequired, async (req, res) => {
     const store = readStore();
     const profile = store.lawyers.find((l) => l.userId === req.user.id);
     if (!profile) return res.status(403).json({ error: 'Counsel profile required' });
@@ -304,6 +469,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
 
     const estate = store.estates.find((e) => e.id === listing.estateId);
     if (!estate) return res.status(404).json({ error: 'Estate not found' });
+    const owner = store.users.find((u) => u.id === estate.ownerId);
 
     const open = store.engagements.find(
       (e) =>
@@ -352,6 +518,16 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         action: 'counsel_approached_family',
         detail: `${profile.name} approached listing ${listing.id}`,
       });
+    });
+
+    await notifyFamilyOfApproach({
+      familyEmail: owner?.email,
+      familyName: owner?.name,
+      lawyerName: profile.name,
+      firm: profile.firm,
+      estateName: estate.subjectName,
+      estateId: estate.id,
+      pitch: message,
     });
 
     res.status(201).json({ engagement, lawyer: publicLawyer(profile) });
@@ -432,7 +608,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     res.json({ listing });
   });
 
-  app.post('/api/counsel/engagements/:engagementId/family-respond', authRequired, (req, res) => {
+  app.post('/api/counsel/engagements/:engagementId/family-respond', authRequired, async (req, res) => {
     const store = readStore();
     const eng = store.engagements.find((e) => e.id === req.params.engagementId);
     if (!eng) return res.status(404).json({ error: 'Engagement not found' });
@@ -443,6 +619,10 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     if (!access.ok || !['owner', 'manager'].includes(access.role)) {
       return res.status(403).json({ error: 'Only estate owner/manager can respond' });
     }
+
+    const lawyer = store.lawyers.find((l) => l.id === eng.lawyerId);
+    const lawyerUser = store.users.find((u) => u.id === eng.lawyerUserId);
+    const estate = store.estates.find((e) => e.id === eng.estateId);
 
     const decision = req.body?.decision === 'accept' ? 'accept' : 'decline';
     if (decision === 'decline') {
@@ -458,6 +638,13 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
           action: 'counsel_approach_declined',
           detail: reason,
         });
+      });
+      await notifyMatterDeclined({
+        to: lawyerUser?.email,
+        recipientName: lawyer?.name,
+        estateName: estate?.subjectName,
+        reason,
+        otherPartyName: req.user.name || 'Family',
       });
       return res.json({ ok: true, status: 'declined' });
     }
@@ -479,10 +666,19 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       return activated;
     });
 
+    await notifyMatterActive({
+      to: lawyerUser?.email,
+      recipientName: lawyer?.name,
+      otherPartyName: req.user.name,
+      estateName: estate?.subjectName,
+      estateId: eng.estateId,
+      whoAccepted: 'family',
+    });
+
     res.json(result);
   });
 
-  app.post('/api/estates/:id/counsel/engage', authRequired, (req, res) => {
+  app.post('/api/estates/:id/counsel/engage', authRequired, async (req, res) => {
     const store = readStore();
     const access = accessFn(store, req.user.id, req.params.id);
     if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -501,6 +697,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     if (!lawyer || !lawyer.acceptingMatters) {
       return res.status(404).json({ error: 'Counsel not available' });
     }
+    const lawyerUser = store.users.find((u) => u.id === lawyer.userId);
     const open = store.engagements.find(
       (e) =>
         e.estateId === access.estate.id &&
@@ -538,10 +735,20 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       });
     });
 
+    await notifyLawyerOfRequest({
+      lawyerEmail: lawyerUser?.email,
+      lawyerName: lawyer.name,
+      familyName: req.user.name,
+      estateName: access.estate.subjectName,
+      urgency: engagement.urgency,
+      brief: engagement.familyBrief,
+      estateId: access.estate.id,
+    });
+
     res.status(201).json({ engagement, lawyer: publicLawyer(lawyer) });
   });
 
-  app.post('/api/counsel/engagements/:engagementId/accept', authRequired, (req, res) => {
+  app.post('/api/counsel/engagements/:engagementId/accept', authRequired, async (req, res) => {
     const store = readStore();
     const eng = store.engagements.find((e) => e.id === req.params.engagementId);
     if (!eng) return res.status(404).json({ error: 'Engagement not found' });
@@ -645,15 +852,28 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       return { engagement: row, pathway, brief };
     });
 
+    const familyUser = readStore().users.find((u) => u.id === eng.familyUserId);
+    const estate = readStore().estates.find((e) => e.id === eng.estateId);
+    await notifyMatterActive({
+      to: familyUser?.email,
+      recipientName: familyUser?.name,
+      otherPartyName: req.user.name,
+      estateName: estate?.subjectName,
+      estateId: eng.estateId,
+      whoAccepted: 'lawyer',
+    });
+
     res.json(result);
   });
 
-  app.post('/api/counsel/engagements/:engagementId/decline', authRequired, (req, res) => {
+  app.post('/api/counsel/engagements/:engagementId/decline', authRequired, async (req, res) => {
     const reason = (req.body?.reason || '').trim() || 'Declined';
     const store = readStore();
     const eng = store.engagements.find((e) => e.id === req.params.engagementId);
     if (!eng) return res.status(404).json({ error: 'Engagement not found' });
     if (eng.lawyerUserId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const familyUser = store.users.find((u) => u.id === eng.familyUserId);
+    const estate = store.estates.find((e) => e.id === eng.estateId);
     mutate((s) => {
       const row = s.engagements.find((e) => e.id === eng.id);
       row.status = 'declined';
@@ -665,6 +885,13 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         action: 'counsel_declined',
         detail: reason,
       });
+    });
+    await notifyMatterDeclined({
+      to: familyUser?.email,
+      recipientName: familyUser?.name,
+      estateName: estate?.subjectName,
+      reason,
+      otherPartyName: req.user.name || 'Counsel',
     });
     res.json({ ok: true });
   });
