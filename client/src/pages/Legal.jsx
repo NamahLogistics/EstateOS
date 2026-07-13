@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 
-/** Public business identity — matches Railway BUSINESS_* (never show X / set-me placeholders). */
+/** Public business identity — Contact / Legal pages (no personal names or phone). */
 const FALLBACK_BIZ = {
   brand: 'HeirReady',
   legalName: 'Namah',
   address: '1/172 Viraj Khand, Gomti Nagar, Lucknow, Uttar Pradesh 226010, India',
-  email: 'shubhramishra137@gmail.com',
-  phone: '+91-8169941891',
+  email: 'support@heirready.com',
+  phone: null,
   hours: 'Mon–Sat, 10:00–18:00 IST',
-  grievanceName: 'Shubhra Mishra',
-  grievanceEmail: 'shubhramishra137@gmail.com',
+  grievanceName: 'HeirReady Support',
+  grievanceEmail: 'support@heirready.com',
   website: 'https://heirready.com',
   country: 'India',
 };
@@ -229,16 +229,13 @@ export function ContactPage() {
         <strong>Customer support email:</strong>{' '}
         <a href={`mailto:${biz.email}`}>{biz.email}</a>
         <br />
-        <strong>Phone / WhatsApp:</strong>{' '}
-        <a href={`tel:${biz.phone.replace(/\s+/g, '')}`}>{biz.phone}</a>
-        <br />
         <strong>Support hours:</strong> {biz.hours}
       </p>
 
       <p>
-        <strong>Grievance / nodal officer:</strong> {biz.grievanceName}
+        <strong>Grievance / support:</strong> {biz.grievanceName || 'HeirReady Support'}
         <br />
-        <a href={`mailto:${biz.grievanceEmail}`}>{biz.grievanceEmail}</a>
+        <a href={`mailto:${biz.grievanceEmail || biz.email}`}>{biz.grievanceEmail || biz.email}</a>
       </p>
 
       <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '1.4rem 0' }} />

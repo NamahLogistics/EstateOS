@@ -79,9 +79,10 @@ export async function notifyMatterDeclined({ to, recipientName, estateName, reas
   });
 }
 
-/** Alert business inbox that a lawyer asked for verification. */
+/** Alert ops inbox that a lawyer asked for verification (not public). */
 export async function notifyVerificationRequest({ lawyerName, email, barId, firm, cities, lawyerId }) {
   const to =
+    process.env.SUPPORT_EMAIL ||
     process.env.ONBOARDING_EMAIL ||
     process.env.BUSINESS_EMAIL ||
     process.env.BUSINESS_GRIEVANCE_EMAIL;

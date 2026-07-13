@@ -71,6 +71,42 @@ const PORT = Number(process.env.PORT || 4060);
 const app = express();
 const isProd = process.env.NODE_ENV === 'production';
 
+const DEFAULT_SUPPORT_EMAIL = 'support@heirready.com';
+
+function extractEmailAddr(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const angled = s.match(/<([^>]+)>/);
+  if (angled) return angled[1].trim();
+  if (s.includes('@')) return s.replace(/^mailto:/i, '').trim();
+  return null;
+}
+
+/** Public Contact / Legal — never personal Gmail or phone. */
+function publicSupportEmail() {
+  const candidates = [
+    process.env.SUPPORT_EMAIL,
+    process.env.BUSINESS_EMAIL,
+    extractEmailAddr(process.env.MAIL_FROM),
+  ];
+  for (const c of candidates) {
+    const email = extractEmailAddr(c) || c;
+    if (email && !/shubhramishra/i.test(email) && !/@resend\.dev$/i.test(email)) {
+      return email;
+    }
+  }
+  return DEFAULT_SUPPORT_EMAIL;
+}
+
+/** Human onboarding waitlist only — may stay personal; never shown on public pages. */
+function onboardingInboxEmail() {
+  return (
+    process.env.ONBOARDING_EMAIL ||
+    process.env.BUSINESS_GRIEVANCE_EMAIL ||
+    'shubhramishra137@gmail.com'
+  );
+}
+
 if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'estate-os-dev-secret')) {
   console.warn('WARNING: Set a strong JWT_SECRET in production');
 }
@@ -309,11 +345,7 @@ app.post('/api/leads', async (req, res) => {
     });
   });
 
-  const to =
-    process.env.ONBOARDING_EMAIL ||
-    process.env.BUSINESS_EMAIL ||
-    process.env.BUSINESS_GRIEVANCE_EMAIL ||
-    'shubhramishra137@gmail.com';
+  const to = onboardingInboxEmail();
   const who = name || email;
   try {
     await sendEmail({
@@ -1232,25 +1264,24 @@ app.get('/api/estates/:id/tasks/:taskId/letter', authRequired, (req, res) => {
 });
 
 app.get('/api/public/business', (_req, res) => {
-  const appUrl = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(
-    /\/$/,
-    ''
-  );
+  const appUrl = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+  const support = publicSupportEmail();
   res.json({
     brand: process.env.BUSINESS_BRAND || 'HeirReady',
     legalName: process.env.BUSINESS_LEGAL_NAME || 'Namah',
     address:
       process.env.BUSINESS_ADDRESS ||
       '1/172 Viraj Khand, Gomti Nagar, Lucknow, Uttar Pradesh 226010, India',
-    email: process.env.BUSINESS_EMAIL || 'shubhramishra137@gmail.com',
-    phone: process.env.BUSINESS_PHONE || '+91-8169941891',
+    email: support,
+    phone: null,
     hours: process.env.BUSINESS_HOURS || 'Mon–Sat, 10:00–18:00 IST',
-    grievanceName: process.env.BUSINESS_GRIEVANCE_NAME || 'Shubhra Mishra',
-    grievanceEmail:
-      process.env.BUSINESS_GRIEVANCE_EMAIL ||
-      process.env.BUSINESS_EMAIL ||
-      'shubhramishra137@gmail.com',
-    website: appUrl,
+    grievanceName: process.env.BUSINESS_GRIEVANCE_NAME || 'HeirReady Support',
+    grievanceEmail: process.env.BUSINESS_GRIEVANCE_EMAIL
+      ? /shubhramishra/i.test(process.env.BUSINESS_GRIEVANCE_EMAIL)
+        ? support
+        : process.env.BUSINESS_GRIEVANCE_EMAIL
+      : support,
+    website: appUrl.includes('estate-os') ? 'https://heirready.com' : appUrl,
     country: process.env.BUSINESS_COUNTRY || 'India',
     gstin: process.env.BUSINESS_GSTIN || null,
   });
@@ -1263,7 +1294,7 @@ app.post('/api/public/contact', async (req, res) => {
   if (!name || !email?.includes('@') || message.length < 10) {
     return res.status(400).json({ error: 'Name, valid email, and message (10+ chars) required' });
   }
-  const to = process.env.BUSINESS_EMAIL || process.env.BUSINESS_GRIEVANCE_EMAIL;
+  const to = publicSupportEmail();
   mutate((s) => {
     if (!s.leads) s.leads = [];
     s.leads.push({
@@ -1276,14 +1307,13 @@ app.post('/api/public/contact', async (req, res) => {
     });
   });
   try {
-    if (to) {
-      await sendEmail({
-        to,
-        subject: `HeirReady contact: ${name}`,
-        text: `From: ${name} <${email}>\n\n${message}`,
-        html: `<p><strong>${name}</strong> &lt;${email}&gt;</p><p>${message.replace(/\n/g, '<br/>')}</p>`,
-      });
-    }
+    await sendEmail({
+      to,
+      replyTo: email,
+      subject: `HeirReady contact: ${name}`,
+      text: `From: ${name} <${email}>\n\n${message}`,
+      html: `<p><strong>${name}</strong> &lt;${email}&gt;</p><p>${message.replace(/\n/g, '<br/>')}</p>`,
+    });
   } catch (err) {
     console.error('contact email failed', err.message);
   }
@@ -1300,7 +1330,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.10.5',
+    version: '1.10.6',
   });
 });
 
