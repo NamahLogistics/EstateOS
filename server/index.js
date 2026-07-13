@@ -1246,7 +1246,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.7.1',
+    version: '1.8.0',
   });
 });
 
@@ -1482,7 +1482,7 @@ app.get('/api/public/emergency/:token', (req, res) => {
   });
 });
 
-registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase });
+registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase, upload, saveUpload });
 
 // Production static
 const dist = path.join(__dirname, '..', 'client', 'dist');

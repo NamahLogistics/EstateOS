@@ -135,6 +135,16 @@ function countOpenApproachesOnListing(store, listingId, estateId) {
   ).length;
 }
 
+function pushTimeline(row, event) {
+  if (!row.timeline) row.timeline = [];
+  row.timeline.push({
+    id: uuid(),
+    at: new Date().toISOString(),
+    ...event,
+  });
+  if (row.timeline.length > 200) row.timeline = row.timeline.slice(-160);
+}
+
 function activateEngagement(s, row, actorUserId) {
   const estate = s.estates.find((e) => e.id === row.estateId);
   const items = s.items.filter((i) => i.estateId === estate.id);
@@ -146,37 +156,45 @@ function activateEngagement(s, row, actorUserId) {
   row.updatedAt = row.acceptedAt;
   row.pathwaySnapshot = pathway;
 
-  for (const p of pathway.pathways.filter((x) => ['critical', 'high'].includes(x.severity))) {
-    for (const action of p.counselActions.slice(0, 2)) {
-      s.legalActions.push({
-        id: uuid(),
-        estateId: estate.id,
-        engagementId: row.id,
-        title: action,
-        pathwayId: p.id,
-        status: 'todo',
-        createdBy: actorUserId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+  // Seed actions only if this engagement has none yet
+  const hasActions = (s.legalActions || []).some((a) => a.engagementId === row.id);
+  if (!hasActions) {
+    for (const p of pathway.pathways.filter((x) => ['critical', 'high'].includes(x.severity))) {
+      for (const action of p.counselActions.slice(0, 2)) {
+        s.legalActions.push({
+          id: uuid(),
+          estateId: estate.id,
+          engagementId: row.id,
+          title: action,
+          pathwayId: p.id,
+          status: 'todo',
+          createdBy: actorUserId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
     }
   }
 
-  const needs = [
-    'Death certificate / incapacity proof (certified copies)',
-    'ID + address proof of all Class I heirs',
-    'Any will / nomination forms / property title copies',
-  ];
-  for (const title of needs) {
-    s.counselNeeds.push({
-      id: uuid(),
-      estateId: estate.id,
-      engagementId: row.id,
-      title,
-      status: 'open',
-      createdBy: actorUserId,
-      createdAt: new Date().toISOString(),
-    });
+  const hasNeeds = (s.counselNeeds || []).some((n) => n.engagementId === row.id);
+  if (!hasNeeds) {
+    const needs = [
+      'Death certificate / incapacity proof (certified copies)',
+      'ID + address proof of all Class I heirs',
+      'Any will / nomination forms / property title copies',
+    ];
+    for (const title of needs) {
+      s.counselNeeds.push({
+        id: uuid(),
+        estateId: estate.id,
+        engagementId: row.id,
+        title,
+        status: 'open',
+        files: [],
+        createdBy: actorUserId,
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   const members = s.members
@@ -208,8 +226,58 @@ function activateEngagement(s, row, actorUserId) {
     familyUser,
     lawyer,
   });
+  row.briefGeneratedAt = new Date().toISOString();
+
+  pushTimeline(row, {
+    type: 'accepted',
+    actorId: actorUserId,
+    detail: 'Matter activated — brief and starter checklist generated',
+  });
 
   return { engagement: row, pathway, brief: row.counselBrief, lawyer };
+}
+
+function rebuildCounselBrief(s, engagementId) {
+  const row = s.engagements.find((e) => e.id === engagementId);
+  if (!row) return null;
+  const estate = s.estates.find((e) => e.id === row.estateId);
+  if (!estate) return null;
+  const items = s.items.filter((i) => i.estateId === estate.id);
+  const tasks = s.tasks.filter((t) => t.estateId === estate.id);
+  const pathway = analyzeLegalPathways(estate, items);
+  row.pathwaySnapshot = pathway;
+  const members = s.members
+    .filter((m) => m.estateId === estate.id)
+    .map((m) => {
+      const u = s.users.find((x) => x.id === m.userId);
+      return { ...m, name: u?.name, email: u?.email };
+    });
+  const owner = s.users.find((u) => u.id === estate.ownerId);
+  members.unshift({
+    id: 'owner',
+    role: 'owner',
+    name: owner?.name,
+    email: owner?.email,
+  });
+  const unlockRequest = s.unlockRequests
+    .filter((r) => r.estateId === estate.id && r.status === 'approved')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const lawyer = s.lawyers.find((l) => l.id === row.lawyerId);
+  const familyUser = s.users.find((u) => u.id === row.familyUserId);
+  row.counselBrief = buildCounselBrief({
+    estate,
+    items,
+    members,
+    tasks,
+    unlockRequest,
+    engagement: row,
+    pathway,
+    familyUser,
+    lawyer,
+  });
+  row.briefGeneratedAt = new Date().toISOString();
+  row.updatedAt = row.briefGeneratedAt;
+  return { engagement: row, pathway, brief: row.counselBrief };
 }
 /** One-time/boot: remove demo @estateos.dev counsel accounts. */
 export function seedLawyersIfNeeded() {
@@ -248,7 +316,7 @@ export function attachLawyerAccess(canAccessEstate) {
   };
 }
 
-export function registerLawyerRoutes(app, { canAccessEstate }) {
+export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload }) {
   const accessFn = attachLawyerAccess(canAccessEstate);
 
   app.get('/api/lawyers', authRequired, (req, res) => {
@@ -875,91 +943,14 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
 
     const result = mutate((s) => {
       const row = s.engagements.find((e) => e.id === eng.id);
-      row.status = 'active';
-      row.conflictClearedByLawyer = true;
-      row.acceptedAt = new Date().toISOString();
-      row.updatedAt = row.acceptedAt;
-
-      const estate = s.estates.find((e) => e.id === row.estateId);
-      const items = s.items.filter((i) => i.estateId === estate.id);
-      const tasks = s.tasks.filter((t) => t.estateId === estate.id);
-      const pathway = analyzeLegalPathways(estate, items);
-      row.pathwaySnapshot = pathway;
-
-      // Seed counsel legal actions from pathway
-      for (const p of pathway.pathways.filter((x) => ['critical', 'high'].includes(x.severity))) {
-        for (const action of p.counselActions.slice(0, 2)) {
-          s.legalActions.push({
-            id: uuid(),
-            estateId: estate.id,
-            engagementId: row.id,
-            title: action,
-            pathwayId: p.id,
-            status: 'todo',
-            createdBy: req.user.id,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-
-      // Ask family for core docs
-      const needs = [
-        'Death certificate / incapacity proof (certified copies)',
-        'ID + address proof of all Class I heirs',
-        'Any will / nomination forms / property title copies',
-      ];
-      for (const title of needs) {
-        s.counselNeeds.push({
-          id: uuid(),
-          estateId: estate.id,
-          engagementId: row.id,
-          title,
-          status: 'open',
-          createdBy: req.user.id,
-          createdAt: new Date().toISOString(),
-        });
-      }
-
-      const members = s.members
-        .filter((m) => m.estateId === estate.id)
-        .map((m) => {
-          const u = s.users.find((x) => x.id === m.userId);
-          return { ...m, name: u?.name, email: u?.email };
-        });
-      const owner = s.users.find((u) => u.id === estate.ownerId);
-      members.unshift({
-        id: 'owner',
-        role: 'owner',
-        name: owner?.name,
-        email: owner?.email,
-      });
-      const unlockRequest = s.unlockRequests
-        .filter((r) => r.estateId === estate.id && r.status === 'approved')
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-      const lawyer = s.lawyers.find((l) => l.id === row.lawyerId);
-      const familyUser = s.users.find((u) => u.id === row.familyUserId);
-      const brief = buildCounselBrief({
-        estate,
-        items,
-        members,
-        tasks,
-        unlockRequest,
-        engagement: row,
-        pathway,
-        familyUser,
-        lawyer,
-      });
-      row.counselBrief = brief;
-
+      const activated = activateEngagement(s, row, req.user.id);
       audit(s, {
-        estateId: estate.id,
+        estateId: row.estateId,
         userId: req.user.id,
         action: 'counsel_accepted',
-        detail: `${lawyer?.name || 'Counsel'} accepted matter — brief generated`,
+        detail: `${activated.lawyer?.name || 'Counsel'} accepted matter — brief generated`,
       });
-
-      return { engagement: row, pathway, brief };
+      return activated;
     });
 
     const familyUser = readStore().users.find((u) => u.id === eng.familyUserId);
@@ -1020,6 +1011,15 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       row.status = 'closed';
       row.closedAt = new Date().toISOString();
       row.updatedAt = row.closedAt;
+      pushTimeline(row, {
+        type: 'closed',
+        actorId: req.user.id,
+        detail: 'Matter closed',
+      });
+      const lawyer = s.lawyers.find((l) => l.id === row.lawyerId);
+      if (lawyer) {
+        lawyer.mattersCompleted = (lawyer.mattersCompleted || 0) + 1;
+      }
       audit(s, {
         estateId: row.estateId,
         userId: req.user.id,
@@ -1031,6 +1031,13 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
   });
 
   app.get('/api/estates/:id/counsel', authRequired, (req, res) => {
+    mutate((s) => {
+      for (const e of s.engagements || []) {
+        if (e.estateId === req.params.id && e.status === 'engaged') {
+          e.status = 'active';
+        }
+      }
+    });
     const store = readStore();
     const access = accessFn(store, req.user.id, req.params.id);
     if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -1052,7 +1059,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
     const active = engagements.find((e) =>
-      ['engaged', 'active', 'requested', 'approached'].includes(e.status)
+      ['active', 'requested', 'approached'].includes(e.status)
     );
     const engagementId = active?.id;
     const notes = store.legalNotes
@@ -1065,8 +1072,18 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     const actions = store.legalActions
       .filter((a) => a.estateId === access.estate.id)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const needs = store.counselNeeds.filter((n) => n.estateId === access.estate.id);
+    const needs = store.counselNeeds
+      .filter((n) => n.estateId === access.estate.id)
+      .map((n) => ({ ...n, files: n.files || [] }));
     const listing = (store.counselListings || []).find((l) => l.estateId === access.estate.id) || null;
+    const timeline = (active?.timeline || [])
+      .slice()
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+      .slice(0, 40)
+      .map((ev) => {
+        const actor = store.users.find((u) => u.id === ev.actorId);
+        return { ...ev, actorName: actor?.name || null };
+      });
 
     res.json({
       role: access.role,
@@ -1074,6 +1091,8 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       engagements,
       activeEngagementId: engagementId || null,
       listing,
+      timeline,
+      briefGeneratedAt: active?.briefGeneratedAt || null,
       notes: notes.map((n) => {
         const author = store.users.find((u) => u.id === n.authorId);
         return { ...n, authorName: author?.name || 'Unknown' };
@@ -1091,7 +1110,7 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
       return res.status(403).json({ error: 'Brief restricted' });
     }
     const eng = store.engagements
-      .filter((e) => e.estateId === access.estate.id && e.counselBrief)
+      .filter((e) => e.estateId === access.estate.id && e.counselBrief && ['active', 'closed'].includes(e.status))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     if (!eng?.counselBrief) {
       return res.status(404).json({ error: 'No counsel brief yet — counsel must accept first' });
@@ -1107,6 +1126,47 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     res.json({
       filename: `CounselBrief_${access.estate.subjectName.replace(/\s+/g, '_')}.txt`,
       content: eng.counselBrief,
+      generatedAt: eng.briefGeneratedAt || eng.acceptedAt || null,
+    });
+  });
+
+  app.post('/api/estates/:id/counsel/brief/regenerate', authRequired, (req, res) => {
+    const store = readStore();
+    const access = accessFn(store, req.user.id, req.params.id);
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    if (!['owner', 'manager', 'counsel'].includes(access.role)) {
+      return res.status(403).json({ error: 'Cannot regenerate brief' });
+    }
+    const eng = store.engagements.find(
+      (e) =>
+        e.estateId === access.estate.id &&
+        e.status === 'active' &&
+        (access.role !== 'counsel' || e.lawyerUserId === req.user.id)
+    );
+    if (!eng) return res.status(404).json({ error: 'No active matter to regenerate brief for' });
+
+    const result = mutate((s) => {
+      const rebuilt = rebuildCounselBrief(s, eng.id);
+      if (!rebuilt) return null;
+      pushTimeline(rebuilt.engagement, {
+        type: 'brief_regenerated',
+        actorId: req.user.id,
+        detail: 'Counsel brief regenerated from current Life Map',
+      });
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'counsel_brief_regenerated',
+        detail: eng.id,
+      });
+      return rebuilt;
+    });
+    if (!result) return res.status(404).json({ error: 'Engagement not found' });
+    res.json({
+      ok: true,
+      briefGeneratedAt: result.engagement.briefGeneratedAt,
+      pathway: result.pathway,
+      preview: String(result.brief || '').slice(0, 400),
     });
   });
 
@@ -1120,10 +1180,14 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     const body = (req.body?.body || '').trim();
     if (!body) return res.status(400).json({ error: 'Note body required' });
     const privileged = req.body?.privileged !== false;
+    const engagementId =
+      req.body?.engagementId ||
+      store.engagements.find((e) => e.estateId === access.estate.id && e.status === 'active')?.id ||
+      null;
     const note = {
       id: uuid(),
       estateId: access.estate.id,
-      engagementId: req.body?.engagementId || null,
+      engagementId,
       authorId: req.user.id,
       authorRole: access.role,
       body,
@@ -1132,6 +1196,15 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     };
     mutate((s) => {
       s.legalNotes.push(note);
+      const eng = engagementId ? s.engagements.find((e) => e.id === engagementId) : null;
+      if (eng) {
+        pushTimeline(eng, {
+          type: 'note',
+          actorId: req.user.id,
+          detail: body.slice(0, 120),
+        });
+        eng.updatedAt = new Date().toISOString();
+      }
       audit(s, {
         estateId: access.estate.id,
         userId: req.user.id,
@@ -1151,10 +1224,14 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     }
     const title = (req.body?.title || '').trim();
     if (!title) return res.status(400).json({ error: 'Title required' });
+    const engagementId =
+      req.body?.engagementId ||
+      store.engagements.find((e) => e.estateId === access.estate.id && e.status === 'active')?.id ||
+      null;
     const action = {
       id: uuid(),
       estateId: access.estate.id,
-      engagementId: req.body?.engagementId || null,
+      engagementId,
       title,
       pathwayId: req.body?.pathwayId || null,
       status: 'todo',
@@ -1164,6 +1241,14 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     };
     mutate((s) => {
       s.legalActions.push(action);
+      const eng = engagementId ? s.engagements.find((e) => e.id === engagementId) : null;
+      if (eng) {
+        pushTimeline(eng, {
+          type: 'action_added',
+          actorId: req.user.id,
+          detail: title,
+        });
+      }
       audit(s, {
         estateId: access.estate.id,
         userId: req.user.id,
@@ -1183,13 +1268,71 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         (a) => a.id === req.params.actionId && a.estateId === req.params.id
       );
       if (!row) return null;
+      const prev = row.status;
       if (req.body?.status) row.status = req.body.status;
       if (req.body?.title) row.title = req.body.title;
       row.updatedAt = new Date().toISOString();
+      if (req.body?.status && req.body.status !== prev && row.engagementId) {
+        const eng = s.engagements.find((e) => e.id === row.engagementId);
+        if (eng) {
+          pushTimeline(eng, {
+            type: 'action_status',
+            actorId: req.user.id,
+            detail: `${row.title} → ${row.status}`,
+          });
+        }
+      }
       return row;
     });
     if (!action) return res.status(404).json({ error: 'Action not found' });
     res.json({ action });
+  });
+
+  app.post('/api/estates/:id/counsel/needs', authRequired, (req, res) => {
+    const store = readStore();
+    const access = accessFn(store, req.user.id, req.params.id);
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    if (!['counsel', 'owner', 'manager'].includes(access.role)) {
+      return res.status(403).json({ error: 'Cannot add counsel needs' });
+    }
+    const title = String(req.body?.title || '').trim();
+    if (!title || title.length < 3) {
+      return res.status(400).json({ error: 'Need title required (3+ chars)' });
+    }
+    const engagementId =
+      req.body?.engagementId ||
+      store.engagements.find((e) => e.estateId === access.estate.id && e.status === 'active')?.id ||
+      null;
+    if (!engagementId) return res.status(400).json({ error: 'No active matter' });
+
+    const need = {
+      id: uuid(),
+      estateId: access.estate.id,
+      engagementId,
+      title,
+      status: 'open',
+      files: [],
+      createdBy: req.user.id,
+      createdAt: new Date().toISOString(),
+    };
+    mutate((s) => {
+      s.counselNeeds.push(need);
+      const eng = s.engagements.find((e) => e.id === engagementId);
+      if (eng) {
+        pushTimeline(eng, {
+          type: 'need_added',
+          actorId: req.user.id,
+          detail: title,
+        });
+      }
+      audit(s, {
+        estateId: access.estate.id,
+        userId: req.user.id,
+        action: 'counsel_need_added',
+        detail: title,
+      });
+    });
+    res.status(201).json({ need });
   });
 
   app.patch('/api/estates/:id/counsel/needs/:needId', authRequired, (req, res) => {
@@ -1201,13 +1344,89 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
         (n) => n.id === req.params.needId && n.estateId === req.params.id
       );
       if (!row) return null;
+      const prev = row.status;
       if (req.body?.status) row.status = req.body.status;
+      if (req.body?.title && ['counsel', 'owner'].includes(access.role)) {
+        row.title = String(req.body.title).trim() || row.title;
+      }
       row.updatedAt = new Date().toISOString();
+      if (req.body?.status && req.body.status !== prev && row.engagementId) {
+        const eng = s.engagements.find((e) => e.id === row.engagementId);
+        if (eng) {
+          pushTimeline(eng, {
+            type: 'need_status',
+            actorId: req.user.id,
+            detail: `${row.title} → ${row.status}`,
+          });
+        }
+      }
       return row;
     });
     if (!need) return res.status(404).json({ error: 'Need not found' });
-    res.json({ need });
+    res.json({ need: { ...need, files: need.files || [] } });
   });
+
+  app.post(
+    '/api/estates/:id/counsel/needs/:needId/files',
+    authRequired,
+    upload.array('files', 5),
+    async (req, res) => {
+      if (!saveUpload) {
+        return res.status(500).json({ error: 'Upload helper not configured' });
+      }
+      const store = readStore();
+      const access = accessFn(store, req.user.id, req.params.id);
+      if (!access.ok) return res.status(access.status).json({ error: access.error });
+      if (!['owner', 'manager', 'counsel'].includes(access.role)) {
+        return res.status(403).json({ error: 'Cannot attach files' });
+      }
+      const need = store.counselNeeds.find(
+        (n) => n.id === req.params.needId && n.estateId === access.estate.id
+      );
+      if (!need) return res.status(404).json({ error: 'Need not found' });
+      if (!req.files?.length) return res.status(400).json({ error: 'Attach at least one file' });
+
+      const savedFiles = [];
+      for (const f of req.files) {
+        const saved = await saveUpload({
+          name: f.originalname,
+          mime: f.mimetype,
+          buffer: f.buffer,
+        });
+        savedFiles.push({
+          ...saved,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: req.user.id,
+        });
+      }
+
+      const updated = mutate((s) => {
+        const row = s.counselNeeds.find((n) => n.id === need.id);
+        if (!row) return null;
+        if (!row.files) row.files = [];
+        row.files.push(...savedFiles);
+        if (row.status === 'open') row.status = 'provided';
+        row.updatedAt = new Date().toISOString();
+        const eng = s.engagements.find((e) => e.id === row.engagementId);
+        if (eng) {
+          pushTimeline(eng, {
+            type: 'need_file',
+            actorId: req.user.id,
+            detail: `Uploaded ${savedFiles.length} file(s) for: ${row.title}`,
+          });
+        }
+        audit(s, {
+          estateId: access.estate.id,
+          userId: req.user.id,
+          action: 'counsel_need_files',
+          detail: `${row.title} · ${savedFiles.length} file(s)`,
+        });
+        return row;
+      });
+
+      res.status(201).json({ need: { ...updated, files: updated.files || [] } });
+    }
+  );
 }
 
 export { publicLawyer };

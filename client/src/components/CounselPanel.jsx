@@ -27,6 +27,8 @@ export default function CounselPanel({ estateId, onToast }) {
   });
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [newNeed, setNewNeed] = useState('');
+  const [newAction, setNewAction] = useState('');
   const [listingForm, setListingForm] = useState({
     city: '',
     blurb: '',
@@ -102,6 +104,75 @@ export default function CounselPanel({ estateId, onToast }) {
       notify('Counsel brief downloaded');
     } catch (err) {
       notify(err.message);
+    }
+  }
+
+  async function regenerateBrief() {
+    setBusy(true);
+    try {
+      await api(`/api/estates/${estateId}/counsel/brief/regenerate`, { method: 'POST', body: {} });
+      notify('Brief regenerated from current Life Map');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addNeed(e) {
+    e.preventDefault();
+    if (!newNeed.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/api/estates/${estateId}/counsel/needs`, {
+        method: 'POST',
+        body: { title: newNeed.trim(), engagementId: counsel?.activeEngagementId },
+      });
+      setNewNeed('');
+      notify('Need added for family');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addAction(e) {
+    e.preventDefault();
+    if (!newAction.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/api/estates/${estateId}/counsel/actions`, {
+        method: 'POST',
+        body: { title: newAction.trim(), engagementId: counsel?.activeEngagementId },
+      });
+      setNewAction('');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadNeedFiles(needId, fileList) {
+    if (!fileList?.length) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      [...fileList].forEach((f) => fd.append('files', f));
+      await api(`/api/estates/${estateId}/counsel/needs/${needId}/files`, {
+        method: 'POST',
+        body: fd,
+      });
+      notify('Document uploaded');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -181,11 +252,13 @@ export default function CounselPanel({ estateId, onToast }) {
 
   if (!counsel) return <p className="muted">Loading counsel layer…</p>;
 
-  const { pathway, engagements, notes, actions, needs, role, listing } = counsel;
+  const { pathway, engagements, notes, actions, needs, role, listing, timeline, briefGeneratedAt } =
+    counsel;
   const active =
-    engagements.find((e) => ['active', 'engaged', 'requested'].includes(e.status)) ||
+    engagements.find((e) => ['active', 'requested'].includes(e.status)) ||
     engagements.find((e) => e.status === 'approached');
   const approached = engagements.filter((e) => e.status === 'approached');
+  const matterLive = active && active.status === 'active';
 
   return (
     <div className="split">
@@ -200,10 +273,28 @@ export default function CounselPanel({ estateId, onToast }) {
                 Risk score {pathway.riskScore}/100 — guidance for counsel, not a court filing.
               </p>
             </div>
-            <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.8rem' }} onClick={downloadBrief}>
-              Download counsel brief
-            </button>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.8rem' }} onClick={downloadBrief}>
+                Download counsel brief
+              </button>
+              {matterLive && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: '0.4rem 0.8rem' }}
+                  disabled={busy}
+                  onClick={regenerateBrief}
+                >
+                  Regenerate brief
+                </button>
+              )}
+            </div>
           </div>
+          {briefGeneratedAt && (
+            <p className="small muted" style={{ margin: '0.5rem 0 0' }}>
+              Brief last generated {new Date(briefGeneratedAt).toLocaleString()}
+            </p>
+          )}
           <p style={{ margin: '0.85rem 0 0', color: 'var(--ink-soft)' }}>{pathway.summary}</p>
           <div style={{ marginTop: '1rem', display: 'grid', gap: '0.65rem' }}>
             {pathway.pathways.map((p) => (
@@ -238,26 +329,76 @@ export default function CounselPanel({ estateId, onToast }) {
           </div>
         </div>
 
-        {active && ['active', 'engaged'].includes(active.status) && (
+        {matterLive && (
           <>
             <div className="card">
               <div style={{ padding: '1rem 1.1rem' }}>
                 <strong>Counsel asks family for</strong>
+                <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                  Attach scans / PDFs against each ask. Status flips to Provided on upload.
+                </p>
               </div>
-              {needs.map((n) => (
-                <div key={n.id} className="item-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-                  <span className="small">{n.title}</span>
-                  <select
-                    value={n.status}
-                    onChange={(e) => setNeedStatus(n.id, e.target.value)}
-                    style={{ borderRadius: 10, border: '1px solid var(--line)', padding: '0.3rem 0.5rem' }}
-                  >
-                    <option value="open">Open</option>
-                    <option value="provided">Provided</option>
-                    <option value="waived">Waived</option>
-                  </select>
-                </div>
-              ))}
+              {needs.length === 0 ? (
+                <div className="item-row muted small">No document asks yet</div>
+              ) : (
+                needs.map((n) => (
+                  <div key={n.id} className="item-row" style={{ display: 'grid', gap: '0.45rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <span className="small">{n.title}</span>
+                      <select
+                        value={n.status}
+                        onChange={(e) => setNeedStatus(n.id, e.target.value)}
+                        style={{ borderRadius: 10, border: '1px solid var(--line)', padding: '0.3rem 0.5rem' }}
+                      >
+                        <option value="open">Open</option>
+                        <option value="provided">Provided</option>
+                        <option value="waived">Waived</option>
+                      </select>
+                    </div>
+                    {(n.files || []).length > 0 && (
+                      <div className="small" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                        {n.files.map((f) => (
+                          <a
+                            key={f.path || f.id}
+                            href={f.path}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: 'var(--sage-deep)', fontWeight: 600 }}
+                          >
+                            {f.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <label className="small muted" style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
+                      Upload
+                      <input
+                        type="file"
+                        multiple
+                        disabled={busy}
+                        onChange={(e) => {
+                          uploadNeedFiles(n.id, e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))
+              )}
+              {['counsel', 'owner', 'manager'].includes(role) && (
+                <form onSubmit={addNeed} style={{ padding: '0.85rem 1.1rem', borderTop: '1px solid var(--line)' }}>
+                  <div className="field" style={{ marginBottom: '0.55rem' }}>
+                    <input
+                      value={newNeed}
+                      onChange={(e) => setNewNeed(e.target.value)}
+                      placeholder="Add custom ask — e.g. Society NOC copy"
+                    />
+                  </div>
+                  <button className="btn btn-ghost" style={{ padding: '0.35rem 0.75rem' }} disabled={busy}>
+                    Add need
+                  </button>
+                </form>
+              )}
             </div>
 
             <div className="card">
@@ -279,6 +420,41 @@ export default function CounselPanel({ estateId, onToast }) {
                       <option value="doing">Doing</option>
                       <option value="done">Done</option>
                     </select>
+                  </div>
+                ))
+              )}
+              {['counsel', 'owner'].includes(role) && (
+                <form onSubmit={addAction} style={{ padding: '0.85rem 1.1rem', borderTop: '1px solid var(--line)' }}>
+                  <div className="field" style={{ marginBottom: '0.55rem' }}>
+                    <input
+                      value={newAction}
+                      onChange={(e) => setNewAction(e.target.value)}
+                      placeholder="Add legal action…"
+                    />
+                  </div>
+                  <button className="btn btn-ghost" style={{ padding: '0.35rem 0.75rem' }} disabled={busy}>
+                    Add action
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="card">
+              <div style={{ padding: '1rem 1.1rem' }}>
+                <strong>Matter timeline</strong>
+                <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                  Accept, notes, asks, uploads, and action updates.
+                </p>
+              </div>
+              {(timeline || []).length === 0 ? (
+                <div className="item-row muted small">No events yet</div>
+              ) : (
+                (timeline || []).map((ev) => (
+                  <div key={ev.id} className="item-row">
+                    <div className="small muted">
+                      {ev.actorName || 'System'} · {ev.type} · {new Date(ev.at).toLocaleString()}
+                    </div>
+                    <div className="small">{ev.detail}</div>
                   </div>
                 ))
               )}
