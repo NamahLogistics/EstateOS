@@ -12,13 +12,13 @@ import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsa
 const TABS = [
   'housewarming',
   'map',
+  'family',
   'interview',
   'findcare',
   'rules',
   'unlock',
   'execute',
   'counsel',
-  'family',
   'emergency',
   'audit',
 ];
@@ -479,7 +479,7 @@ export default function EstatePage() {
     unlock: t('unlock'),
     execute: t('execution'),
     counsel: t('counsel'),
-    family: t('family'),
+    family: 'Family chat',
     emergency: t('emergency'),
     audit: t('audit'),
   };
@@ -549,6 +549,14 @@ export default function EstatePage() {
         </div>
       )}
       <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ padding: '0.4rem 0.85rem' }}
+          onClick={() => setTab('family')}
+        >
+          Family chat
+        </button>
         <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={exportZip}>
           Export ZIP
         </button>
