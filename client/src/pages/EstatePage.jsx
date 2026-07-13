@@ -5,9 +5,10 @@ import CounselPanel from '../components/CounselPanel.jsx';
 import CarePanel from '../components/CarePanel.jsx';
 import FamilyThread from '../components/FamilyThread.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
+import HousewarmingDone, { SiblingInviteCard } from '../components/HousewarmingDone.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
-import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsapp.js';
+import { shareEmergencyText, whatsappShareUrl } from '../whatsapp.js';
 
 const TABS = [
   'housewarming',
@@ -117,14 +118,12 @@ export default function EstatePage() {
     backupContact: '',
   });
   const [files, setFiles] = useState(null);
-  const [invite, setInvite] = useState({ email: '', role: 'manager' });
   const [proofType, setProofType] = useState('death');
   const [proofFile, setProofFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [answers, setAnswers] = useState({});
   const [scanCategory, setScanCategory] = useState('bank');
   const [scanFile, setScanFile] = useState(null);
-  const [lastInviteLink, setLastInviteLink] = useState('');
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState('items');
 
@@ -376,37 +375,6 @@ export default function EstatePage() {
     }
   }
 
-  async function inviteMember(e) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const res = await api(`/api/estates/${id}/members`, { method: 'POST', body: invite });
-      const link =
-        res.invite?.token
-          ? `${window.location.origin}/invite/${res.invite.token}`
-          : res.invite?.link || '';
-      if (link) {
-        setLastInviteLink(link);
-        await navigator.clipboard.writeText(link).catch(() => {});
-        const emailed =
-          res.invite?.emailStatus === 'resend'
-            ? 'Email sent + link copied'
-            : res.invite?.emailStatus === 'logged'
-              ? 'Invite logged + link copied (add RESEND_API_KEY to send email)'
-              : 'Invite link copied — send it on WhatsApp';
-        toast(emailed);
-      } else {
-        toast('Member added');
-      }
-      setInvite({ email: '', role: 'manager' });
-      await load();
-    } catch (err) {
-      toast(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function exportZip() {
     try {
       const res = await fetch(`/api/estates/${id}/export`, {
@@ -491,6 +459,11 @@ export default function EstatePage() {
     (countryPacks || []).find((p) => p.id === (estate.countryPack || estate.country))?.label ||
     estate.countryPack ||
     'India';
+  const hwDone = Boolean(housewarming?.progress?.completedAt);
+  const visibleTabs = TABS.filter((key) => {
+    if (hwDone) return true;
+    return key !== 'findcare' && key !== 'counsel';
+  });
 
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
@@ -566,7 +539,7 @@ export default function EstatePage() {
       </div>
 
       <div className="tabs">
-        {TABS.map((key) => (
+        {visibleTabs.map((key) => (
           <button
             key={key}
             type="button"
@@ -580,11 +553,25 @@ export default function EstatePage() {
 
       {tab === 'housewarming' && (
         <>
+          {hwDone && (
+            <HousewarmingDone
+              estateId={id}
+              subjectName={estate.subjectName}
+              emergencyUrl={emergencyUrl}
+              inviterName={user?.name}
+              completedAt={housewarming?.progress?.completedAt}
+              onOpenTab={(next) => setTab(next)}
+            />
+          )}
           <HousewarmingGuide
             estateId={id}
             guide={housewarming}
             onUpdated={(hw) => setData({ ...data, housewarming: hw })}
             onOpenTab={(next) => setTab(next)}
+            onCompleted={(res) => {
+              setData({ ...data, housewarming: res.housewarming });
+              setTab('housewarming');
+            }}
           />
           {housewarming?.progress?.dismissed && !housewarming?.progress?.completedAt && (
             <button
@@ -605,7 +592,7 @@ export default function EstatePage() {
               Resume Digital Housewarming
             </button>
           )}
-          {housewarming?.progress?.completedAt && (
+          {hwDone && (
             <button
               type="button"
               className="btn btn-ghost"
@@ -1197,54 +1184,12 @@ export default function EstatePage() {
               ))}
             </div>
             {estate.myRole === 'owner' && (
-              <form className="card" style={{ padding: '1.2rem' }} onSubmit={inviteMember}>
-                <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-                  {t('inviteSibling')}
-                </p>
-                <p className="small muted">
-                  {t('inviteSiblingBlurb')}
-                </p>
-                <div className="field">
-                  <label>{t('email')}</label>
-                  <input
-                    required
-                    type="email"
-                    value={invite.email}
-                    onChange={(e) => setInvite({ ...invite, email: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('role')}</label>
-                  <select
-                    value={invite.role}
-                    onChange={(e) => setInvite({ ...invite, role: e.target.value })}
-                  >
-                    <option value="manager">Manager (can unlock / edit)</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                </div>
-                <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
-                  {t('invite')}
-                </button>
-                {lastInviteLink && (
-                  <a
-                    className="btn btn-ghost"
-                    style={{ width: '100%', marginTop: '0.65rem', textAlign: 'center' }}
-                    href={whatsappShareUrl(
-                      shareInviteText({
-                        estateName: estate.subjectName,
-                        link: lastInviteLink,
-                        inviterName: user?.name,
-                        lang,
-                      })
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t('shareInviteWa')}
-                  </a>
-                )}
-              </form>
+              <SiblingInviteCard
+                estateId={id}
+                subjectName={estate.subjectName}
+                inviterName={user?.name}
+                onInvited={() => load().catch(() => {})}
+              />
             )}
           </div>
         </div>

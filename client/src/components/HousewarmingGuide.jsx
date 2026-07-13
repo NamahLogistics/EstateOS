@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 
-export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTab }) {
+export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTab, onCompleted }) {
   const { api, toast } = useAuth();
   const [busy, setBusy] = useState(false);
 
@@ -18,19 +18,6 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
   }, [steps, progress.currentStepId, completed]);
 
   if (!guide || progress.dismissed || progress.completedAt) {
-    if (progress.completedAt) {
-      return (
-        <div className="card" style={{ padding: '1.15rem', marginBottom: '1rem' }}>
-          <p className="display" style={{ fontSize: '1.25rem', margin: 0 }}>
-            Digital Housewarming complete
-          </p>
-          <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
-            Finished {new Date(progress.completedAt).toLocaleDateString()}. Re-open anytime from the
-            Housewarming tab if you add another parent or redo with siblings.
-          </p>
-        </div>
-      );
-    }
     return null;
   }
 
@@ -42,7 +29,12 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
         body: { stepId, ...opts },
       });
       onUpdated?.(res.housewarming);
-      toast(opts.completeAll ? 'Housewarming complete' : 'Step saved');
+      if (res.justCompleted || res.housewarming?.progress?.completedAt) {
+        toast('Housewarming complete — invite a sibling next');
+        onCompleted?.(res);
+      } else {
+        toast(opts.completeAll ? 'Housewarming complete' : 'Step saved');
+      }
     } catch (err) {
       toast(err.message);
     } finally {

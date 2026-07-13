@@ -3,7 +3,7 @@
 import { mutate } from './db.js';
 
 export const FREE_MAX_ESTATES = 1;
-export const FREE_MAX_ITEMS = 5;
+export const FREE_MAX_ITEMS = 12;
 export const PLAN_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 export const PLAN_YEAR_DAYS = 365;
 export const RENEWAL_WARN_DAYS = 30;

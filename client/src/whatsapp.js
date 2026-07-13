@@ -26,6 +26,23 @@ export function shareInviteText({ estateName, link, inviterName, lang = 'en' }) 
   );
 }
 
+/** After housewarming — ask sibling to add what they know */
+export function shareHousewarmingDoneText({ estateName, link, inviterName, lang = 'en' }) {
+  const who = firstName(inviterName);
+  if (lang === 'hi') {
+    return (
+      `${who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n'}` +
+      `मैंने ${estateName} के लिए HeirReady पर घर का सेटअप कर लिया है (बैंक / देखभाल / कागज़)।\n\n` +
+      `जुड़ो और जो तुम्हें पता हो जोड़ दो:\n${link}`
+    );
+  }
+  return (
+    `Hi${who ? ` — ${who} here` : ''}.\n\n` +
+    `I’ve finished the HeirReady housewarming setup for ${estateName} (banks / care / papers).\n\n` +
+    `Join and add what you know:\n${link}`
+  );
+}
+
 export function shareEmergencyText({ subjectName, url, lang = 'en' }) {
   if (lang === 'hi') {
     return (

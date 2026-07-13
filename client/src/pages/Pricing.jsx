@@ -11,7 +11,7 @@ const plans = [
     name: 'Free',
     price: '₹0',
     blurb: 'Start mapping today',
-    features: ['1 estate / parent', '5 Life Map items', 'Unlock rules', 'India checklist on unlock'],
+    features: ['1 estate / parent', '12 Life Map items', 'Unlock rules', 'India checklist on unlock'],
     cta: 'Start free',
   },
   {

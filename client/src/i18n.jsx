@@ -41,7 +41,7 @@ const dict = {
     // Dashboard
     yourEstates: 'Your estates',
     oneEstatePerParent: 'One file per parent.',
-    freePlanHint: ' Free: 1 file, 5 vault items.',
+    freePlanHint: ' Free: 1 file, 12 vault items.',
     renewSoon: 'Renew soon',
     planLapsed: 'Plan lapsed — renew',
     createEstate: 'New parent file',
@@ -235,7 +235,7 @@ const dict = {
 
     yourEstates: 'आपकी फ़ाइलें',
     oneEstatePerParent: 'हर माता/पिता के लिए एक फ़ाइल।',
-    freePlanHint: ' मुफ़्त: १ फ़ाइल, ५ प्रविष्टियाँ।',
+    freePlanHint: ' मुफ़्त: १ फ़ाइल, १२ प्रविष्टियाँ।',
     renewSoon: 'जल्दी नवीनीकरण करें',
     planLapsed: 'योजना खत्म — फिर से लें',
     createEstate: 'नई फ़ाइल बनाएँ',

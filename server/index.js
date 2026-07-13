@@ -38,7 +38,7 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
@@ -971,13 +971,12 @@ app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
   }
   const email = (req.body?.email || '').trim().toLowerCase();
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
-  if (!email) return res.status(400).json({ error: 'Email required' });
 
   const token = crypto.randomBytes(24).toString('hex');
   const invite = {
     id: uuid(),
     estateId: access.estate.id,
-    email,
+    email: email || '',
     role,
     token,
     invitedBy: req.user.id,
@@ -991,34 +990,37 @@ app.post('/api/estates/:id/invites', authRequired, async (req, res) => {
       estateId: access.estate.id,
       userId: req.user.id,
       action: 'invite_created',
-      detail: `Invite for ${email} as ${role}`,
+      detail: email ? `Invite for ${email} as ${role}` : `Open WhatsApp invite as ${role}`,
     });
   });
-  const base = (process.env.APP_URL || '').replace(/\/$/, '');
-  const link = `${base || ''}/invite/${token}`;
+  const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
+  const link = `${base}/invite/${token}`;
   let emailStatus = 'skipped';
-  try {
-    const sent = await sendInviteEmail({
-      to: email,
-      estateName: access.estate.subjectName,
-      role,
-      link: base ? link : `https://estate-os-production.up.railway.app/invite/${token}`,
-      inviterName: req.user.name,
-    });
-    emailStatus = sent.mode;
-  } catch (err) {
-    emailStatus = 'failed';
-    console.error('invite email failed', err.message);
+  if (email) {
+    try {
+      const sent = await sendInviteEmail({
+        to: email,
+        estateName: access.estate.subjectName,
+        role,
+        link,
+        inviterName: req.user.name,
+      });
+      emailStatus = sent.mode;
+    } catch (err) {
+      emailStatus = 'failed';
+      console.error('invite email failed', err.message);
+    }
   }
   res.status(201).json({
     invite: {
       id: invite.id,
-      email,
+      email: email || null,
       role,
       expiresAt: invite.expiresAt,
-      link: base ? link : null,
+      link,
       token,
       emailStatus,
+      openInvite: !email,
     },
   });
 });
@@ -1119,8 +1121,10 @@ app.get('/api/invites/:token', (req, res) => {
     return res.status(410).json({ error: 'Invite expired' });
   }
   const estate = store.estates.find((e) => e.id === invite.estateId);
+  const openInvite = !invite.email;
   res.json({
-    email: invite.email,
+    email: invite.email || null,
+    openInvite,
     role: invite.role,
     estateName: estate?.subjectName,
     expiresAt: invite.expiresAt,
@@ -1134,15 +1138,32 @@ app.post('/api/invites/:token/accept', authRequired, (req, res) => {
   if (new Date(invite.expiresAt) < new Date()) {
     return res.status(410).json({ error: 'Invite expired' });
   }
-  if (req.user.email !== invite.email) {
+  const estate = store.estates.find((e) => e.id === invite.estateId);
+  if (!estate) return res.status(404).json({ error: 'Estate not found' });
+  if (estate.ownerId === req.user.id) {
+    return res.status(400).json({ error: 'You already own this file' });
+  }
+  const openInvite = !invite.email;
+  if (!openInvite && req.user.email !== invite.email) {
     return res.status(403).json({
       error: `Sign in as ${invite.email} to accept this invite`,
     });
   }
+  if (req.user.accountType === 'lawyer' || req.user.accountType === 'care') {
+    return res.status(403).json({ error: 'Family accounts only — switch to a family login to join a vault' });
+  }
+  const already = store.members.find(
+    (m) => m.estateId === invite.estateId && m.userId === req.user.id && m.status === 'active'
+  );
+  if (already) {
+    return res.json({ ok: true, estateId: invite.estateId, alreadyMember: true });
+  }
+
   mutate((s) => {
     const inv = s.invites.find((i) => i.id === invite.id);
     inv.status = 'accepted';
     inv.acceptedAt = new Date().toISOString();
+    if (!inv.email) inv.email = req.user.email;
     const exists = s.members.find(
       (m) => m.estateId === invite.estateId && m.userId === req.user.id
     );
@@ -1151,17 +1172,17 @@ app.post('/api/invites/:token/accept', authRequired, (req, res) => {
         id: uuid(),
         estateId: invite.estateId,
         userId: req.user.id,
-        inviteEmail: invite.email,
+        inviteEmail: inv.email || req.user.email,
         role: invite.role,
         status: 'active',
         createdAt: new Date().toISOString(),
       });
     }
-    const estate = s.estates.find((e) => e.id === invite.estateId);
-    if (invite.role === 'manager' && estate) {
-      const ids = estate.unlockRules.unlockerUserIds || [];
+    const e = s.estates.find((x) => x.id === invite.estateId);
+    if (invite.role === 'manager' && e) {
+      const ids = e.unlockRules.unlockerUserIds || [];
       if (!ids.includes(req.user.id)) ids.push(req.user.id);
-      estate.unlockRules.unlockerUserIds = ids;
+      e.unlockRules.unlockerUserIds = ids;
     }
     audit(s, {
       estateId: invite.estateId,
@@ -1182,14 +1203,13 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
   }
   const email = (req.body?.email || '').trim().toLowerCase();
   const role = req.body?.role === 'manager' ? 'manager' : 'viewer';
-  if (!email) return res.status(400).json({ error: 'Email required' });
 
-  const invitee = store.users.find((u) => u.email === email);
+  const invitee = email ? store.users.find((u) => u.email === email) : null;
   const token = crypto.randomBytes(24).toString('hex');
   const invite = {
     id: uuid(),
     estateId: access.estate.id,
-    email,
+    email: email || '',
     role,
     token,
     invitedBy: req.user.id,
@@ -1228,14 +1248,14 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
       estateId: access.estate.id,
       userId: req.user.id,
       action: 'member_invited',
-      detail: `Invited ${email} as ${role}`,
+      detail: email ? `Invited ${email} as ${role}` : `Open WhatsApp invite as ${role}`,
     });
   });
 
-  const base = (process.env.APP_URL || '').replace(/\/$/, '');
-  const publicLink = `${base || 'https://estate-os-production.up.railway.app'}/invite/${token}`;
+  const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
+  const publicLink = `${base}/invite/${token}`;
   let emailStatus = 'skipped';
-  if (invite.status === 'pending' || !member) {
+  if (email && (invite.status === 'pending' || !member)) {
     try {
       const sent = await sendInviteEmail({
         to: email,
@@ -1254,11 +1274,14 @@ app.post('/api/estates/:id/members', authRequired, async (req, res) => {
   res.status(201).json({
     member: member ? { ...member, name: invitee.name, email } : null,
     invite: {
-      email,
+      id: invite.id,
+      email: email || null,
       role,
-      link: publicLink,
       token,
+      link: publicLink,
       emailStatus,
+      status: invite.status,
+      openInvite: !email,
     },
   });
 });
@@ -1497,7 +1520,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.12.1',
+    version: '1.13.0',
   });
 });
 
@@ -1557,7 +1580,7 @@ app.get('/api/estates/:id/export', authRequired, async (req, res) => {
 });
 
 // ── Interview / emergency / review ────────────────────
-app.post('/api/estates/:id/housewarming', authRequired, (req, res) => {
+app.post('/api/estates/:id/housewarming', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -1566,12 +1589,14 @@ app.post('/api/estates/:id/housewarming', authRequired, (req, res) => {
   }
 
   const { stepId, complete, completeAll, dismiss, setCurrent, reopen } = req.body || {};
+  let justCompleted = false;
   const result = mutate((s) => {
     const e = s.estates.find((x) => x.id === access.estate.id);
     if (!e) return null;
     ensureEstateDefaults(e);
     if (!e.housewarming) e.housewarming = defaultHousewarmingState();
     const hw = e.housewarming;
+    const wasComplete = Boolean(hw.completedAt);
     if (!hw.startedAt) hw.startedAt = new Date().toISOString();
 
     if (reopen) {
@@ -1601,6 +1626,7 @@ app.post('/api/estates/:id/housewarming', authRequired, (req, res) => {
       hw.currentStepId = HOUSEWARMING_STEPS[HOUSEWARMING_STEPS.length - 1].id;
       hw.dismissed = false;
     }
+    justCompleted = !wasComplete && Boolean(hw.completedAt);
     e.updatedAt = new Date().toISOString();
     audit(s, {
       estateId: e.id,
@@ -1617,7 +1643,19 @@ app.post('/api/estates/:id/housewarming', authRequired, (req, res) => {
   });
 
   if (!result) return res.status(404).json({ error: 'Estate not found' });
-  res.json({ housewarming: result });
+
+  if (justCompleted) {
+    const base = (process.env.APP_URL || '').replace(/\/$/, '') || 'https://heirready.com';
+    const link = `${base}/app/estates/${access.estate.id}?tab=housewarming`;
+    sendHousewarmingCompleteEmail({
+      to: req.user.email,
+      name: req.user.name,
+      estateName: access.estate.subjectName,
+      link,
+    }).catch((err) => console.error('housewarming complete email failed', err.message));
+  }
+
+  res.json({ housewarming: result, justCompleted });
 });
 
 app.post('/api/estates/:id/interview', authRequired, (req, res) => {

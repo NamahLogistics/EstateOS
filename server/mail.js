@@ -136,3 +136,29 @@ export async function sendEstateThreadNotify({
     tags: [{ name: 'category', value: 'estate_thread' }],
   });
 }
+
+export async function sendHousewarmingCompleteEmail({ to, name, estateName, link }) {
+  const subject = `${estateName}: housewarming done — invite a sibling`;
+  const text =
+    `Hi ${name || 'there'},\n\n` +
+    `You’ve finished Digital Housewarming for ${estateName} on HeirReady.\n\n` +
+    `Next: invite a sibling on WhatsApp so they can add what they know, and share the fridge QR.\n\n` +
+    `Open the file:\n${link}\n\n` +
+    `HeirReady — not legal advice.`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">Housewarming complete</h2>
+      <p style="margin:0 0 12px">Hi ${name || 'there'}, you’ve finished setup for <strong>${estateName}</strong>.</p>
+      <p style="margin:0 0 16px">Invite a sibling on WhatsApp and share the fridge QR so family isn’t stuck guessing later.</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Open ${estateName}</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">Not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'housewarming_complete' }],
+  });
+}

@@ -34,7 +34,7 @@ function copyFor(reason, careComingSoon) {
     items: {
       plan: 'family',
       title: 'Free vault is full',
-      body: 'You’ve used all 5 Life Map items. Family unlocks unlimited vault, sibling invites, and counsel-ready briefs — ₹1,499/year.',
+      body: 'You’ve used all 12 Life Map items. Family unlocks unlimited vault, sibling invites, and counsel-ready briefs — ₹1,499/year.',
       features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
       cta: 'Upgrade to Family — ₹1,499/yr',
       href: '/pricing?plan=family',
@@ -52,7 +52,7 @@ function copyFor(reason, careComingSoon) {
     near: {
       plan: 'family',
       title: 'Almost at the free limit',
-      body: 'Free includes 5 vault items. Upgrade to Family before you hit the wall — so banks, LIC, and property all fit in one map.',
+      body: 'Free includes 12 vault items. Upgrade to Family before you hit the wall — so banks, LIC, and property all fit in one map.',
       features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
       cta: 'Upgrade to Family — ₹1,499/yr',
       href: '/pricing?plan=family',
