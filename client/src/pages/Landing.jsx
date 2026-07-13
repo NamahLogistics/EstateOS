@@ -139,6 +139,11 @@ export default function Landing() {
           )}
         </div>
       </section>
+
+      <p className="small muted" style={{ textAlign: 'center', margin: '2rem 0 0' }}>
+        Practical checklists:{' '}
+        <Link to="/guides">NRI documents, LIC claim, sibling vault, fridge QR</Link>
+      </p>
     </>
   );
 }
