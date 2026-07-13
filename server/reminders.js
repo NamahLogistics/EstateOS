@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { mutate, readStore } from './db.js';
-import { sendEmail, sendLightReviewNudgeEmail } from './mail.js';
+import { sendEmail, sendLightReviewNudgeEmail, sendActivationNudgeEmail } from './mail.js';
 import {
   applyPlanExpiryInPlace,
   RENEWAL_WARN_DAYS,
@@ -8,13 +8,57 @@ import {
 } from './plans.js';
 
 const LIGHT_REVIEW_MS = 90 * 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Family signup drip: 1h → 1d → 3d, only if they still own zero estates */
+const ACTIVATION_STEPS = [
+  { id: '1h', afterMs: 1 * HOUR_MS },
+  { id: '1d', afterMs: 1 * DAY_MS },
+  { id: '3d', afterMs: 3 * DAY_MS },
+];
 
 export async function runReminderPass() {
   const store = readStore();
   const now = Date.now();
-  const day = 24 * 60 * 60 * 1000;
+  const day = DAY_MS;
   let sent = 0;
   const app = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+
+  // ── Abandoned signup activation (family, zero estates) ──
+  for (const user of store.users) {
+    if (!user.email || !user.createdAt) continue;
+    if (user.accountType === 'lawyer' || user.accountType === 'care') continue;
+    const ownsEstate = store.estates.some((e) => e.ownerId === user.id);
+    if (ownsEstate) continue;
+
+    const age = now - new Date(user.createdAt).getTime();
+    if (Number.isNaN(age) || age < 0) continue;
+    const sentMap = { ...(user.activationNudges || {}) };
+
+    for (const step of ACTIVATION_STEPS) {
+      if (age < step.afterMs) break;
+      if (sentMap[step.id]) continue;
+      try {
+        await sendActivationNudgeEmail({
+          to: user.email,
+          name: user.name,
+          link: `${app}/app`,
+          step: step.id,
+        });
+        mutate((s) => {
+          const u = s.users.find((x) => x.id === user.id);
+          if (!u) return;
+          if (!u.activationNudges) u.activationNudges = {};
+          u.activationNudges[step.id] = new Date().toISOString();
+        });
+        sent++;
+      } catch (err) {
+        console.error('activation nudge failed', step.id, err.message);
+      }
+      break; // one activation email per user per pass
+    }
+  }
 
   for (const user of store.users) {
     if (applyPlanExpiryInPlace(user)) {
@@ -50,7 +94,6 @@ export async function runReminderPass() {
     if (!owner?.email) continue;
     const estateLink = `${app}/app/estates/${estate.id}`;
 
-    // Yearly review
     if (estate.nextReviewAt) {
       const due = new Date(estate.nextReviewAt).getTime();
       if (due <= now && !estate.reviewReminderSentAt) {
@@ -72,7 +115,6 @@ export async function runReminderPass() {
       }
     }
 
-    // 90-day light check-in (after housewarming)
     const lightDueAt = estate.nextLightReviewAt;
     if (lightDueAt && estate.housewarming?.completedAt) {
       const lightDue = new Date(lightDueAt).getTime();
@@ -105,7 +147,6 @@ export async function runReminderPass() {
       }
     }
 
-    // Doc expiry (within 30 days)
     const items = store.items.filter((i) => i.estateId === estate.id && i.expiresOn);
     const expiring = items.filter((i) => {
       const t = new Date(i.expiresOn).getTime();
@@ -155,7 +196,6 @@ export function ensureEstateDefaults(estate) {
   return estate;
 }
 
-/** Call when housewarming completes or yearly review is marked done */
 export function scheduleLightReview(estate, fromMs = Date.now()) {
   estate.nextLightReviewAt = new Date(fromMs + LIGHT_REVIEW_MS).toISOString();
   estate.lastLightReviewAlertKey = null;

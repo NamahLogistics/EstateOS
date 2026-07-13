@@ -220,3 +220,55 @@ export async function sendLightReviewNudgeEmail({ to, name, estateName, link, wa
     tags: [{ name: 'category', value: 'light_review' }],
   });
 }
+
+/** Abandoned signup drip — family accounts with no parent file yet */
+export async function sendActivationNudgeEmail({ to, name, link, step }) {
+  const first = String(name || '').trim().split(/\s+/)[0] || 'there';
+  const copy = {
+    '1h': {
+      subject: 'Next step: map one parent on HeirReady (20 min)',
+      lead: `You’ve signed up — the useful part is creating Mum or Dad’s file.`,
+      body: `It takes about twenty minutes on a call. Banks, LIC, maid phone — so you’re not guessing on WhatsApp later.`,
+      cta: 'Create a parent file',
+    },
+    '1d': {
+      subject: `${first}, still need to set up a parent file?`,
+      lead: `Your HeirReady account is ready. One parent file unlocks the housewarming checklist.`,
+      body: `No lawyers today — just practical life admin you can help with from abroad.`,
+      cta: 'Start Digital Housewarming',
+    },
+    '3d': {
+      subject: 'Last nudge: finish HeirReady setup for one parent',
+      lead: `We’ll stop emailing about this — but the vault only helps once there’s a parent file.`,
+      body: `Create one file, run the 20‑minute housewarming, invite a sibling. Free plan covers the first map.`,
+      cta: 'Open HeirReady',
+    },
+  };
+  const c = copy[step] || copy['1d'];
+  const text =
+    `Hi ${first},\n\n` +
+    `${c.lead}\n\n` +
+    `${c.body}\n\n` +
+    `${c.cta}:\n${link}\n\n` +
+    `HeirReady — not legal advice. Reply to this email if you’re stuck.`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">${c.cta}</h2>
+      <p style="margin:0 0 12px">Hi ${first},</p>
+      <p style="margin:0 0 12px">${c.lead}</p>
+      <p style="margin:0 0 16px">${c.body}</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">${c.cta}</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">Not legal advice. You’re getting this because you signed up and haven’t created a parent file yet.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject: c.subject,
+    html,
+    text,
+    tags: [
+      { name: 'category', value: 'activation' },
+      { name: 'step', value: String(step) },
+    ],
+  });
+}
