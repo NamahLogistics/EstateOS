@@ -30,6 +30,8 @@ const empty = () => ({
   leads: [],
   mailOutbox: [],
   pendingPayments: [],
+  notifications: [],
+  pushSubscriptions: [],
 });
 
 function migrate(store) {

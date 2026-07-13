@@ -97,6 +97,9 @@ export function AuthProvider({ children }) {
         localStorage.removeItem(STORAGE_KEY);
         setToken(null);
         setUserState(null);
+        if (typeof navigator !== 'undefined' && navigator.clearAppBadge) {
+          navigator.clearAppBadge().catch(() => {});
+        }
       },
       setUser(next) {
         setUserState(next);

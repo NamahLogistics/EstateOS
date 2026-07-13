@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { mutate, readStore } from './db.js';
 import { sendEmail, sendLightReviewNudgeEmail, sendActivationNudgeEmail } from './mail.js';
+import { notifyUsers } from './notifications.js';
 import {
   applyPlanExpiryInPlace,
   RENEWAL_WARN_DAYS,
@@ -45,6 +46,18 @@ export async function runReminderPass() {
           name: user.name,
           link: `${app}/app`,
           step: step.id,
+        });
+        notifyUsers({
+          userIds: [user.id],
+          title:
+            step.id === '1h'
+              ? 'Create Mum/Dad’s file (20 min)'
+              : step.id === '1d'
+                ? 'Still need to start housewarming?'
+                : 'Last nudge: finish HeirReady setup',
+          body: 'Tap to open your estates and map one parent.',
+          url: '/app',
+          type: 'activation',
         });
         mutate((s) => {
           const u = s.users.find((x) => x.id === user.id);
@@ -104,6 +117,14 @@ export async function runReminderPass() {
             text: `It's time to review the Life Map for ${estate.subjectName}.\n\nOpen: ${estateLink}\n\nMark reviewed when done so we remind you again next year.`,
             html: `<p>Time to review <strong>${estate.subjectName}</strong>'s Life Map.</p><p><a href="${estateLink}">Open estate</a></p>`,
           });
+          notifyUsers({
+            userIds: [owner.id],
+            title: `Yearly review: ${estate.subjectName}`,
+            body: 'Open the Life Map and mark review done.',
+            url: `/app/estates/${estate.id}`,
+            type: 'yearly_review',
+            estateId: estate.id,
+          });
           mutate((s) => {
             const e = s.estates.find((x) => x.id === estate.id);
             if (e) e.reviewReminderSentAt = new Date().toISOString();
@@ -131,6 +152,14 @@ export async function runReminderPass() {
               estateName: estate.subjectName,
               link: estateLink,
               waText,
+            });
+            notifyUsers({
+              userIds: [owner.id],
+              title: `${estate.subjectName}: 90-day check-in`,
+              body: 'Same maid/nurse phone? Same LIC/bank?',
+              url: `/app/estates/${estate.id}`,
+              type: 'light_review',
+              estateId: estate.id,
             });
             mutate((s) => {
               const e = s.estates.find((x) => x.id === estate.id);

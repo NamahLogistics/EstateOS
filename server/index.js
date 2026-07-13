@@ -39,6 +39,17 @@ import {
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
 import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, mailConfigured } from './mail.js';
+import {
+  ensureVapidKeys,
+  getVapidPublicKey,
+  notifyUsers,
+  listNotifications,
+  unreadCountFor,
+  markNotificationsRead,
+  savePushSubscription,
+  removePushSubscription,
+  pushConfigured,
+} from './notifications.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
@@ -401,7 +412,47 @@ app.get('/api/me', authRequired, (req, res) => {
   });
   const store = readStore();
   const user = store.users.find((u) => u.id === req.user.id);
-  res.json({ user: publicUser(user || req.user) });
+  res.json({
+    user: publicUser(user || req.user),
+    unreadNotifications: unreadCountFor(req.user.id),
+  });
+});
+
+app.get('/api/notifications', authRequired, (req, res) => {
+  const items = listNotifications(req.user.id);
+  res.json({
+    notifications: items,
+    unread: items.filter((n) => !n.readAt).length,
+    push: pushConfigured(),
+  });
+});
+
+app.post('/api/notifications/read', authRequired, (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : null;
+  const marked = markNotificationsRead(req.user.id, ids);
+  res.json({ ok: true, marked, unread: unreadCountFor(req.user.id) });
+});
+
+app.get('/api/push/vapid-public-key', (req, res) => {
+  try {
+    res.json({ publicKey: getVapidPublicKey(), configured: true });
+  } catch (err) {
+    res.status(503).json({ error: 'Push not configured', configured: false });
+  }
+});
+
+app.post('/api/push/subscribe', authRequired, (req, res) => {
+  try {
+    savePushSubscription(req.user.id, req.body?.subscription || req.body);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message || 'Subscribe failed' });
+  }
+});
+
+app.post('/api/push/unsubscribe', authRequired, (req, res) => {
+  removePushSubscription(req.user.id, req.body?.endpoint);
+  res.json({ ok: true });
 });
 
 registerBillingRoutes(app);
@@ -1112,6 +1163,20 @@ app.post('/api/estates/:id/thread', authRequired, async (req, res) => {
     })
   );
 
+  const notifyIds = [];
+  if (owner?.id && owner.id !== req.user.id) notifyIds.push(owner.id);
+  for (const m of fresh.members.filter((x) => x.estateId === estate.id && x.status === 'active')) {
+    if (m.userId && m.userId !== req.user.id) notifyIds.push(m.userId);
+  }
+  notifyUsers({
+    userIds: notifyIds,
+    title: `${estate.subjectName}: new family note`,
+    body: `${post.authorName}: ${post.body.slice(0, 140)}`,
+    url: `/app/estates/${estate.id}?tab=family`,
+    type: 'family_note',
+    estateId: estate.id,
+  });
+
   res.status(201).json({ post, notified });
 });
 
@@ -1204,6 +1269,16 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
       estateName: estate.subjectName,
       link: `${base}/app/estates/${estate.id}?tab=family`,
     }).catch((err) => console.error('sibling joined email failed', err.message));
+  }
+  if (owner?.id && owner.id !== req.user.id) {
+    notifyUsers({
+      userIds: [owner.id],
+      title: `${req.user.name || 'A sibling'} joined ${estate.subjectName}`,
+      body: 'Invite another sibling while you’re at it.',
+      url: `/app/estates/${estate.id}?tab=family`,
+      type: 'sibling_joined',
+      estateId: estate.id,
+    });
   }
 
   res.json({
@@ -1358,6 +1433,34 @@ app.post('/api/estates/:id/unlock/request', authRequired, upload.single('proof')
     });
     return { estate, request, unlocked: false };
   });
+
+  if (result && !result.unlocked) {
+    const unlockers = (access.estate.unlockRules?.unlockerUserIds || []).filter(
+      (id) => id && id !== req.user.id
+    );
+    notifyUsers({
+      userIds: unlockers,
+      title: `${access.estate.subjectName}: unlock needs your approval`,
+      body: `${req.user.name || 'Someone'} started unlock (${proofType}).`,
+      url: `/app/estates/${access.estate.id}?tab=unlock`,
+      type: 'unlock_pending',
+      estateId: access.estate.id,
+    });
+  } else if (result?.unlocked) {
+    const memberIds = store.members
+      .filter((m) => m.estateId === access.estate.id && m.status === 'active')
+      .map((m) => m.userId)
+      .filter((id) => id && id !== req.user.id);
+    if (access.estate.ownerId !== req.user.id) memberIds.push(access.estate.ownerId);
+    notifyUsers({
+      userIds: memberIds,
+      title: `${access.estate.subjectName}: unlocked`,
+      body: 'Execution checklist is ready.',
+      url: `/app/estates/${access.estate.id}?tab=execute`,
+      type: 'unlocked',
+      estateId: access.estate.id,
+    });
+  }
 
   res.json(result);
 });
@@ -1540,7 +1643,8 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.14.1',
+    version: '1.15.0',
+    push: pushConfigured(),
   });
 });
 
@@ -1677,6 +1781,14 @@ app.post('/api/estates/:id/housewarming', authRequired, async (req, res) => {
       estateName: access.estate.subjectName,
       link,
     }).catch((err) => console.error('housewarming complete email failed', err.message));
+    notifyUsers({
+      userIds: [req.user.id],
+      title: 'Housewarming complete — invite a sibling',
+      body: `${access.estate.subjectName} is set up. Share WhatsApp invite + fridge QR.`,
+      url: `/app/estates/${access.estate.id}?tab=housewarming`,
+      type: 'housewarming_done',
+      estateId: access.estate.id,
+    });
   }
 
   res.json({ housewarming: result, justCompleted });
@@ -1825,6 +1937,11 @@ async function boot() {
     for (const e of s.estates) ensureEstateDefaults(e);
   });
   await flushPersist();
+  try {
+    ensureVapidKeys();
+  } catch (err) {
+    console.warn('[push] VAPID init failed', err.message);
+  }
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`HeirReady on http://0.0.0.0:${PORT} [${persistenceMode()}]`);
   });

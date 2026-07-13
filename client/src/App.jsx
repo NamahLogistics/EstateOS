@@ -13,6 +13,8 @@ import InvitePage from './pages/InvitePage.jsx';
 import EmergencyPage from './pages/EmergencyPage.jsx';
 import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
 import InstallBanner from './components/InstallBanner.jsx';
+import NotificationBell from './components/NotificationBell.jsx';
+import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
@@ -54,6 +56,7 @@ function Shell({ children }) {
           <a className="nav-link" href="/app#grow" onClick={goInvite}>
             {t('invite')}
           </a>
+          <NotificationBell />
         </>
       )}
       {user?.accountType === 'lawyer' && (
@@ -142,6 +145,7 @@ function Shell({ children }) {
           />
         )}
         {children}
+        {user && location.pathname.startsWith('/app') && <EnableAlertsBanner />}
         <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
