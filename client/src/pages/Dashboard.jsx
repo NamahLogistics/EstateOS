@@ -33,6 +33,14 @@ export default function Dashboard() {
     load().catch((e) => toast(e.message));
   }, []);
 
+  useEffect(() => {
+    if (window.location.hash !== '#grow') return;
+    const t = window.setTimeout(() => {
+      document.getElementById('grow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, []);
+
   async function createEstate(e) {
     e.preventDefault();
     setBusy(true);

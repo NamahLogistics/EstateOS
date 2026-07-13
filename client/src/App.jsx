@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
 import { useI18n } from './i18n.jsx';
 import Landing from './pages/Landing.jsx';
@@ -17,76 +18,131 @@ function Shell({ children }) {
   const { user, logout } = useAuth();
   const { t, toggle } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname, location.hash]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function onKey(e) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  function goInvite(e) {
+    e.preventDefault();
+    setMenuOpen(false);
+    if (location.pathname === '/app') {
+      document.getElementById('grow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate('/app#grow');
+  }
+
+  const navLinks = (
+    <>
+      {user && (
+        <>
+          <Link className="nav-link" to="/app" onClick={() => setMenuOpen(false)}>
+            {t('estates')}
+          </Link>
+          <a className="nav-link" href="/app#grow" onClick={goInvite}>
+            Invite
+          </a>
+        </>
+      )}
+      {user?.accountType === 'lawyer' && (
+        <Link className="nav-link" to="/app/counsel" onClick={() => setMenuOpen(false)}>
+          {t('counselDesk')}
+        </Link>
+      )}
+      {user?.accountType === 'care' && (
+        <Link className="nav-link" to="/app/care" onClick={() => setMenuOpen(false)}>
+          Care desk
+        </Link>
+      )}
+      <Link className="nav-link" to="/pricing" onClick={() => setMenuOpen(false)}>
+        {t('pricing')}
+      </Link>
+      <button type="button" className="nav-link nav-link-btn" onClick={toggle}>
+        {t('lang')}
+      </button>
+      {user ? (
+        <>
+          <span className="nav-user small muted">
+            {user.name}
+            {user.accountType === 'lawyer' ? ' · counsel' : user.accountType === 'care' ? ' · care' : ''}
+          </span>
+          <button
+            type="button"
+            className="nav-link nav-link-btn"
+            onClick={() => {
+              setMenuOpen(false);
+              logout();
+              navigate('/');
+            }}
+          >
+            {t('signOut')}
+          </button>
+        </>
+      ) : (
+        <Link className="btn btn-primary nav-signin" to="/auth" onClick={() => setMenuOpen(false)}>
+          {t('signIn')}
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <div className="layout-app">
       <div className="shell">
-        <header className="nav">
-          <Link to={user ? '/app' : '/'} className="brand">
+        <header className={`nav${menuOpen ? ' nav-open' : ''}`}>
+          <Link to={user ? '/app' : '/'} className="brand" onClick={() => setMenuOpen(false)}>
             <span className="brand-mark" aria-hidden />
             HeirReady
           </Link>
-          <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {user && (
-              <>
-                <Link className="btn btn-ghost" to="/app" style={{ padding: '0.45rem 0.85rem' }}>
-                  {t('estates')}
-                </Link>
-                <Link className="btn btn-ghost" to="/app#grow" style={{ padding: '0.45rem 0.85rem' }}>
-                  Invite
-                </Link>
-              </>
-            )}
-            {user?.accountType === 'lawyer' && (
-              <Link className="btn btn-ghost" to="/app/counsel" style={{ padding: '0.45rem 0.85rem' }}>
-                {t('counselDesk')}
-              </Link>
-            )}
-            {user?.accountType === 'care' && (
-              <Link className="btn btn-ghost" to="/app/care" style={{ padding: '0.45rem 0.85rem' }}>
-                Care desk
-              </Link>
-            )}
-            <Link className="btn btn-ghost" to="/pricing" style={{ padding: '0.45rem 0.85rem' }}>
-              {t('pricing')}
-            </Link>
-            <button type="button" className="btn btn-ghost" style={{ padding: '0.45rem 0.85rem' }} onClick={toggle}>
-              {t('lang')}
-            </button>
-            {user ? (
-              <>
-                <span className="small muted">
-                  {user.name}
-                  {user.accountType === 'lawyer' ? ' · counsel' : user.accountType === 'care' ? ' · care' : ''}
-                </span>
-                <button
-                  className="btn btn-ghost"
-                  style={{ padding: '0.45rem 0.85rem' }}
-                  onClick={() => {
-                    logout();
-                    navigate('/');
-                  }}
-                >
-                  {t('signOut')}
-                </button>
-              </>
-            ) : (
-              <Link className="btn btn-primary" to="/auth" style={{ padding: '0.45rem 0.85rem' }}>
+
+          <div className="nav-desktop">{navLinks}</div>
+
+          <div className="nav-mobile-bar">
+            {!user && (
+              <Link className="btn btn-primary nav-signin-compact" to="/auth" onClick={() => setMenuOpen(false)}>
                 {t('signIn')}
               </Link>
             )}
+            <button
+              type="button"
+              className="nav-toggle"
+              aria-expanded={menuOpen}
+              aria-controls="nav-menu"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
           </div>
+
+          <nav id="nav-menu" className="nav-drawer" hidden={!menuOpen}>
+            {navLinks}
+          </nav>
         </header>
+        {menuOpen && (
+          <button
+            type="button"
+            className="nav-backdrop"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
         {children}
-        <footer
-          style={{
-            display: 'flex',
-            gap: '1rem',
-            flexWrap: 'wrap',
-            padding: '2rem 0 2.5rem',
-            borderTop: '1px solid var(--line)',
-            marginTop: '1rem',
-          }}
-        >
+        <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
             Pricing
