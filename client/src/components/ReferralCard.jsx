@@ -11,6 +11,19 @@ import {
 const CITY_KEY = 'heirready_invite_city_v2';
 const SUGGESTED_CITIES = ['Mumbai', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Chennai', 'Jaipur', 'Ahmedabad', 'Kolkata'];
 
+const waBtn = {
+  padding: '0.75rem 1.1rem',
+  background: '#128C7E',
+  color: '#fff',
+  border: 'none',
+  fontWeight: 700,
+  width: '100%',
+  textAlign: 'center',
+  textDecoration: 'none',
+  display: 'inline-block',
+  borderRadius: 12,
+};
+
 export default function ReferralCard({ compact = false }) {
   const { user, api, toast, setUser, token } = useAuth();
   const [referral, setReferral] = useState(null);
@@ -18,13 +31,14 @@ export default function ReferralCard({ compact = false }) {
   const [loading, setLoading] = useState(false);
   const [city, setCity] = useState(() => {
     try {
-      localStorage.removeItem('heirready_invite_city'); // drop old Pune default
+      localStorage.removeItem('heirready_invite_city');
       return localStorage.getItem(CITY_KEY) || '';
     } catch {
       return '';
     }
   });
   const isLawyer = user?.accountType === 'lawyer';
+  const isCare = user?.accountType === 'care';
 
   useEffect(() => {
     if (city.trim()) localStorage.setItem(CITY_KEY, city.trim());
@@ -77,17 +91,57 @@ export default function ReferralCard({ compact = false }) {
     };
   }, [code, referral, city, origin]);
 
+  const familyWa = useMemo(
+    () =>
+      links.family
+        ? whatsappShareUrl(
+            shareFamilyOnboardText({
+              link: links.family,
+              city,
+              inviterName: user?.name,
+            })
+          )
+        : null,
+    [links.family, city, user?.name]
+  );
+
+  const careWa = useMemo(
+    () =>
+      links.care
+        ? whatsappShareUrl(
+            shareCareOnboardText({
+              link: links.care,
+              city,
+              inviterName: user?.name,
+            })
+          )
+        : null,
+    [links.care, city, user?.name]
+  );
+
+  const lawyerWa = useMemo(
+    () =>
+      links.lawyer
+        ? whatsappShareUrl(
+            shareReferralText({
+              link: links.lawyer,
+              inviterName: user?.name,
+              accountType: 'lawyer',
+            })
+          )
+        : null,
+    [links.lawyer, user?.name]
+  );
+
   if (!user) return null;
 
   const ready = Boolean(code && (links.family || links.care));
+  const cityReady = Boolean(city.trim());
 
-  async function copy(text, label) {
-    if (!text) {
-      toast('Link not ready yet');
-      return;
-    }
-    await navigator.clipboard.writeText(text).catch(() => {});
-    toast(`${label} copied`);
+  function needCity(e) {
+    if (cityReady) return;
+    e.preventDefault();
+    toast('Type a city first — it goes in the WhatsApp message');
   }
 
   return (
@@ -105,19 +159,18 @@ export default function ReferralCard({ compact = false }) {
         className="small muted"
         style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
       >
-        Invite
+        Invite on WhatsApp
       </p>
       <p className="display" style={{ fontSize: compact ? '1.25rem' : '1.45rem', margin: '0.25rem 0 0.35rem' }}>
-        Grow your city — WhatsApp invites
+        Tap → pick a chat → send
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Type the city you care about — works anywhere. Caregiver invites are free to join —{' '}
-        <strong>no 50% off for free care signups</strong>. You get 50% off only when someone{' '}
-        <strong>pays</strong> a plan with your code.
+        Message opens prefilled with your link. Caregivers join free (no 50% for free joins). You get 50% off only
+        when someone <strong>pays</strong> with your code.
       </p>
 
-      <div className="field" style={{ marginBottom: '0.85rem' }}>
-        <label>Focus city</label>
+      <div className="field" style={{ marginBottom: '1rem' }}>
+        <label>City in the message</label>
         <input
           list="heirready-cities"
           value={city}
@@ -132,7 +185,7 @@ export default function ReferralCard({ compact = false }) {
         </datalist>
       </div>
 
-      {loading && <p className="small muted">Loading your invite links…</p>}
+      {loading && <p className="small muted">Preparing your WhatsApp invites…</p>}
       {error && (
         <p className="small" style={{ color: 'var(--danger, #8f2f2f)' }}>
           {error}
@@ -147,126 +200,49 @@ export default function ReferralCard({ compact = false }) {
             Credits: {referral?.referralDiscountCredits ?? user.referralDiscountCredits ?? 0}
           </p>
 
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            <div>
-              <p className="small" style={{ margin: '0 0 0.35rem', fontWeight: 700 }}>
-                1. Invite family (adult children)
-              </p>
-              <p
-                className="small"
-                style={{
-                  wordBreak: 'break-all',
-                  background: 'rgba(255,255,255,0.7)',
-                  padding: '0.55rem 0.7rem',
-                  borderRadius: 10,
-                  margin: '0 0 0.45rem',
-                }}
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {!isCare && (
+              <a
+                className="btn"
+                style={{ ...waBtn, opacity: cityReady ? 1 : 0.55 }}
+                href={familyWa || '#'}
+                target="_blank"
+                rel="noreferrer"
+                onClick={needCity}
               >
-                {links.family}
-              </p>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ padding: '0.45rem 0.9rem' }}
-                  onClick={() => copy(links.family, 'Family link')}
-                >
-                  Copy family link
-                </button>
-                <a
-                  className="btn btn-ghost"
-                  style={{ padding: '0.45rem 0.9rem' }}
-                  href={whatsappShareUrl(
-                    shareFamilyOnboardText({
-                      link: links.family,
-                      city,
-                      inviterName: user.name,
-                    })
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  WhatsApp family
-                </a>
-              </div>
-            </div>
+                WhatsApp family / adult children
+              </a>
+            )}
 
-            <div>
-              <p className="small" style={{ margin: '0 0 0.35rem', fontWeight: 700 }}>
-                2. Invite caregivers (nurses / maids)
-              </p>
-              <p
-                className="small"
-                style={{
-                  wordBreak: 'break-all',
-                  background: 'rgba(255,255,255,0.7)',
-                  padding: '0.55rem 0.7rem',
-                  borderRadius: 10,
-                  margin: '0 0 0.45rem',
-                }}
+            {!isLawyer && (
+              <a
+                className="btn"
+                style={{ ...waBtn, opacity: cityReady ? 1 : 0.55 }}
+                href={careWa || '#'}
+                target="_blank"
+                rel="noreferrer"
+                onClick={needCity}
               >
-                {links.care}
-              </p>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ padding: '0.45rem 0.9rem' }}
-                  onClick={() => copy(links.care, 'Care link')}
-                >
-                  Copy care link
-                </button>
-                <a
-                  className="btn btn-ghost"
-                  style={{ padding: '0.45rem 0.9rem' }}
-                  href={whatsappShareUrl(
-                    shareCareOnboardText({
-                      link: links.care,
-                      city,
-                      inviterName: user.name,
-                    })
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  WhatsApp caregivers
-                </a>
-              </div>
-            </div>
+                WhatsApp nurses / maids
+              </a>
+            )}
 
             {isLawyer && (
-              <div>
-                <p className="small" style={{ margin: '0 0 0.35rem', fontWeight: 700 }}>
-                  Counsel invite
-                </p>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ padding: '0.45rem 0.9rem' }}
-                    onClick={() => copy(links.lawyer, 'Counsel link')}
-                  >
-                    Copy counsel link
-                  </button>
-                  <a
-                    className="btn btn-ghost"
-                    style={{ padding: '0.45rem 0.9rem' }}
-                    href={whatsappShareUrl(
-                      shareReferralText({
-                        link: links.lawyer,
-                        inviterName: user.name,
-                        accountType: 'lawyer',
-                      })
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    WhatsApp counsel
-                  </a>
-                </div>
-              </div>
+              <a
+                className="btn"
+                style={waBtn}
+                href={lawyerWa || '#'}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp other advocates
+              </a>
             )}
           </div>
+
+          <p className="small muted" style={{ margin: '0.85rem 0 0' }}>
+            Opens WhatsApp with a ready message — choose who to send it to.
+          </p>
         </>
       ) : (
         !loading &&
