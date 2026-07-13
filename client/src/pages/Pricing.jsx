@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
-import { shareReferralText, whatsappShareUrl } from '../whatsapp.js';
+import ReferralCard from '../components/ReferralCard.jsx';
 
 const plans = [
   {
@@ -55,17 +55,17 @@ export default function Pricing() {
   const { user, api, toast, setUser } = useAuth();
   const [lead, setLead] = useState({ name: '', email: '', interest: 'family' });
   const [busy, setBusy] = useState(false);
-  const [referral, setReferral] = useState(null);
+  const [credits, setCredits] = useState(0);
 
   useEffect(() => {
     if (!user) {
-      setReferral(null);
+      setCredits(0);
       return;
     }
     api('/api/billing/referral')
-      .then(setReferral)
-      .catch(() => setReferral(null));
-  }, [user]);
+      .then((r) => setCredits(r.referralDiscountCredits || 0))
+      .catch(() => setCredits(user.referralDiscountCredits || 0));
+  }, [user?.id]);
 
   async function choose(plan) {
     if (plan === 'free') return;
@@ -99,15 +99,14 @@ export default function Pricing() {
               setUser({
                 ...user,
                 plan: verified.plan,
-                referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+                referralDiscountCredits: verified.referralDiscountCredits ?? 0,
               });
+              setCredits(verified.referralDiscountCredits ?? 0);
               toast(
                 verified.referralDiscount
                   ? `Paid with 50% referral reward — you're on ${verified.plan}`
                   : `Payment successful — you're on ${verified.plan}`
               );
-              const ref = await api('/api/billing/referral').catch(() => null);
-              if (ref) setReferral(ref);
             } catch (err) {
               toast(err.message);
             }
@@ -121,8 +120,6 @@ export default function Pricing() {
       }
       setUser({ ...user, plan: data.plan });
       toast(data.message || `Plan set to ${data.plan}`);
-      const ref = await api('/api/billing/referral').catch(() => null);
-      if (ref) setReferral(ref);
     } catch (err) {
       toast(err.message);
     } finally {
@@ -148,13 +145,7 @@ export default function Pricing() {
     }
   }
 
-  async function copyReferral() {
-    if (!referral?.link) return;
-    await navigator.clipboard.writeText(referral.link).catch(() => {});
-    toast('Referral link copied');
-  }
-
-  const hasCredit = (referral?.referralDiscountCredits || 0) > 0;
+  const hasCredit = credits > 0;
 
   return (
     <section style={{ padding: '1.5rem 0 3rem' }}>
@@ -165,6 +156,17 @@ export default function Pricing() {
         Free to start. Paid plans use Razorpay (UPI, cards, netbanking) — built for India.
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
+
+      {user ? (
+        <div style={{ marginTop: '1.25rem', maxWidth: 640 }}>
+          <ReferralCard />
+        </div>
+      ) : (
+        <p className="small muted" style={{ marginTop: '0.75rem' }}>
+          <Link to="/auth?mode=register">Sign in</Link> to see your personal referral code and link.
+        </p>
+      )}
+
       <div className="panel-grid" style={{ marginTop: '1.5rem' }}>
         {plans.map((p) => (
           <div key={p.id} className="card" style={{ padding: '1.25rem' }}>
@@ -207,43 +209,6 @@ export default function Pricing() {
           </div>
         ))}
       </div>
-
-      {user && referral && (
-        <div className="card" style={{ padding: '1.25rem', marginTop: '1.5rem', maxWidth: 640 }}>
-          <p className="display" style={{ fontSize: '1.35rem', marginTop: 0 }}>
-            Refer a paying member — get 50% off
-          </p>
-          <p className="muted">
-            Share your link. When they create an account and pay for Family or Diaspora, you earn one
-            50% discount credit for your next checkout.
-          </p>
-          <p className="small">
-            Your code: <strong>{referral.referralCode}</strong>
-            <br />
-            Credits ready: <strong>{referral.referralDiscountCredits || 0}</strong>
-            <br />
-            Friends who paid via you: <strong>{referral.paidReferredCount || 0}</strong>
-          </p>
-          <p className="small muted" style={{ wordBreak: 'break-all' }}>
-            {referral.link}
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-primary" onClick={copyReferral}>
-              Copy link
-            </button>
-            <a
-              className="btn btn-ghost"
-              href={whatsappShareUrl(
-                shareReferralText({ link: referral.link, inviterName: user.name })
-              )}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Share on WhatsApp
-            </a>
-          </div>
-        </div>
-      )}
 
       <form className="card" style={{ padding: '1.25rem', marginTop: '1.5rem', maxWidth: 520 }} onSubmit={joinWaitlist}>
         <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>

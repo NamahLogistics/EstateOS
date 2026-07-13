@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import ReferralCard from '../components/ReferralCard.jsx';
 
 function statusBadge(status) {
   if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
@@ -60,6 +61,10 @@ export default function Dashboard() {
               : ` Plan: ${user.plan}.`}
           </p>
         </div>
+      </div>
+
+      <div style={{ marginTop: '1rem', maxWidth: 640 }}>
+        <ReferralCard compact />
       </div>
 
       <div className="split" style={{ marginTop: '1rem' }}>

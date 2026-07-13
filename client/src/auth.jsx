@@ -48,6 +48,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (!token) return;
+    api('/api/me', { token })
+      .then((data) => {
+        if (data?.user) {
+          setUserState(data.user);
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...parsed, user: data.user }));
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3800);
     return () => clearTimeout(t);

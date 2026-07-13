@@ -220,12 +220,23 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user || !(await verifyPassword(password || '', user.passwordHash))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-  const token = signToken(user);
-  res.json({ token, user: publicUser(user) });
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (u) ensureUserReferralFields(u, s);
+  });
+  const refreshed = readStore().users.find((u) => u.id === user.id) || user;
+  const token = signToken(refreshed);
+  res.json({ token, user: publicUser(refreshed) });
 });
 
 app.get('/api/me', authRequired, (req, res) => {
-  res.json({ user: req.user });
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === req.user.id);
+    if (u) ensureUserReferralFields(u, s);
+  });
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  res.json({ user: publicUser(user || req.user) });
 });
 
 registerBillingRoutes(app);
@@ -1127,7 +1138,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.2',
+    version: '1.4.3',
   });
 });
 
