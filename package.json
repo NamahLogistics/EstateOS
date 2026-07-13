@@ -1,6 +1,6 @@
 {
   "name": "estate-os",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "private": true,
   "description": "Estate OS — Death & incapacity operating system for families",
   "type": "module",

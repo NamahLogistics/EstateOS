@@ -159,6 +159,63 @@ h1, h2, h3, .display {
 }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
+.hero-panel {
+  align-self: stretch;
+  min-height: 280px;
+  background:
+    linear-gradient(145deg, rgba(44, 77, 60, 0.94) 0%, rgba(20, 32, 26, 0.9) 55%, rgba(90, 110, 70, 0.78) 100%),
+    radial-gradient(ellipse at 70% 20%, rgba(231, 239, 233, 0.22), transparent 55%);
+  color: #f3f6f2;
+  padding: 1.6rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.hero-panel-label {
+  margin: 0 0 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  font-weight: 700;
+}
+.hero-panel-title {
+  font-size: 1.45rem;
+  margin: 0;
+  color: #fbfcf9;
+  max-width: none;
+  line-height: 1.25;
+}
+
+.install-banner {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  animation: rise 0.28s ease;
+}
+.install-banner-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+.install-banner-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .panel-grid {
   display: grid;
   gap: 1rem;

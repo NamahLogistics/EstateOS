@@ -7,64 +7,53 @@ export default function Landing() {
     <>
       <section className="hero">
         <div>
+          <p
+            className="small"
+            style={{
+              margin: '0 0 0.65rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              color: 'var(--sage-deep)',
+            }}
+          >
+            Built for adult children abroad
+          </p>
           <h1>Estate OS</h1>
           <p>
-            You’re abroad. Your parents’ banks, LIC, flat papers, and phone SIM still sit in India.
-            Map it now — so when something happens, your family isn’t guessing on WhatsApp.
+            You’re in the US, UK, or Gulf. Your parents’ SBI, LIC, flat papers, and SIM still sit in
+            India. Build the Life Map from abroad — so when something happens, family isn’t guessing
+            on WhatsApp.
           </p>
           <div className="hero-actions">
             <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
-              {user ? 'Open your estates' : 'Start free — 1 parent, 5 items'}
+              {user ? 'Open your estates' : 'Start free — map one parent'}
             </Link>
             <Link className="btn btn-ghost" to="/pricing">
               Family & Diaspora plans
             </Link>
           </div>
         </div>
-        <div
-          style={{
-            alignSelf: 'stretch',
-            minHeight: 280,
-            borderRadius: 0,
-            background:
-              'linear-gradient(145deg, rgba(44,77,60,0.92) 0%, rgba(20,32,26,0.88) 55%, rgba(90,110,70,0.75) 100%), radial-gradient(ellipse at 70% 20%, rgba(231,239,233,0.25), transparent 55%)',
-            color: '#f3f6f2',
-            padding: '1.6rem 1.4rem',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <p
-            className="small"
-            style={{
-              margin: '0 0 0.5rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              opacity: 0.75,
-              fontWeight: 700,
-            }}
-          >
-            Built for adult children abroad
-          </p>
-          <p className="display" style={{ fontSize: '1.55rem', margin: 0, color: '#fbfcf9' }}>
-            Life map. Unlock rules. Execution checklist. Counsel brief.
+        <div className="hero-panel">
+          <p className="small hero-panel-label">For NRIs & diaspora families</p>
+          <p className="display hero-panel-title">
+            Interview on a call. Snap passbooks. Unlock with proof. Run the India checklist remotely.
           </p>
         </div>
       </section>
 
       <section style={{ padding: '0 0 3.5rem' }}>
         <h2 className="display" style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>
-          How it works
+          How it works from abroad
         </h2>
         <p className="muted" style={{ maxWidth: 520, marginBottom: '1.25rem' }}>
-          One job at a time — build the map while there’s calm, then run the playbook when there isn’t.
+          Built so the adult child overseas can set it up — the parent only confirms the essentials.
         </p>
         <div className="panel-grid">
           {[
             [
               'While you’re abroad',
-              'Interview a parent on a call, snap passbook photos, invite siblings. Hindi or English.',
+              'Interview a parent on a call, scan passbook photos, invite siblings. Hindi or English.',
             ],
             [
               'When something happens',
@@ -72,7 +61,7 @@ export default function Landing() {
             ],
             [
               'With counsel',
-              'Retain an advocate. They get the brief, pathway, and a privileged workspace — not a chaotic email dump.',
+              'Retain an advocate. They get the brief and pathway — not a chaotic WhatsApp dump from overseas.',
             ],
           ].map(([t, b]) => (
             <div key={t} style={{ padding: '0.25rem 0' }}>

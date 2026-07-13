@@ -10,6 +10,7 @@ import CounselDesk from './pages/CounselDesk.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import EmergencyPage from './pages/EmergencyPage.jsx';
 import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
+import InstallBanner from './components/InstallBanner.jsx';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
@@ -97,6 +98,7 @@ function Shell({ children }) {
           <span className="small muted">Not legal advice</span>
         </footer>
       </div>
+      <InstallBanner />
     </div>
   );
 }
