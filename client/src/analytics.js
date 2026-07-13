@@ -79,6 +79,10 @@ export function initAnalytics() {
         api_host: host,
         person_profiles: 'identified_only',
         capture_pageview: true,
+        // Funnel-only: avoid drowning Activity in form click spam
+        autocapture: false,
+        capture_performance: false,
+        disable_session_recording: true,
         persistence: 'localStorage+cookie',
       });
       flushQueue();
