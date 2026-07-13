@@ -7,20 +7,9 @@ export default function Landing() {
     <>
       <section className="hero">
         <div>
-          <p
-            className="small"
-            style={{
-              margin: '0 0 0.65rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-              color: 'var(--sage-deep)',
-            }}
-          >
-            Built for adult children abroad
-          </p>
+          <p className="hero-kicker">Built for adult children abroad</p>
           <h1>Estate OS</h1>
-          <p>
+          <p className="hero-lead">
             You’re in the US, UK, or Gulf. Your parents’ SBI, LIC, flat papers, and SIM still sit in
             India. Build the Life Map from abroad — so when something happens, family isn’t guessing
             on WhatsApp.
@@ -35,7 +24,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="hero-panel">
-          <p className="small hero-panel-label">For NRIs & diaspora families</p>
+          <p className="hero-panel-label">For NRIs & diaspora families</p>
           <p className="display hero-panel-title">
             Interview on a call. Snap passbooks. Unlock with proof. Run the India checklist remotely.
           </p>
@@ -46,7 +35,7 @@ export default function Landing() {
         <h2 className="display" style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>
           How it works from abroad
         </h2>
-        <p className="muted" style={{ maxWidth: 520, marginBottom: '1.25rem' }}>
+        <p className="section-lead">
           Built so the adult child overseas can set it up — the parent only confirms the essentials.
         </p>
         <div className="panel-grid">
@@ -64,17 +53,13 @@ export default function Landing() {
               'Retain an advocate. They get the brief and pathway — not a chaotic WhatsApp dump from overseas.',
             ],
           ].map(([t, b]) => (
-            <div key={t} style={{ padding: '0.25rem 0' }}>
-              <p className="display" style={{ fontSize: '1.25rem', margin: '0 0 0.35rem' }}>
-                {t}
-              </p>
-              <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
-                {b}
-              </p>
+            <div key={t} className="feature-block">
+              <p className="display feature-title">{t}</p>
+              <p className="feature-body">{b}</p>
             </div>
           ))}
         </div>
-        <p className="small muted" style={{ marginTop: '1.5rem' }}>
+        <p className="small" style={{ marginTop: '1.5rem', color: 'var(--ink-soft)' }}>
           Not a will. Not a bank. Not a substitute for licensed legal advice.
         </p>
       </section>
