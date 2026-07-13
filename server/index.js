@@ -36,7 +36,7 @@ import {
   seedLawyersIfNeeded,
   attachLawyerAccess,
 } from './lawyers.routes.js';
-import { sendInviteEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
@@ -1053,16 +1053,62 @@ app.get('/api/estates/:id/tasks/:taskId/letter', authRequired, (req, res) => {
 });
 
 app.get('/api/public/business', (_req, res) => {
+  const appUrl = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(
+    /\/$/,
+    ''
+  );
   res.json({
     brand: process.env.BUSINESS_BRAND || 'Estate OS',
-    legalName: process.env.BUSINESS_LEGAL_NAME || 'Estate OS (set BUSINESS_LEGAL_NAME)',
-    address: process.env.BUSINESS_ADDRESS || 'Registered office address — set BUSINESS_ADDRESS',
-    email: process.env.BUSINESS_EMAIL || 'support@estateos.app',
-    phone: process.env.BUSINESS_PHONE || '+91-XXXXXXXXXX',
+    legalName: process.env.BUSINESS_LEGAL_NAME || 'Namah',
+    address:
+      process.env.BUSINESS_ADDRESS ||
+      '1/172 Viraj Khand, Gomti Nagar, Lucknow, Uttar Pradesh 226010, India',
+    email: process.env.BUSINESS_EMAIL || 'shubhramishra137@gmail.com',
+    phone: process.env.BUSINESS_PHONE || '+91-8169941891',
     hours: process.env.BUSINESS_HOURS || 'Mon–Sat, 10:00–18:00 IST',
-    grievanceName: process.env.BUSINESS_GRIEVANCE_NAME || 'Grievance Officer',
-    grievanceEmail: process.env.BUSINESS_GRIEVANCE_EMAIL || process.env.BUSINESS_EMAIL || 'grievance@estateos.app',
+    grievanceName: process.env.BUSINESS_GRIEVANCE_NAME || 'Shubhra Mishra',
+    grievanceEmail:
+      process.env.BUSINESS_GRIEVANCE_EMAIL ||
+      process.env.BUSINESS_EMAIL ||
+      'shubhramishra137@gmail.com',
+    website: appUrl,
+    country: process.env.BUSINESS_COUNTRY || 'India',
+    gstin: process.env.BUSINESS_GSTIN || null,
   });
+});
+
+app.post('/api/public/contact', async (req, res) => {
+  const name = String(req.body?.name || '').trim().slice(0, 120);
+  const email = String(req.body?.email || '').trim().toLowerCase().slice(0, 160);
+  const message = String(req.body?.message || '').trim().slice(0, 4000);
+  if (!name || !email?.includes('@') || message.length < 10) {
+    return res.status(400).json({ error: 'Name, valid email, and message (10+ chars) required' });
+  }
+  const to = process.env.BUSINESS_EMAIL || process.env.BUSINESS_GRIEVANCE_EMAIL;
+  mutate((s) => {
+    if (!s.leads) s.leads = [];
+    s.leads.push({
+      id: uuid(),
+      type: 'contact_form',
+      name,
+      email,
+      message,
+      at: new Date().toISOString(),
+    });
+  });
+  try {
+    if (to) {
+      await sendEmail({
+        to,
+        subject: `Estate OS contact: ${name}`,
+        text: `From: ${name} <${email}>\n\n${message}`,
+        html: `<p><strong>${name}</strong> &lt;${email}&gt;</p><p>${message.replace(/\n/g, '<br/>')}</p>`,
+      });
+    }
+  } catch (err) {
+    console.error('contact email failed', err.message);
+  }
+  res.json({ ok: true });
 });
 
 app.get('/api/health', (_req, res) => {

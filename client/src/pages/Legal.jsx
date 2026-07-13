@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
 
+/** Public business identity — matches Railway BUSINESS_* (never show X / set-me placeholders). */
 const FALLBACK_BIZ = {
   brand: 'Estate OS',
-  legalName: 'Estate OS (update BUSINESS_LEGAL_NAME)',
-  address: 'Registered office address — set BUSINESS_ADDRESS',
-  email: 'support@estateos.app',
-  phone: '+91-XXXXXXXXXX',
+  legalName: 'Namah',
+  address: '1/172 Viraj Khand, Gomti Nagar, Lucknow, Uttar Pradesh 226010, India',
+  email: 'shubhramishra137@gmail.com',
+  phone: '+91-8169941891',
   hours: 'Mon–Sat, 10:00–18:00 IST',
-  grievanceName: 'Grievance Officer — set BUSINESS_GRIEVANCE_NAME',
-  grievanceEmail: 'grievance@estateos.app',
+  grievanceName: 'Shubhra Mishra',
+  grievanceEmail: 'shubhramishra137@gmail.com',
+  website: 'https://estate-os-production.up.railway.app',
+  country: 'India',
 };
 
 function useBusiness() {
-  const [biz, setBiz] = useState(FALLBACK_BIZ);
+  const [biz, setBiz] = useState(null);
   useEffect(() => {
     fetch('/api/public/business')
       .then((r) => r.json())
       .then((d) => setBiz({ ...FALLBACK_BIZ, ...d }))
-      .catch(() => {});
+      .catch(() => setBiz(FALLBACK_BIZ));
   }, []);
   return biz;
 }
@@ -28,18 +31,21 @@ function LegalShell({ title, children }) {
       <h1 className="display" style={{ fontSize: '2rem', marginTop: 0 }}>
         {title}
       </h1>
-      <p className="muted">Last updated: 12 July 2026</p>
+      <p className="muted">Last updated: 13 July 2026</p>
       {children}
     </article>
   );
 }
 
 export function LegalTerms() {
+  const biz = useBusiness();
+  if (!biz) return <p className="muted">Loading…</p>;
   return (
     <LegalShell title="Terms & conditions">
       <p>
-        Estate OS is family continuity / coordination software. It helps organise documents, unlock
-        rules, execution checklists, and counsel collaboration related to death or incapacity. It is{' '}
+        Estate OS is family continuity / coordination software operated by{' '}
+        <strong>{biz.legalName}</strong>. It helps organise documents, unlock rules, execution
+        checklists, and counsel collaboration related to death or incapacity. It is{' '}
         <strong>not</strong> a law firm, notary, bank, insurer, or court, and does not provide legal
         advice.
       </p>
@@ -59,7 +65,8 @@ export function LegalTerms() {
       </p>
       <p>
         These terms are governed by the laws of India. Disputes are subject to the exclusive
-        jurisdiction of courts in India (see Contact Us for operating entity details).
+        jurisdiction of courts in Lucknow, Uttar Pradesh, India. Operating entity and contact
+        details are on the Contact Us page.
       </p>
     </LegalShell>
   );
@@ -67,6 +74,7 @@ export function LegalTerms() {
 
 export function LegalPrivacy() {
   const biz = useBusiness();
+  if (!biz) return <p className="muted">Loading…</p>;
   return (
     <LegalShell title="Privacy policy">
       <p>
@@ -97,6 +105,7 @@ export function LegalPrivacy() {
 
 export function LegalRefunds() {
   const biz = useBusiness();
+  if (!biz) return <p className="muted">Loading…</p>;
   return (
     <LegalShell title="Cancellation & refunds">
       <p>
@@ -129,6 +138,8 @@ export function LegalRefunds() {
 }
 
 export function LegalShipping() {
+  const biz = useBusiness();
+  if (!biz) return <p className="muted">Loading…</p>;
   return (
     <LegalShell title="Shipping policy">
       <p>
@@ -139,8 +150,9 @@ export function LegalShipping() {
         within a few minutes). There is no delivery address, courier, or shipping charge.
       </p>
       <p>
-        If access is not enabled after payment, email support with your registered email and
-        Razorpay payment id — see Contact Us.
+        If access is not enabled after payment, email{' '}
+        <a href={`mailto:${biz.email}`}>{biz.email}</a> with your registered email and Razorpay
+        payment id.
       </p>
     </LegalShell>
   );
@@ -148,38 +160,118 @@ export function LegalShipping() {
 
 export function ContactPage() {
   const biz = useBusiness();
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setStatus('');
+    try {
+      const res = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not send message');
+      setStatus('Message received. We will reply by email within 1–2 business days.');
+      setForm({ name: '', email: '', message: '' });
+    } catch (err) {
+      setStatus(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!biz) return <p className="muted">Loading…</p>;
+
   return (
     <LegalShell title="Contact us">
       <p>
-        <strong>Brand:</strong> {biz.brand}
+        For product support, billing, and grievances related to Estate OS (operated by{' '}
+        <strong>{biz.legalName}</strong>).
       </p>
+
       <p>
+        <strong>Product / brand:</strong> {biz.brand}
+        <br />
         <strong>Legal entity:</strong> {biz.legalName}
+        <br />
+        <strong>Country:</strong> {biz.country || 'India'}
       </p>
+
       <p>
-        <strong>Registered address:</strong>
+        <strong>Registered / business address:</strong>
         <br />
         {biz.address}
       </p>
+
       <p>
-        <strong>Email:</strong>{' '}
+        <strong>Website:</strong>{' '}
+        <a href={biz.website} target="_blank" rel="noreferrer">
+          {biz.website}
+        </a>
+      </p>
+
+      <p>
+        <strong>Customer support email:</strong>{' '}
         <a href={`mailto:${biz.email}`}>{biz.email}</a>
-      </p>
-      <p>
-        <strong>Phone:</strong> {biz.phone}
-      </p>
-      <p>
+        <br />
+        <strong>Phone / WhatsApp:</strong>{' '}
+        <a href={`tel:${biz.phone.replace(/\s+/g, '')}`}>{biz.phone}</a>
+        <br />
         <strong>Support hours:</strong> {biz.hours}
       </p>
+
       <p>
         <strong>Grievance / nodal officer:</strong> {biz.grievanceName}
         <br />
         <a href={`mailto:${biz.grievanceEmail}`}>{biz.grievanceEmail}</a>
       </p>
-      <p className="small muted">
-        Update these details via Railway env vars: BUSINESS_LEGAL_NAME, BUSINESS_ADDRESS,
-        BUSINESS_EMAIL, BUSINESS_PHONE, BUSINESS_GRIEVANCE_NAME, BUSINESS_GRIEVANCE_EMAIL.
+
+      <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '1.4rem 0' }} />
+
+      <p className="display" style={{ fontSize: '1.25rem', margin: '0 0 0.75rem' }}>
+        Send us a message
       </p>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Your name</label>
+          <input
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label>Email</label>
+          <input
+            required
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label>Message</label>
+          <textarea
+            required
+            rows={5}
+            value={form.message}
+            onChange={(e) => setForm({ ...form, message: e.target.value })}
+          />
+        </div>
+        <button className="btn btn-primary" disabled={busy}>
+          {busy ? 'Sending…' : 'Submit'}
+        </button>
+      </form>
+      {status && (
+        <p className="small" style={{ marginTop: '0.85rem' }}>
+          {status}
+        </p>
+      )}
     </LegalShell>
   );
 }
