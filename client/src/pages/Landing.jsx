@@ -40,7 +40,7 @@ export default function Landing() {
                 <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
                   {user ? 'Open your estates' : 'Start free — map one parent'}
                 </Link>
-                <Link className="btn btn-ghost" to="/auth?mode=register&type=care&city=Pune">
+                <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
                   I provide care
                 </Link>
               </>
@@ -96,7 +96,7 @@ export default function Landing() {
               <Link className="btn btn-primary" to="/pricing?plan=family_care">
                 Family + Care — ₹2,998/yr
               </Link>
-              <Link className="btn btn-ghost" to="/auth?mode=register&type=care&city=Pune">
+              <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
                 I provide care — join free
               </Link>
             </>

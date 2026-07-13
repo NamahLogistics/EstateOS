@@ -112,10 +112,10 @@ export function referralInviteLink(baseUrl, user, opts = {}) {
 
 export function referralRuleForUser(user) {
   if (user?.accountType === 'lawyer') {
-    return 'Share with another advocate. When they sign up with your link and pay Counsel Pro, you get 50% off your next Counsel Pro year.';
+    return 'Share with another advocate. You get 50% off only when they pay Counsel Pro — free signup alone doesn’t count.';
   }
   if (user?.accountType === 'care') {
-    return 'Share with other caregivers. When a family you referred pays Family + Care or Diaspora + Care, you get 50% off your next checkout (if you take a plan).';
+    return 'Caregivers join free (no 50% for free joins). You earn 50% off only if a family signs up with your code and pays a plan.';
   }
-  return 'Share family or care invite links (pick a city). When they sign up with your code and pay, you get 50% off your next checkout.';
+  return 'Any city works — type yours below. Caregivers join free (no reward). 50% off only when a referred person pays Family / Care / Diaspora / Counsel Pro.';
 }

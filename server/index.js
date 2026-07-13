@@ -242,7 +242,7 @@ app.post('/api/auth/register', async (req, res) => {
         role: ['nurse', 'attendant', 'maid', 'cook', 'driver', 'other'].includes(roleRaw)
           ? roleRaw
           : 'maid',
-        cities: [req.body?.city || user.preferredCity || 'Pune'].flat().filter(Boolean),
+        cities: [req.body?.city || user.preferredCity].flat().filter(Boolean),
         languages: ['Hindi'],
         years: Number(req.body?.years) || 1,
         rateBand: req.body?.rateBand || '',
@@ -1297,7 +1297,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.9.6',
+    version: '1.9.7',
   });
 });
 

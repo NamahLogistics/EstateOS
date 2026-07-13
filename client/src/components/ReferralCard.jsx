@@ -16,11 +16,11 @@ export default function ReferralCard({ compact = false }) {
   const [referral, setReferral] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [city, setCity] = useState(() => localStorage.getItem(CITY_KEY) || 'Pune');
+  const [city, setCity] = useState(() => localStorage.getItem(CITY_KEY) || '');
   const isLawyer = user?.accountType === 'lawyer';
 
   useEffect(() => {
-    localStorage.setItem(CITY_KEY, city || 'Pune');
+    if (city.trim()) localStorage.setItem(CITY_KEY, city.trim());
   }, [city]);
 
   useEffect(() => {
@@ -104,16 +104,19 @@ export default function ReferralCard({ compact = false }) {
         Grow one city — WhatsApp invites
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Pick a city, then send family or caregiver invites. Paid signups with your code → 50% off.
+        Type any city (Mumbai, Hyderabad, your hometown…). Caregiver invites are free to join —{' '}
+        <strong>no 50% off for free care signups</strong>. You get 50% off only when someone{' '}
+        <strong>pays</strong> a plan with your code.
       </p>
 
       <div className="field" style={{ marginBottom: '0.85rem' }}>
-        <label>Focus city</label>
+        <label>Focus city (any city in India)</label>
         <input
           list="heirready-cities"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="Pune"
+          placeholder="e.g. Mumbai, Pune, Jaipur…"
+          required
         />
         <datalist id="heirready-cities">
           {SUGGESTED_CITIES.map((c) => (

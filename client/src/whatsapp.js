@@ -23,13 +23,13 @@ export function shareReferralText({ link, inviterName, accountType }) {
 /** Soft outbound to NRI / adult children — city-focused */
 export function shareFamilyOnboardText({ link, city, inviterName }) {
   const place = city?.trim() || 'their city';
-  return `${inviterName || 'I'}’m setting up HeirReady for parents in ${place} — banks, LIC, who has the keys, caregivers.\n\nTakes ~20 min on a call. Join here (free to start):\n${link}\n\nWhen you take Family / Care later, I get 50% off my next year.`;
+  return `${inviterName || 'I'}’m setting up HeirReady for parents in ${place} — banks, LIC, who has the keys, caregivers.\n\nTakes ~20 min on a call. Join free here:\n${link}`;
 }
 
-/** Soft outbound to nurses / maids / agencies */
+/** Soft outbound to nurses / maids / agencies — free join, no referral reward promised */
 export function shareCareOnboardText({ link, city, inviterName }) {
   const place = city?.trim() || 'your city';
-  return `Hi — families with parents in ${place} use HeirReady and look for nurses / maids / attendants.\n\n${inviterName || 'I'} invited you to list free (city + phone + rate). Families on Care plans can find you:\n${link}\n\nNo fee to join.`;
+  return `Hi — families with parents in ${place} use HeirReady and look for nurses / maids / attendants.\n\n${inviterName || 'I'} invited you to list free (city + phone + rate):\n${link}\n\nFree to join — no payment needed.`;
 }
 
 export function buildInviteUrl({ origin, ref, type, city }) {
