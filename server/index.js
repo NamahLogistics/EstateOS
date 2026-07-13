@@ -258,16 +258,18 @@ app.get('/api/me', authRequired, (req, res) => {
 
 registerBillingRoutes(app);
 
-app.post('/api/leads', (req, res) => {
+app.post('/api/leads', async (req, res) => {
   const email = (req.body?.email || '').trim().toLowerCase();
   const name = (req.body?.name || '').trim();
   const interest = (req.body?.interest || 'general').trim();
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' });
   }
+  const leadId = uuid();
   mutate((s) => {
+    if (!s.leads) s.leads = [];
     s.leads.push({
-      id: uuid(),
+      id: leadId,
       type: 'waitlist',
       email,
       name,
@@ -275,6 +277,24 @@ app.post('/api/leads', (req, res) => {
       at: new Date().toISOString(),
     });
   });
+
+  const to =
+    process.env.BUSINESS_EMAIL ||
+    process.env.BUSINESS_GRIEVANCE_EMAIL ||
+    'shubhramishra137@gmail.com';
+  try {
+    await sendEmail({
+      to,
+      subject: `Estate OS onboarding request: ${name || email} (${interest})`,
+      text: `Human onboarding request\n\nName: ${name || '—'}\nEmail: ${email}\nInterest: ${interest}\nLead id: ${leadId}\n\nReply to the requester to schedule setup.`,
+      html: `<p><strong>Human onboarding request</strong></p>
+        <p>Name: ${name || '—'}<br/>Email: <a href="mailto:${email}">${email}</a><br/>Interest: ${interest}</p>
+        <p style="font-size:12px;color:#3a4a42">Lead id: ${leadId}</p>`,
+    });
+  } catch (err) {
+    console.error('onboarding lead email failed', err.message);
+  }
+
   res.status(201).json({ ok: true });
 });
 
@@ -1208,7 +1228,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.5.0',
+    version: '1.5.2',
   });
 });
 
@@ -1463,7 +1483,7 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
 
 async function boot() {
   await initDb();
-  await seedLawyersIfNeeded();
+  seedLawyersIfNeeded();
   mutate((s) => {
     for (const e of s.estates) ensureEstateDefaults(e);
   });

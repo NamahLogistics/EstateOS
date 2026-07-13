@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { ensureUserReferralFields } from './referrals.js';
 
 const uuid = () => crypto.randomUUID();
 
@@ -227,118 +226,74 @@ export function buildCounselBrief({
   return lines.join('\n');
 }
 
-export const SEED_LAWYERS = [
-  {
-    slug: 'mehta-succession',
-    name: 'Adv. Kavita Mehta',
-    firm: 'Mehta & Heirs LLP',
-    cities: ['Mumbai', 'Pune'],
-    specialties: ['succession', 'probate', 'nri', 'property'],
-    languages: ['English', 'Hindi', 'Marathi'],
-    barId: 'MH/2008/44120',
-    years: 16,
-    retainerBand: '₹25k–75k intake',
-    slaHours: 12,
-    bio: 'Succession & probate for urban Maharashtrian families and NRI children. Known for clean mutation + society transfers.',
-    rating: 4.9,
-    mattersCompleted: 210,
-    nriFriendly: true,
-    email: 'advocate.mehta@estateos.dev',
-  },
-  {
-    slug: 'rao-property',
-    name: 'Adv. Suresh Rao',
-    firm: 'Rao Title Chambers',
-    cities: ['Bengaluru', 'Chennai'],
-    specialties: ['property', 'family-settlement', 'disputes'],
-    languages: ['English', 'Kannada', 'Tamil'],
-    barId: 'KA/2003/11890',
-    years: 21,
-    retainerBand: '₹40k–1.2L intake',
-    slaHours: 24,
-    bio: 'Immovable property, family settlements, and contested heirship. Strong on encumbrance and society litigation.',
-    rating: 4.8,
-    mattersCompleted: 340,
-    nriFriendly: false,
-    email: 'advocate.rao@estateos.dev',
-  },
-  {
-    slug: 'banerjee-nri',
-    name: 'Adv. Ananya Banerjee',
-    firm: 'Banerjee Cross-Border Counsel',
-    cities: ['Kolkata', 'Delhi NCR'],
-    specialties: ['nri', 'succession', 'fema', 'probate'],
-    languages: ['English', 'Bengali', 'Hindi'],
-    barId: 'WB/2012/22011',
-    years: 12,
-    retainerBand: '$400–1,200 intake',
-    slaHours: 8,
-    bio: 'Diaspora estates: PoA, apostille chains, dual wills, FEMA property holdings. Preferred by US/UK-based children.',
-    rating: 4.95,
-    mattersCompleted: 155,
-    nriFriendly: true,
-    email: 'advocate.banerjee@estateos.dev',
-  },
-  {
-    slug: 'khan-claims',
-    name: 'Adv. Imran Khan',
-    firm: 'Khan Claims Desk',
-    cities: ['Hyderabad', 'Delhi NCR'],
-    specialties: ['insurance', 'banking-claims', 'succession'],
-    languages: ['English', 'Hindi', 'Urdu', 'Telugu'],
-    barId: 'TS/2015/9033',
-    years: 9,
-    retainerBand: '₹15k–45k intake',
-    slaHours: 6,
-    bio: 'Fast nominee/claim coordination with banks and insurers; succession certificate filings for middle-class estates.',
-    rating: 4.7,
-    mattersCompleted: 280,
-    nriFriendly: true,
-    email: 'advocate.khan@estateos.dev',
-  },
-];
+/** Demo counsel removed — real lawyers register themselves. */
+export const SEED_LAWYERS = [];
 
-export function ensureLawyerSeed(store, { passwordHash } = {}) {
+const DEMO_COUNSEL_EMAIL_SUFFIX = '@estateos.dev';
+
+export function isDemoCounselEmail(email) {
+  return String(email || '')
+    .toLowerCase()
+    .endsWith(DEMO_COUNSEL_EMAIL_SUFFIX);
+}
+
+/** Strip seeded demo lawyers (and their matters) from the store. */
+export function purgeDemoCounsel(store) {
+  if (!store.users) store.users = [];
+  if (!store.lawyers) store.lawyers = [];
+  if (!store.engagements) store.engagements = [];
+  if (!store.legalNotes) store.legalNotes = [];
+  if (!store.legalActions) store.legalActions = [];
+  if (!store.counselNeeds) store.counselNeeds = [];
+
+  const demoUserIds = new Set(
+    store.users.filter((u) => isDemoCounselEmail(u.email)).map((u) => u.id)
+  );
+  const demoLawyerIds = new Set(
+    store.lawyers
+      .filter(
+        (l) =>
+          demoUserIds.has(l.userId) ||
+          isDemoCounselEmail(l.email) ||
+          /mehta-succession|rao-property|banerjee-nri|khan-claims/.test(l.slug || '')
+      )
+      .map((l) => l.id)
+  );
+  const demoEngagementIds = new Set(
+    (store.engagements || [])
+      .filter(
+        (e) => demoLawyerIds.has(e.lawyerId) || demoUserIds.has(e.lawyerUserId)
+      )
+      .map((e) => e.id)
+  );
+
+  store.engagements = store.engagements.filter((e) => !demoEngagementIds.has(e.id));
+  store.legalNotes = store.legalNotes.filter(
+    (n) => !demoEngagementIds.has(n.engagementId) && !demoUserIds.has(n.authorId)
+  );
+  store.legalActions = store.legalActions.filter(
+    (a) => !demoEngagementIds.has(a.engagementId) && !demoUserIds.has(a.createdBy)
+  );
+  store.counselNeeds = store.counselNeeds.filter(
+    (n) => !demoEngagementIds.has(n.engagementId) && !demoUserIds.has(n.createdBy)
+  );
+  store.lawyers = store.lawyers.filter((l) => !demoLawyerIds.has(l.id));
+  store.users = store.users.filter((u) => !demoUserIds.has(u.id));
+  return {
+    removedUsers: demoUserIds.size,
+    removedLawyers: demoLawyerIds.size,
+    removedEngagements: demoEngagementIds.size,
+  };
+}
+
+export function ensureLawyerSeed(store) {
   if (!store.lawyers) store.lawyers = [];
   if (!store.engagements) store.engagements = [];
   if (!store.legalNotes) store.legalNotes = [];
   if (!store.legalActions) store.legalActions = [];
   if (!store.counselNeeds) store.counselNeeds = [];
   if (!store.counselListings) store.counselListings = [];
-
-  for (const seed of SEED_LAWYERS) {
-    if (store.lawyers.some((l) => l.slug === seed.slug)) continue;
-    let user = store.users.find((u) => u.email === seed.email);
-    if (!user) {
-      user = {
-        id: uuid(),
-        name: seed.name,
-        email: seed.email,
-        passwordHash: passwordHash || null,
-        plan: 'free',
-        accountType: 'lawyer',
-        createdAt: new Date().toISOString(),
-      };
-      store.users.push(user);
-    } else {
-      user.accountType = 'lawyer';
-      if (!user.passwordHash && passwordHash) user.passwordHash = passwordHash;
-    }
-    ensureUserReferralFields(user, store);
-    store.lawyers.push({
-      id: uuid(),
-      userId: user.id,
-      ...seed,
-      verified: true,
-      acceptingMatters: true,
-      createdAt: new Date().toISOString(),
-    });
-  }
-  // Backfill referral codes for already-seeded counsel accounts
-  for (const seed of SEED_LAWYERS) {
-    const u = store.users.find((x) => x.email === seed.email);
-    if (u) ensureUserReferralFields(u, store);
-  }
+  return purgeDemoCounsel(store);
 }
 
 export { uuid as lawyerUuid };

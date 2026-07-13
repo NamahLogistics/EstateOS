@@ -1,10 +1,9 @@
 import { mutate, readStore, audit } from './db.js';
-import { authRequired, hashPassword } from './auth.js';
+import { authRequired } from './auth.js';
 import {
   analyzeLegalPathways,
   buildCounselBrief,
-  ensureLawyerSeed,
-  SEED_LAWYERS,
+  purgeDemoCounsel,
 } from './lawyers.js';
 import { userHasPaidAccess } from './plans.js';
 import crypto from 'crypto';
@@ -106,49 +105,18 @@ function activateEngagement(s, row, actorUserId) {
 
   return { engagement: row, pathway, brief: row.counselBrief, lawyer };
 }
-export async function seedLawyersIfNeeded() {
-  const store = readStore();
-  const missing = SEED_LAWYERS.some((s) => !store.lawyers?.some((l) => l.slug === s.slug));
-  const needsHash = store.users.some(
-    (u) => SEED_LAWYERS.some((s) => s.email === u.email) && !u.passwordHash
-  );
-  if (!missing && !needsHash && store.lawyers?.length) {
-    // still ensure password for seed lawyers
-    let changed = false;
-    for (const seed of SEED_LAWYERS) {
-      const u = store.users.find((x) => x.email === seed.email);
-      if (u && !u.passwordHash) {
-        u.passwordHash = await hashPassword('counsel12');
-        changed = true;
-      }
-    }
-    if (changed) {
-      mutate((s) => {
-        for (const seed of SEED_LAWYERS) {
-          const u = s.users.find((x) => x.email === seed.email);
-          if (u && !u.passwordHash) {
-            /* filled below */
-          }
-        }
-      });
-    }
-  }
-
-  const passwordHash = await hashPassword('counsel12');
+/** One-time/boot: remove demo @estateos.dev counsel accounts. */
+export function seedLawyersIfNeeded() {
+  let stats = { removedUsers: 0, removedLawyers: 0, removedEngagements: 0 };
   mutate((s) => {
-    ensureLawyerSeed(s, { passwordHash });
-    for (const seed of SEED_LAWYERS) {
-      const u = s.users.find((x) => x.email === seed.email);
-      if (u && !u.passwordHash) u.passwordHash = passwordHash;
-      if (u) {
-        u.accountType = 'lawyer';
-        // Old seeds used diaspora; lead board is paywalled — keep demo counsel unpaid until Counsel Pro
-        if (u.plan === 'diaspora') u.plan = 'free';
-      }
-      const law = s.lawyers.find((l) => l.slug === seed.slug);
-      if (law && u) law.userId = u.id;
-    }
+    stats = purgeDemoCounsel(s);
   });
+  if (stats.removedLawyers || stats.removedUsers) {
+    console.log(
+      `Purged demo counsel: ${stats.removedLawyers} profiles, ${stats.removedUsers} users, ${stats.removedEngagements} matters`
+    );
+  }
+  return stats;
 }
 
 function publicLawyer(lawyer) {
@@ -903,132 +871,6 @@ export function registerLawyerRoutes(app, { canAccessEstate }) {
     if (!need) return res.status(404).json({ error: 'Need not found' });
     res.json({ need });
   });
-
-  // Instant demo: engage + auto-accept Mehta for testing god-flow in one click
-  app.post('/api/estates/:id/counsel/demo-retain', authRequired, async (req, res) => {
-    const store = readStore();
-    const access = accessFn(store, req.user.id, req.params.id);
-    if (!access.ok) return res.status(access.status).json({ error: access.error });
-    if (!['owner', 'manager'].includes(access.role)) {
-      return res.status(403).json({ error: 'Owner/manager only' });
-    }
-    await seedLawyersIfNeeded();
-    const fresh = readStore();
-    const lawyer =
-      fresh.lawyers.find((l) => l.slug === 'mehta-succession') || fresh.lawyers[0];
-    if (!lawyer) return res.status(500).json({ error: 'No counsel seeded' });
-
-    const engagement = {
-      id: uuid(),
-      estateId: access.estate.id,
-      lawyerId: lawyer.id,
-      lawyerUserId: lawyer.userId,
-      familyUserId: req.user.id,
-      matterTitle: `${access.estate.subjectName} — succession matter`,
-      scopes: ['succession', 'property', 'nri'],
-      familyBrief:
-        req.body?.familyBrief ||
-        'Demo retain: please take over pathway, brief, and legal action board.',
-      urgency: 'high',
-      status: 'requested',
-      conflictAck: true,
-      conflictClearedByLawyer: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      acceptedAt: null,
-      closedAt: null,
-    };
-
-    mutate((s) => {
-      s.engagements = s.engagements.filter(
-        (e) =>
-          !(
-            e.estateId === access.estate.id &&
-            e.lawyerId === lawyer.id &&
-            e.status === 'requested'
-          )
-      );
-      s.engagements.push(engagement);
-    });
-
-    // Accept as lawyer internally
-    req.params.engagementId = engagement.id;
-    // reuse accept logic via direct call simulation
-    const acceptStore = readStore();
-    const eng = acceptStore.engagements.find((e) => e.id === engagement.id);
-    const result = mutate((s) => {
-      const row = s.engagements.find((e) => e.id === eng.id);
-      row.status = 'active';
-      row.conflictClearedByLawyer = true;
-      row.acceptedAt = new Date().toISOString();
-      row.updatedAt = row.acceptedAt;
-      const estate = s.estates.find((e) => e.id === row.estateId);
-      const items = s.items.filter((i) => i.estateId === estate.id);
-      const tasks = s.tasks.filter((t) => t.estateId === estate.id);
-      const pathway = analyzeLegalPathways(estate, items);
-      row.pathwaySnapshot = pathway;
-      for (const p of pathway.pathways.filter((x) => ['critical', 'high'].includes(x.severity))) {
-        for (const action of p.counselActions.slice(0, 2)) {
-          s.legalActions.push({
-            id: uuid(),
-            estateId: estate.id,
-            engagementId: row.id,
-            title: action,
-            pathwayId: p.id,
-            status: 'todo',
-            createdBy: lawyer.userId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-      for (const title of [
-        'Death certificate / incapacity proof (certified copies)',
-        'ID + address proof of all Class I heirs',
-        'Any will / nomination forms / property title copies',
-      ]) {
-        s.counselNeeds.push({
-          id: uuid(),
-          estateId: estate.id,
-          engagementId: row.id,
-          title,
-          status: 'open',
-          createdBy: lawyer.userId,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      const members = [
-        {
-          role: 'owner',
-          name: s.users.find((u) => u.id === estate.ownerId)?.name,
-          email: s.users.find((u) => u.id === estate.ownerId)?.email,
-        },
-      ];
-      const unlockRequest = s.unlockRequests
-        .filter((r) => r.estateId === estate.id && r.status === 'approved')
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-      row.counselBrief = buildCounselBrief({
-        estate,
-        items,
-        members,
-        tasks,
-        unlockRequest,
-        engagement: row,
-        pathway,
-        familyUser: s.users.find((u) => u.id === row.familyUserId),
-        lawyer,
-      });
-      audit(s, {
-        estateId: estate.id,
-        userId: req.user.id,
-        action: 'counsel_demo_retained',
-        detail: `${lawyer.name} retained (demo) — brief + pathway live`,
-      });
-      return { engagement: row, lawyer: publicLawyer(lawyer), pathway };
-    });
-
-    res.status(201).json(result);
-  });
 }
 
-export { publicLawyer, analyzeLegalPathways };
+export { publicLawyer };

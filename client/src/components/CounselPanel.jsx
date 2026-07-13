@@ -87,22 +87,6 @@ export default function CounselPanel({ estateId, onToast }) {
     }
   }
 
-  async function demoRetain() {
-    setBusy(true);
-    try {
-      await api(`/api/estates/${estateId}/counsel/demo-retain`, {
-        method: 'POST',
-        body: { familyBrief: engage.familyBrief || 'Please take over this matter.' },
-      });
-      notify('Adv. Kavita Mehta retained — brief + pathway ready');
-      await load();
-    } catch (err) {
-      notify(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function downloadBrief() {
     try {
       const res = await api(`/api/estates/${estateId}/counsel/brief`);
@@ -526,9 +510,9 @@ export default function CounselPanel({ estateId, onToast }) {
                   })}
                 </div>
               </div>
-              <button type="button" className="btn btn-primary" style={{ width: '100%', marginBottom: '0.6rem' }} disabled={busy || role === 'viewer'} onClick={demoRetain}>
-                Retain Adv. Mehta (recommended starter)
-              </button>
+              <p className="small muted" style={{ marginBottom: '0.75rem' }}>
+                No demo counsel. Request someone from the directory below, or publish “Looking for counsel” so paid advocates in your city can approach you.
+              </p>
             </>
           )}
         </div>
@@ -563,7 +547,12 @@ export default function CounselPanel({ estateId, onToast }) {
                 </button>
               </div>
             </div>
-            {lawyers.map((l) => (
+            {lawyers.length === 0 ? (
+              <div className="item-row muted small">
+                No advocates in the directory yet. Publish your city listing so counsel can find you, or ask an advocate to register as counsel.
+              </div>
+            ) : (
+            lawyers.map((l) => (
               <div key={l.id} className="item-row">
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <div>
@@ -590,7 +579,8 @@ export default function CounselPanel({ estateId, onToast }) {
                   </button>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         )}
 
