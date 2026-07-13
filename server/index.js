@@ -1119,7 +1119,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.0',
+    version: '1.4.1',
   });
 });
 
@@ -1287,7 +1287,12 @@ registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase });
 // Production static
 const dist = path.join(__dirname, '..', 'client', 'dist');
 if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
-  app.use(express.static(dist));
+  app.get('/sw.js', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(dist, 'sw.js'));
+  });
+  app.use(express.static(dist, { index: false }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(dist, 'index.html'));
