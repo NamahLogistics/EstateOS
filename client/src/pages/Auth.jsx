@@ -10,6 +10,7 @@ export default function AuthPage() {
   const [params] = useSearchParams();
   const [mode, setMode] = useState(params.get('mode') === 'login' ? 'login' : 'register');
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
+  const typeFromUrl = params.get('type') === 'lawyer' ? 'lawyer' : null;
   const [referralCode, setReferralCode] = useState(() => {
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
@@ -17,7 +18,12 @@ export default function AuthPage() {
     }
     return localStorage.getItem(REF_KEY) || '';
   });
-  const [form, setForm] = useState({ name: '', email: '', password: '', accountType: 'family' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    accountType: typeFromUrl || 'family',
+  });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -25,7 +31,10 @@ export default function AuthPage() {
       localStorage.setItem(REF_KEY, refFromUrl);
       setReferralCode(refFromUrl);
     }
-  }, [refFromUrl]);
+    if (typeFromUrl) {
+      setForm((f) => ({ ...f, accountType: typeFromUrl }));
+    }
+  }, [refFromUrl, typeFromUrl]);
 
   if (user) return <Navigate to={user.accountType === 'lawyer' ? '/app/counsel' : '/app'} replace />;
 
@@ -60,6 +69,7 @@ export default function AuthPage() {
         {mode === 'register' && referralCode && (
           <p className="small" style={{ marginTop: 0 }}>
             Referral code applied: <strong>{referralCode}</strong>
+            {typeFromUrl === 'lawyer' ? ' · counsel invite' : ''}
           </p>
         )}
         <form onSubmit={submit}>

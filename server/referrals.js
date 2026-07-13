@@ -32,7 +32,7 @@ export function findUserByReferralCode(store, code) {
   return store.users.find((u) => u.referralCode === normalized) || null;
 }
 
-/** When a referred user pays for Family/Diaspora, credit the referrer once. */
+/** When a referred user pays any plan (Family / Diaspora / Counsel Pro), credit the referrer once. */
 export function grantReferrerDiscountOnPaidSignup(payerUserId) {
   mutate((s) => {
     const payer = s.users.find((u) => u.id === payerUserId);
@@ -96,4 +96,20 @@ export function referralPublicFields(user) {
     referralDiscountCredits: user.referralDiscountCredits || 0,
     referralRewardCount: user.referralRewardCount || 0,
   };
+}
+
+export function referralInviteLink(baseUrl, user) {
+  const base = String(baseUrl || '').replace(/\/$/, '');
+  if (!user?.referralCode) return null;
+  const isLawyer = user.accountType === 'lawyer';
+  return isLawyer
+    ? `${base}/auth?mode=register&ref=${user.referralCode}&type=lawyer`
+    : `${base}/auth?mode=register&ref=${user.referralCode}`;
+}
+
+export function referralRuleForUser(user) {
+  if (user?.accountType === 'lawyer') {
+    return 'Share with another advocate. When they sign up with your link and pay Counsel Pro, you get 50% off your next Counsel Pro year.';
+  }
+  return 'Share with family or counsel. When they sign up with your link and pay Family, Diaspora, or Counsel Pro, you get 50% off your next checkout.';
 }

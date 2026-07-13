@@ -6,6 +6,8 @@ import {
   grantReferrerDiscountOnPaidSignup,
   consumeReferralDiscountCredit,
   referralPublicFields,
+  referralInviteLink,
+  referralRuleForUser,
 } from './referrals.js';
 import { nextPlanExpiresAt, planPublicFields, applyPlanExpiryInPlace } from './plans.js';
 
@@ -210,10 +212,9 @@ export function registerBillingRoutes(app) {
       amounts: PLAN_AMOUNTS,
       referral: {
         ...referralPublicFields(user || {}),
-        link: user?.referralCode
-          ? `${appUrl || ''}/auth?mode=register&ref=${user.referralCode}`
-          : null,
-        rule: 'When someone signs up with your link and pays for Family or Diaspora, you get 50% off your next plan payment.',
+        link: referralInviteLink(appUrl || '', user),
+        rule: referralRuleForUser(user),
+        audience: user?.accountType === 'lawyer' ? 'lawyer' : 'family',
       },
     });
   });
@@ -231,10 +232,11 @@ export function registerBillingRoutes(app) {
     const base = appUrl || originFallback;
     res.json({
       ...referralPublicFields(user || {}),
-      link: `${base}/auth?mode=register&ref=${user.referralCode}`,
+      link: referralInviteLink(base, user),
+      audience: user?.accountType === 'lawyer' ? 'lawyer' : 'family',
       referredCount: referred.length,
       paidReferredCount: referred.filter((u) => u.referralRewardGranted).length,
-      rule: 'Share your link. When they pay for a plan, you earn one 50% discount credit for your next checkout.',
+      rule: referralRuleForUser(user),
     });
   });
 

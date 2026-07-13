@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import ReferralCard from '../components/ReferralCard.jsx';
 
 export default function CounselDesk() {
   const { api, toast, user } = useAuth();
@@ -113,6 +114,10 @@ export default function CounselDesk() {
       <p className="muted" style={{ marginTop: 0 }}>
         {lawyer?.firm} · intake {lawyer?.retainerBand} · SLA {lawyer?.slaHours}h · plan {plan || 'free'}
       </p>
+
+      <div style={{ margin: '1.25rem 0', maxWidth: 640 }}>
+        <ReferralCard compact />
+      </div>
 
       <div className="panel-grid" style={{ margin: '1.25rem 0' }}>
         {[

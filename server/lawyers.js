@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { ensureUserReferralFields } from './referrals.js';
 
 const uuid = () => crypto.randomUUID();
 
@@ -323,6 +324,7 @@ export function ensureLawyerSeed(store, { passwordHash } = {}) {
       user.accountType = 'lawyer';
       if (!user.passwordHash && passwordHash) user.passwordHash = passwordHash;
     }
+    ensureUserReferralFields(user, store);
     store.lawyers.push({
       id: uuid(),
       userId: user.id,
@@ -331,6 +333,11 @@ export function ensureLawyerSeed(store, { passwordHash } = {}) {
       acceptingMatters: true,
       createdAt: new Date().toISOString(),
     });
+  }
+  // Backfill referral codes for already-seeded counsel accounts
+  for (const seed of SEED_LAWYERS) {
+    const u = store.users.find((x) => x.email === seed.email);
+    if (u) ensureUserReferralFields(u, store);
   }
 }
 

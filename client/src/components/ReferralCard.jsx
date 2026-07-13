@@ -7,6 +7,7 @@ export default function ReferralCard({ compact = false }) {
   const [referral, setReferral] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const isLawyer = user?.accountType === 'lawyer';
 
   useEffect(() => {
     if (!user || !token) {
@@ -55,9 +56,14 @@ export default function ReferralCard({ compact = false }) {
   const link = referral?.link
     ? referral.link
     : code
-      ? `${window.location.origin}/auth?mode=register&ref=${code}`
+      ? `${window.location.origin}/auth?mode=register&ref=${code}${isLawyer ? '&type=lawyer' : ''}`
       : null;
   const ready = Boolean(code && link);
+  const rule =
+    referral?.rule ||
+    (isLawyer
+      ? 'Share with another advocate. When they pay Counsel Pro, you get 50% off your next year.'
+      : 'When they sign up with your link and pay Family, Diaspora, or Counsel Pro, you get 50% off your next checkout.');
 
   async function copy() {
     if (!ready) {
@@ -71,11 +77,10 @@ export default function ReferralCard({ compact = false }) {
   return (
     <div className="card" style={{ padding: compact ? '1rem 1.15rem' : '1.25rem', marginTop: compact ? 0 : '1.5rem' }}>
       <p className="display" style={{ fontSize: compact ? '1.15rem' : '1.35rem', marginTop: 0 }}>
-        Refer a paying member — get 50% off
+        {isLawyer ? 'Refer counsel — get 50% off' : 'Refer a paying member — get 50% off'}
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        When they sign up with your link and pay for Family or Diaspora, you get 50% off your next
-        checkout.
+        {rule}
       </p>
       {loading && <p className="small muted">Loading your referral code…</p>}
       {error && (
@@ -111,7 +116,13 @@ export default function ReferralCard({ compact = false }) {
             </button>
             <a
               className="btn btn-ghost"
-              href={whatsappShareUrl(shareReferralText({ link, inviterName: user.name }))}
+              href={whatsappShareUrl(
+                shareReferralText({
+                  link,
+                  inviterName: user.name,
+                  accountType: user.accountType,
+                })
+              )}
               target="_blank"
               rel="noreferrer"
             >
