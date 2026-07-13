@@ -42,6 +42,11 @@ import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
 import {
+  housewarmingPublic,
+  defaultHousewarmingState,
+  HOUSEWARMING_STEPS,
+} from './housewarming.js';
+import {
   assertCanCreateEstate,
   assertCanAddItems,
   normalizeCountryPack,
@@ -325,6 +330,12 @@ app.post('/api/estates', authRequired, (req, res) => {
     updatedAt: new Date().toISOString(),
   };
   ensureEstateDefaults(estate);
+  estate.housewarming = {
+    ...defaultHousewarmingState(),
+    completedSteps: ['create'],
+    currentStepId: 'call',
+    startedAt: new Date().toISOString(),
+  };
   mutate((s) => {
     s.estates.push(estate);
     audit(s, {
@@ -405,6 +416,7 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     careRoles: CARE_ROLES,
     countryPacks: COUNTRY_PACKS,
     interviewQuestions: INTERVIEW_QUESTIONS,
+    housewarming: housewarmingPublic(access.estate, items),
     expiringSoon,
     expired,
     limits: {
@@ -1196,7 +1208,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.7',
+    version: '1.4.8',
   });
 });
 
@@ -1256,6 +1268,69 @@ app.get('/api/estates/:id/export', authRequired, async (req, res) => {
 });
 
 // ── Interview / emergency / review ────────────────────
+app.post('/api/estates/:id/housewarming', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (!['owner', 'manager'].includes(access.role)) {
+    return res.status(403).json({ error: 'Only owner/manager can update housewarming' });
+  }
+
+  const { stepId, complete, completeAll, dismiss, setCurrent, reopen } = req.body || {};
+  const result = mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    if (!e) return null;
+    ensureEstateDefaults(e);
+    if (!e.housewarming) e.housewarming = defaultHousewarmingState();
+    const hw = e.housewarming;
+    if (!hw.startedAt) hw.startedAt = new Date().toISOString();
+
+    if (reopen) {
+      hw.dismissed = false;
+      hw.completedAt = null;
+      hw.currentStepId = HOUSEWARMING_STEPS[0].id;
+    }
+    if (dismiss) {
+      hw.dismissed = true;
+    }
+    if (setCurrent && stepId) {
+      hw.currentStepId = stepId;
+      hw.dismissed = false;
+    }
+    if (complete && stepId) {
+      if (!hw.completedSteps.includes(stepId)) hw.completedSteps.push(stepId);
+      const idx = HOUSEWARMING_STEPS.findIndex((st) => st.id === stepId);
+      const next = HOUSEWARMING_STEPS[idx + 1];
+      hw.currentStepId = next?.id || stepId;
+      if (hw.completedSteps.length >= HOUSEWARMING_STEPS.length) {
+        hw.completedAt = new Date().toISOString();
+      }
+    }
+    if (completeAll) {
+      hw.completedSteps = HOUSEWARMING_STEPS.map((st) => st.id);
+      hw.completedAt = new Date().toISOString();
+      hw.currentStepId = HOUSEWARMING_STEPS[HOUSEWARMING_STEPS.length - 1].id;
+      hw.dismissed = false;
+    }
+    e.updatedAt = new Date().toISOString();
+    audit(s, {
+      estateId: e.id,
+      userId: req.user.id,
+      action: 'housewarming_progress',
+      detail: completeAll
+        ? 'Digital Housewarming completed'
+        : dismiss
+          ? 'Housewarming dismissed'
+          : `Step ${stepId || hw.currentStepId}`,
+    });
+    const items = s.items.filter((i) => i.estateId === e.id);
+    return housewarmingPublic(e, items);
+  });
+
+  if (!result) return res.status(404).json({ error: 'Estate not found' });
+  res.json({ housewarming: result });
+});
+
 app.post('/api/estates/:id/interview', authRequired, (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);

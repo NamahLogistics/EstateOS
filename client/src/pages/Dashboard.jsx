@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
 
@@ -11,6 +11,7 @@ function statusBadge(status) {
 
 export default function Dashboard() {
   const { api, toast, user } = useAuth();
+  const navigate = useNavigate();
   const [estates, setEstates] = useState([]);
   const [form, setForm] = useState({
     subjectName: '',
@@ -33,10 +34,15 @@ export default function Dashboard() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api('/api/estates', { method: 'POST', body: form });
+      const res = await api('/api/estates', { method: 'POST', body: form });
       setForm({ subjectName: '', subjectRelation: 'Parent', countryPack: 'IN', notes: '' });
-      toast('Estate created');
-      await load();
+      toast('Estate created — start Digital Housewarming');
+      const estateId = res.estate?.id || res.id;
+      if (estateId) {
+        navigate(`/app/estates/${estateId}?tab=housewarming`);
+      } else {
+        await load();
+      }
     } catch (err) {
       toast(err.message);
     } finally {
@@ -110,7 +116,10 @@ export default function Dashboard() {
 
         <form className="card" style={{ padding: '1.2rem' }} onSubmit={createEstate}>
           <p className="display" style={{ fontSize: '1.35rem', marginTop: 0 }}>
-            New estate
+            New estate · Digital Housewarming
+          </p>
+          <p className="small muted" style={{ marginTop: 0 }}>
+            Create the file, then run a 20‑minute call script — bills and caregivers, not a death dossier.
           </p>
           <div className="field">
             <label>Parent / subject name</label>

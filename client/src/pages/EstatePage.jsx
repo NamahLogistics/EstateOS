@@ -2,10 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
+import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import { useI18n } from '../i18n.jsx';
 import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsapp.js';
 
-const TABS = ['map', 'interview', 'rules', 'unlock', 'execute', 'counsel', 'family', 'emergency', 'audit'];
+const TABS = [
+  'housewarming',
+  'map',
+  'interview',
+  'rules',
+  'unlock',
+  'execute',
+  'counsel',
+  'family',
+  'emergency',
+  'audit',
+];
 
 function statusBadge(status) {
   if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
@@ -19,7 +31,7 @@ export default function EstatePage() {
   const { api, toast, user } = useAuth();
   const { t, lang } = useI18n();
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState(searchParams.get('tab') || 'map');
+  const [tab, setTab] = useState(searchParams.get('tab') || 'housewarming');
   const [itemForm, setItemForm] = useState({
     category: 'bank',
     title: '',
@@ -331,9 +343,10 @@ export default function EstatePage() {
     return <p className="muted">Loading estate…</p>;
   }
 
-  const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired, limits, countryPacks } = data;
+  const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired, limits, countryPacks, housewarming } = data;
   const done = tasks.filter((t) => t.status === 'done').length;
   const tabLabel = {
+    housewarming: t('housewarming'),
     map: t('lifeMap'),
     interview: t('interview'),
     rules: t('unlockRules'),
@@ -413,6 +426,55 @@ export default function EstatePage() {
           </button>
         ))}
       </div>
+
+      {tab === 'housewarming' && (
+        <>
+          <HousewarmingGuide
+            estateId={id}
+            guide={housewarming}
+            onUpdated={(hw) => setData({ ...data, housewarming: hw })}
+            onOpenTab={(next) => setTab(next)}
+          />
+          {housewarming?.progress?.dismissed && !housewarming?.progress?.completedAt && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={async () => {
+                try {
+                  const res = await api(`/api/estates/${id}/housewarming`, {
+                    method: 'POST',
+                    body: { reopen: true },
+                  });
+                  setData({ ...data, housewarming: res.housewarming });
+                } catch (err) {
+                  toast(err.message);
+                }
+              }}
+            >
+              Resume Digital Housewarming
+            </button>
+          )}
+          {housewarming?.progress?.completedAt && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={async () => {
+                try {
+                  const res = await api(`/api/estates/${id}/housewarming`, {
+                    method: 'POST',
+                    body: { reopen: true },
+                  });
+                  setData({ ...data, housewarming: res.housewarming });
+                } catch (err) {
+                  toast(err.message);
+                }
+              }}
+            >
+              Run housewarming again
+            </button>
+          )}
+        </>
+      )}
 
       {tab === 'map' && (
         <div className="split">
@@ -644,10 +706,14 @@ export default function EstatePage() {
       {tab === 'interview' && (
         <form className="card" style={{ padding: '1.25rem', maxWidth: 640 }} onSubmit={submitInterview}>
           <p className="display" style={{ fontSize: '1.4rem', marginTop: 0 }}>
-            {t('interview')}
+            Digital Housewarming interview
           </p>
           <p className="muted">
-            Walk through with a parent. Answers become Life Map vault items automatically.
+            You type; parent talks. Frame it as bills, caregivers, and house logistics — not a will.
+            Answers become Life Map items automatically.
+          </p>
+          <p className="small muted">
+            Script opener: “I want a simple digital checklist for the house so I can help from abroad. Twenty minutes. No lawyers today.”
           </p>
           {(interviewQuestions || []).map((q) => (
             <div className="field" key={q.id}>

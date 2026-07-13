@@ -107,5 +107,14 @@ export function ensureEstateDefaults(estate) {
     d.setFullYear(d.getFullYear() + 1);
     estate.nextReviewAt = d.toISOString();
   }
+  if (!estate.housewarming) {
+    estate.housewarming = {
+      completedSteps: [],
+      currentStepId: 'create',
+      completedAt: null,
+      dismissed: false,
+      startedAt: new Date().toISOString(),
+    };
+  }
   return estate;
 }
