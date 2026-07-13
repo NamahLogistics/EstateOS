@@ -208,7 +208,7 @@ export default function Dashboard() {
               rows={3}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Lives in Pune; you’re in NYC / London…"
+              placeholder="Lives in India; you’re in NYC / London…"
             />
           </div>
           <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>

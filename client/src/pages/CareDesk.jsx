@@ -118,7 +118,7 @@ export default function CareDesk() {
               required
               value={form.cities}
               onChange={(e) => setForm({ ...form, cities: e.target.value })}
-              placeholder="Pune, Mumbai"
+              placeholder="Cities you serve"
             />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
@@ -169,7 +169,7 @@ export default function CareDesk() {
             rows={3}
             value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            placeholder="Experienced with elderly care, live-out, Pune east…"
+            placeholder="Experienced with elderly care, live-out…"
           />
         </div>
         <label className="small" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

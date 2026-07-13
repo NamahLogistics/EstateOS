@@ -661,7 +661,7 @@ export default function CounselPanel({ estateId, onToast }) {
               <input
                 value={listingForm.city}
                 onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}
-                placeholder="Pune"
+                placeholder="City"
               />
             </div>
             <div className="field">
@@ -670,7 +670,7 @@ export default function CounselPanel({ estateId, onToast }) {
                 rows={3}
                 value={listingForm.blurb}
                 onChange={(e) => setListingForm({ ...listingForm, blurb: e.target.value })}
-                placeholder="Father passed in Pune. Two siblings abroad. Need succession path for flat + bank — no account numbers here."
+                placeholder="Father passed. Two siblings abroad. Need succession path for flat + bank — no account numbers here."
               />
             </div>
             <div className="field">
@@ -778,7 +778,7 @@ export default function CounselPanel({ estateId, onToast }) {
                   rows={3}
                   value={engage.familyBrief}
                   onChange={(e) => setEngage({ ...engage, familyBrief: e.target.value })}
-                  placeholder="Father passed in Pune. Two siblings (one in Canada). Flat + LIC + demat. Need succession path before banks release."
+                  placeholder="Father passed. Two siblings (one in Canada). Flat + LIC + demat. Need succession path before banks release."
                 />
               </div>
               <div className="field">

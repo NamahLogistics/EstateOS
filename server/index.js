@@ -617,7 +617,7 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
       accountRef: '+91-97XXXXXX03',
       shift: 'Morning · 8am–12pm',
       paidBy: 'Cash weekly by neighbour aunt',
-      backupContact: 'Sister-in-law in Pune',
+      backupContact: 'Sister-in-law (local)',
       notes: 'Knows cupboard where medicines are kept.',
     },
     {
@@ -1297,7 +1297,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.9.7',
+    version: '1.9.8',
   });
 });
 

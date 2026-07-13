@@ -7,7 +7,8 @@ export default function CarePanel({ estateId, onSaved }) {
   const { api, toast } = useAuth();
   const [city, setCity] = useState(() => {
     try {
-      return localStorage.getItem('heirready_invite_city') || '';
+      localStorage.removeItem('heirready_invite_city');
+      return localStorage.getItem('heirready_invite_city_v2') || '';
     } catch {
       return '';
     }
@@ -97,7 +98,7 @@ export default function CarePanel({ estateId, onSaved }) {
           <div className="panel-grid" style={{ marginTop: '0.85rem' }}>
             <div className="field" style={{ marginBottom: 0 }}>
               <label>City</label>
-              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Pune" />
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
               <label>Role</label>

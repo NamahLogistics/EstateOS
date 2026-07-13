@@ -8,15 +8,22 @@ import {
   whatsappShareUrl,
 } from '../whatsapp.js';
 
-const CITY_KEY = 'heirready_invite_city';
-const SUGGESTED_CITIES = ['Pune', 'Mumbai', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Chennai'];
+const CITY_KEY = 'heirready_invite_city_v2';
+const SUGGESTED_CITIES = ['Mumbai', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Chennai', 'Jaipur', 'Ahmedabad', 'Kolkata'];
 
 export default function ReferralCard({ compact = false }) {
   const { user, api, toast, setUser, token } = useAuth();
   const [referral, setReferral] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [city, setCity] = useState(() => localStorage.getItem(CITY_KEY) || '');
+  const [city, setCity] = useState(() => {
+    try {
+      localStorage.removeItem('heirready_invite_city'); // drop old Pune default
+      return localStorage.getItem(CITY_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const isLawyer = user?.accountType === 'lawyer';
 
   useEffect(() => {
@@ -101,21 +108,21 @@ export default function ReferralCard({ compact = false }) {
         Invite
       </p>
       <p className="display" style={{ fontSize: compact ? '1.25rem' : '1.45rem', margin: '0.25rem 0 0.35rem' }}>
-        Grow one city — WhatsApp invites
+        Grow your city — WhatsApp invites
       </p>
       <p className="muted" style={{ marginTop: 0 }}>
-        Type any city (Mumbai, Hyderabad, your hometown…). Caregiver invites are free to join —{' '}
+        Type the city you care about — works anywhere. Caregiver invites are free to join —{' '}
         <strong>no 50% off for free care signups</strong>. You get 50% off only when someone{' '}
         <strong>pays</strong> a plan with your code.
       </p>
 
       <div className="field" style={{ marginBottom: '0.85rem' }}>
-        <label>Focus city (any city in India)</label>
+        <label>Focus city</label>
         <input
           list="heirready-cities"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="e.g. Mumbai, Pune, Jaipur…"
+          placeholder="Your city"
           required
         />
         <datalist id="heirready-cities">

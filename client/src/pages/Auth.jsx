@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 
 const REF_KEY = 'estate_os_ref';
-const CITY_KEY = 'heirready_invite_city';
+const CITY_KEY = 'heirready_invite_city_v2';
 
 function typeFromParam(raw) {
   if (raw === 'lawyer') return 'lawyer';
@@ -37,13 +37,18 @@ export default function AuthPage() {
     email: '',
     password: '',
     accountType: typeFromUrl || 'family',
-    city: cityFromUrl || localStorage.getItem(CITY_KEY) || '',
+    city: cityFromUrl || '',
     role: 'maid',
     phone: '',
   });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('heirready_invite_city'); // drop old Pune default
+    } catch {
+      /* ignore */
+    }
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
       setReferralCode(refFromUrl);
@@ -54,6 +59,9 @@ export default function AuthPage() {
     if (cityFromUrl) {
       localStorage.setItem(CITY_KEY, cityFromUrl);
       setForm((f) => ({ ...f, city: cityFromUrl }));
+    } else {
+      const saved = localStorage.getItem(CITY_KEY) || '';
+      if (saved) setForm((f) => (f.city ? f : { ...f, city: saved }));
     }
   }, [refFromUrl, typeFromUrl, cityFromUrl]);
 
@@ -151,7 +159,7 @@ export default function AuthPage() {
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
                       required
-                      placeholder="Pune"
+                      placeholder="Your city"
                     />
                   </div>
                   <div className="field">
@@ -181,7 +189,7 @@ export default function AuthPage() {
                   <input
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Pune"
+                    placeholder="Your city"
                   />
                 </div>
               )}

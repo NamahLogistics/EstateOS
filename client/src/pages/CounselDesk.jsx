@@ -247,7 +247,7 @@ export default function CounselDesk() {
               <input
                 value={profileForm.cities}
                 onChange={(e) => setProfileForm({ ...profileForm, cities: e.target.value })}
-                placeholder="Pune, Mumbai"
+                placeholder="Cities you practice in"
                 required
               />
             </div>
@@ -330,7 +330,7 @@ export default function CounselDesk() {
               rows={3}
               value={profileForm.bio}
               onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-              placeholder="Succession & NRI property matters. Pune High Court practice…"
+              placeholder="Succession & NRI property matters…"
             />
           </div>
 
