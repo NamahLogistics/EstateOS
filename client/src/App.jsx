@@ -120,6 +120,7 @@ export default function App() {
       <Route path="/refunds" element={<Shell><LegalRefunds /></Shell>} />
       <Route path="/shipping" element={<Shell><LegalShipping /></Shell>} />
       <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
+      <Route path="/grievance" element={<Shell><ContactPage /></Shell>} />
       <Route path="/auth" element={<Shell><AuthPage /></Shell>} />
       <Route path="/invite/:token" element={<Shell><InvitePage /></Shell>} />
       <Route path="/e/:token" element={<Shell><EmergencyPage /></Shell>} />

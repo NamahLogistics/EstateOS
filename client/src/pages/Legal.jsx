@@ -10,7 +10,7 @@ const FALLBACK_BIZ = {
   hours: 'Mon–Sat, 10:00–18:00 IST',
   grievanceName: 'Shubhra Mishra',
   grievanceEmail: 'shubhramishra137@gmail.com',
-  website: 'https://estate-os-production.up.railway.app',
+  website: 'https://heirready.com',
   country: 'India',
 };
 
