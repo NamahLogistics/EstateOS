@@ -37,6 +37,7 @@ import {
   seedLawyersIfNeeded,
   attachLawyerAccess,
 } from './lawyers.routes.js';
+import { registerCareRoutes } from './care.routes.js';
 import { sendInviteEmail, sendEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
@@ -192,7 +193,8 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(409).json({ error: 'Email already registered' });
   }
   const passwordHash = await hashPassword(password);
-  const type = accountType === 'lawyer' ? 'lawyer' : 'family';
+  const type =
+    accountType === 'lawyer' ? 'lawyer' : accountType === 'care' ? 'care' : 'family';
   let user = {
     id: uuid(),
     name: name.trim(),
@@ -203,6 +205,7 @@ app.post('/api/auth/register', async (req, res) => {
     createdAt: new Date().toISOString(),
   };
   mutate((s) => {
+    if (!s.careWorkers) s.careWorkers = [];
     attachReferralOnRegister(s, user, referralCode || ref);
     ensureUserReferralFields(user, s);
     s.users.push(user);
@@ -226,6 +229,27 @@ app.post('/api/auth/register', async (req, res) => {
         nriFriendly: true,
         verified: false,
         acceptingMatters: true,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    if (type === 'care') {
+      const roleRaw = String(req.body?.role || 'maid').trim();
+      s.careWorkers.push({
+        id: uuid(),
+        userId: user.id,
+        name: user.name,
+        role: ['nurse', 'attendant', 'maid', 'cook', 'driver', 'other'].includes(roleRaw)
+          ? roleRaw
+          : 'maid',
+        cities: [req.body?.city || 'Pune'].flat().filter(Boolean),
+        languages: ['Hindi'],
+        years: Number(req.body?.years) || 1,
+        rateBand: req.body?.rateBand || '',
+        shift: req.body?.shift || '',
+        phone: req.body?.phone || '',
+        bio: req.body?.bio || '',
+        verified: false,
+        acceptingWork: true,
         createdAt: new Date().toISOString(),
       });
     }
@@ -1272,7 +1296,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.8.4',
+    version: '1.9.0',
   });
 });
 
@@ -1513,6 +1537,7 @@ app.get('/api/public/emergency/:token', (req, res) => {
 });
 
 registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase, upload, saveUpload });
+registerCareRoutes(app);
 
 // Production static
 const dist = path.join(__dirname, '..', 'client', 'dist');

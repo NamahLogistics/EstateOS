@@ -4,13 +4,25 @@ import { useAuth } from '../auth.jsx';
 
 const REF_KEY = 'estate_os_ref';
 
+function typeFromParam(raw) {
+  if (raw === 'lawyer') return 'lawyer';
+  if (raw === 'care') return 'care';
+  return null;
+}
+
+function homeFor(accountType) {
+  if (accountType === 'lawyer') return '/app/counsel';
+  if (accountType === 'care') return '/app/care';
+  return '/app';
+}
+
 export default function AuthPage() {
   const { user, login, register, toast } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [mode, setMode] = useState(params.get('mode') === 'login' ? 'login' : 'register');
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
-  const typeFromUrl = params.get('type') === 'lawyer' ? 'lawyer' : null;
+  const typeFromUrl = typeFromParam(params.get('type'));
   const [referralCode, setReferralCode] = useState(() => {
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
@@ -23,6 +35,9 @@ export default function AuthPage() {
     email: '',
     password: '',
     accountType: typeFromUrl || 'family',
+    city: '',
+    role: 'maid',
+    phone: '',
   });
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +51,7 @@ export default function AuthPage() {
     }
   }, [refFromUrl, typeFromUrl]);
 
-  if (user) return <Navigate to={user.accountType === 'lawyer' ? '/app/counsel' : '/app'} replace />;
+  if (user) return <Navigate to={homeFor(user.accountType)} replace />;
 
   async function submit(e) {
     e.preventDefault();
@@ -44,12 +59,18 @@ export default function AuthPage() {
     try {
       const payload =
         mode === 'register'
-          ? { ...form, ref: referralCode || undefined }
+          ? {
+              ...form,
+              ref: referralCode || undefined,
+              city: form.city || undefined,
+              role: form.role || undefined,
+              phone: form.phone || undefined,
+            }
           : form;
       const data = mode === 'register' ? await register(payload) : await login(form);
       if (mode === 'register') localStorage.removeItem(REF_KEY);
       toast('Welcome to HeirReady');
-      navigate(data.user?.accountType === 'lawyer' ? '/app/counsel' : '/app');
+      navigate(homeFor(data.user?.accountType));
     } catch (err) {
       toast(err.message);
     } finally {
@@ -57,25 +78,31 @@ export default function AuthPage() {
     }
   }
 
+  const isLawyer = form.accountType === 'lawyer' || typeFromUrl === 'lawyer';
+  const isCare = form.accountType === 'care' || typeFromUrl === 'care';
+
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
       <div className="card" style={{ padding: '1.5rem' }}>
         <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
           {mode === 'register'
-            ? form.accountType === 'lawyer' || typeFromUrl === 'lawyer'
+            ? isLawyer
               ? 'Join as counsel'
-              : 'Create account'
+              : isCare
+                ? 'Join as caregiver'
+                : 'Create account'
             : 'Sign in'}
         </h1>
         <p className="muted" style={{ marginTop: '-0.3rem' }}>
-          {form.accountType === 'lawyer' || typeFromUrl === 'lawyer'
+          {isLawyer
             ? 'Counsel desk, city leads, and matter briefs — for advocates.'
-            : 'Families map estates. Counsel runs the legal matter.'}
+            : isCare
+              ? 'List your cities and role — families with Care Network can find you.'
+              : 'Families map estates. Counsel and care network when you need them.'}
         </p>
         {mode === 'register' && referralCode && (
           <p className="small" style={{ marginTop: 0 }}>
             Referral code applied: <strong>{referralCode}</strong>
-            {typeFromUrl === 'lawyer' ? ' · counsel invite' : ''}
           </p>
         )}
         <form onSubmit={submit}>
@@ -89,6 +116,7 @@ export default function AuthPage() {
                 >
                   <option value="family">Family / adult child</option>
                   <option value="lawyer">Lawyer / counsel</option>
+                  <option value="care">Nurse / maid / caregiver</option>
                 </select>
               </div>
               <div className="field">
@@ -97,9 +125,41 @@ export default function AuthPage() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  placeholder="Priya Sharma"
+                  placeholder={isCare ? 'Sunita' : 'Priya Sharma'}
                 />
               </div>
+              {isCare && (
+                <>
+                  <div className="field">
+                    <label>Primary city</label>
+                    <input
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      required
+                      placeholder="Pune"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Role</label>
+                    <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                      <option value="nurse">Nurse</option>
+                      <option value="attendant">Attendant / ayah</option>
+                      <option value="maid">Maid / domestic help</option>
+                      <option value="cook">Cook</option>
+                      <option value="driver">Driver</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Phone</label>
+                    <input
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="+91…"
+                    />
+                  </div>
+                </>
+              )}
               <div className="field">
                 <label>Referral code (optional)</label>
                 <input

@@ -11,12 +11,29 @@ import {
 } from './referrals.js';
 import { nextPlanExpiresAt, planPublicFields, applyPlanExpiryInPlace } from './plans.js';
 
+const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900); // ₹1,499
 const PLAN_AMOUNTS = {
   // paise (INR)
-  family: Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900), // ₹1,499
+  family: FAMILY_AMOUNT,
   diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 1249900), // ₹12,499
   counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499 — counsel lead board
+  /** City nurses/maids — 2× Family */
+  care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT * 2), // ₹2,998
 };
+
+function planLabel(plan) {
+  if (plan === 'diaspora') return 'Diaspora';
+  if (plan === 'counsel') return 'Counsel Pro';
+  if (plan === 'care') return 'Care Network';
+  return 'Family';
+}
+
+function normalizeCheckoutPlan(raw) {
+  if (raw === 'diaspora') return 'diaspora';
+  if (raw === 'counsel') return 'counsel';
+  if (raw === 'care') return 'care';
+  return 'family';
+}
 
 export function razorpayConfigured() {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
@@ -111,12 +128,14 @@ async function createCheckout(user, plan) {
   const applyDiscount = credits > 0;
   const amount = applyDiscount ? Math.round(fullAmount / 2) : fullAmount;
   const description = applyDiscount
-    ? `${plan === 'diaspora' ? 'Diaspora' : plan === 'counsel' ? 'Counsel Pro' : 'Family'} — 1 year (50% referral). Card from abroad or UPI in India.`
+    ? `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.`
     : plan === 'diaspora'
       ? 'Diaspora — 1 year. Pay with international card from abroad (UPI if you are in India).'
       : plan === 'counsel'
         ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
-        : 'Family — 1 year. International card from abroad, or UPI/netbanking in India.';
+        : plan === 'care'
+          ? 'Care Network — 1 year (city nurses & maids, 2× Family). Card or UPI.'
+          : 'Family — 1 year. India vault + siblings. Card or UPI/netbanking.';
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
@@ -242,12 +261,7 @@ export function registerBillingRoutes(app) {
 
   app.post('/api/billing/checkout', authRequired, async (req, res, next) => {
     try {
-      const plan =
-        req.body?.plan === 'diaspora'
-          ? 'diaspora'
-          : req.body?.plan === 'counsel'
-            ? 'counsel'
-            : 'family';
+      const plan = normalizeCheckoutPlan(req.body?.plan);
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
@@ -257,12 +271,7 @@ export function registerBillingRoutes(app) {
 
   app.post('/api/billing/upgrade', authRequired, async (req, res, next) => {
     try {
-      const plan =
-        req.body?.plan === 'diaspora'
-          ? 'diaspora'
-          : req.body?.plan === 'counsel'
-            ? 'counsel'
-            : 'family';
+      const plan = normalizeCheckoutPlan(req.body?.plan);
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
@@ -294,9 +303,7 @@ export function registerBillingRoutes(app) {
       return res.status(403).json({ error: 'Order does not belong to this account' });
     }
 
-    const plan =
-      pending?.plan ||
-      (bodyPlan === 'diaspora' ? 'diaspora' : bodyPlan === 'counsel' ? 'counsel' : 'family');
+    const plan = pending?.plan || normalizeCheckoutPlan(bodyPlan);
 
     const planExpiresAt = activatePlan(req.user.id, plan, {
       paymentId: razorpay_payment_id,

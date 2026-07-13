@@ -4,6 +4,7 @@ import { useAuth } from '../auth.jsx';
 export default function Landing() {
   const { user } = useAuth();
   const isLawyer = user?.accountType === 'lawyer';
+  const isCare = user?.accountType === 'care';
 
   return (
     <>
@@ -25,13 +26,22 @@ export default function Landing() {
                   Counsel Pro
                 </Link>
               </>
+            ) : isCare ? (
+              <>
+                <Link className="btn btn-primary" to="/app/care">
+                  Open care desk
+                </Link>
+                <Link className="btn btn-ghost" to="/pricing?plan=care">
+                  Care Network
+                </Link>
+              </>
             ) : (
               <>
                 <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
                   {user ? 'Open your estates' : 'Start free — map one parent'}
                 </Link>
-                <Link className="btn btn-ghost" to="/auth?mode=register&type=lawyer">
-                  I’m counsel
+                <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
+                  I provide care
                 </Link>
               </>
             )}
@@ -55,8 +65,8 @@ export default function Landing() {
               'Appointed unlockers open Execution Mode with proof. India — or India+US / India+UK — tasks appear in order.',
             ],
             [
-              'With counsel',
-              'Retain an advocate. They get the brief and pathway — not a chaotic WhatsApp dump from overseas.',
+              'Local care bench',
+              'Upgrade to Care Network — see nurses and maids in their city, save them to the vault, stop relying on one WhatsApp forward.',
             ],
           ].map(([t, b]) => (
             <div key={t} className="feature-block">
@@ -68,6 +78,30 @@ export default function Landing() {
         <p className="small" style={{ marginTop: '1.5rem', color: 'var(--ink-soft)' }}>
           Not a will. Not a bank. Not a substitute for licensed legal advice.
         </p>
+      </section>
+
+      <section className="section-counsel">
+        <h2 className="display section-how-title">Care Network</h2>
+        <p className="section-lead">
+          Nurses, maids, attendants in the parent’s city — ₹2,998/yr (2× Family). Diaspora includes
+          it. Caregivers join free and complete a short profile.
+        </p>
+        <div className="hero-actions">
+          {isCare ? (
+            <Link className="btn btn-primary" to="/app/care">
+              Care desk
+            </Link>
+          ) : (
+            <>
+              <Link className="btn btn-primary" to="/pricing?plan=care">
+                Unlock Care Network — ₹2,998/yr
+              </Link>
+              <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
+                I provide care — join free
+              </Link>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="section-counsel">

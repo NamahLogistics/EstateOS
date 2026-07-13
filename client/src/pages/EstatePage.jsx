@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
+import CarePanel from '../components/CarePanel.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
@@ -11,6 +12,7 @@ const TABS = [
   'housewarming',
   'map',
   'interview',
+  'findcare',
   'rules',
   'unlock',
   'execute',
@@ -470,6 +472,7 @@ export default function EstatePage() {
     housewarming: t('housewarming'),
     map: t('lifeMap'),
     interview: t('interview'),
+    findcare: 'Find care',
     rules: t('unlockRules'),
     unlock: t('unlock'),
     execute: t('execution'),
@@ -1154,6 +1157,10 @@ export default function EstatePage() {
             </>
           )}
         </div>
+      )}
+
+      {tab === 'findcare' && (
+        <CarePanel estateId={id} onSaved={() => load().then(() => setTab('map'))} />
       )}
 
       {tab === 'counsel' && <CounselPanel estateId={id} onToast={toast} />}

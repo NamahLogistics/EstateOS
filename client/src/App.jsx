@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import EstatePage from './pages/EstatePage.jsx';
 import Pricing from './pages/Pricing.jsx';
 import CounselDesk from './pages/CounselDesk.jsx';
+import CareDesk from './pages/CareDesk.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import EmergencyPage from './pages/EmergencyPage.jsx';
 import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
@@ -35,6 +36,11 @@ function Shell({ children }) {
                 {t('counselDesk')}
               </Link>
             )}
+            {user?.accountType === 'care' && (
+              <Link className="btn btn-ghost" to="/app/care" style={{ padding: '0.45rem 0.85rem' }}>
+                Care desk
+              </Link>
+            )}
             <Link className="btn btn-ghost" to="/pricing" style={{ padding: '0.45rem 0.85rem' }}>
               {t('pricing')}
             </Link>
@@ -45,7 +51,7 @@ function Shell({ children }) {
               <>
                 <span className="small muted">
                   {user.name}
-                  {user.accountType === 'lawyer' ? ' · counsel' : ''}
+                  {user.accountType === 'lawyer' ? ' · counsel' : user.accountType === 'care' ? ' · care' : ''}
                 </span>
                 <button
                   className="btn btn-ghost"
@@ -126,6 +132,7 @@ export default function App() {
       <Route path="/e/:token" element={<Shell><EmergencyPage /></Shell>} />
       <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
       <Route path="/app/counsel" element={<Private><Shell><CounselDesk /></Shell></Private>} />
+      <Route path="/app/care" element={<Private><Shell><CareDesk /></Shell></Private>} />
       <Route path="/app/estates/:id" element={<Private><Shell><EstatePage /></Shell></Private>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

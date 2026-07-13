@@ -36,9 +36,23 @@ const plans = [
       'Everything in Family',
       'India + US / India + UK packs',
       'NRI / cross-border pathway',
+      'Care Network included (city nurses & maids)',
       'Pay with international card from abroad',
     ],
     cta: 'Get Diaspora',
+  },
+  {
+    id: 'care',
+    name: 'Care Network',
+    price: '₹2,998/yr',
+    blurb: '2× Family — nurses & maids in their city',
+    features: [
+      'Browse caregivers by city & role',
+      'Phone numbers unlocked',
+      'Save into Life Map → Care at home',
+      'Stickiness for the parent’s city',
+    ],
+    cta: 'Unlock city care',
   },
   {
     id: 'counsel',
@@ -276,7 +290,11 @@ export default function Pricing() {
                 {hasCredit && p.id !== 'free' && (
                   <span className="small" style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
                     Your price with referral credit: ~
-                    {p.id === 'family' || p.id === 'counsel' ? '₹750' : '₹6,250'}
+                    {p.id === 'family' || p.id === 'counsel'
+                      ? '₹750'
+                      : p.id === 'care'
+                        ? '₹1,499'
+                        : '₹6,250'}
                   </span>
                 )}
               </p>
@@ -294,7 +312,7 @@ export default function Pricing() {
                 </Link>
               ) : (
                 <button
-                  className={`btn ${p.id === 'diaspora' || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
+                  className={`btn ${p.id === 'diaspora' || p.id === 'counsel' || p.id === 'care' ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ width: '100%', marginTop: '0.5rem' }}
                   disabled={busy}
                   onClick={() => choose(p.id)}
@@ -337,6 +355,7 @@ export default function Pricing() {
           <label>Interest</label>
           <select value={lead.interest} onChange={(e) => setLead({ ...lead, interest: e.target.value })}>
             <option value="diaspora">Diaspora (abroad / NRI)</option>
+            <option value="care">Care Network (nurses / maids)</option>
             <option value="family">Family (India)</option>
             <option value="counsel">Counsel / law firm</option>
           </select>

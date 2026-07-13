@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 export function isPlanLimitError(err) {
   if (err?.status === 402) return true;
   if (err?.data?.code === 'PLAN_LIMIT') return true;
-  return /free plan|upgrade on pricing|vault is full|allows \d+ estate|diaspora|cross-border|india \+ (us|uk)/i.test(
+  return /free plan|upgrade on pricing|vault is full|allows \d+ estate|diaspora|cross-border|india \+ (us|uk)|care network|nurses|maids/i.test(
     err?.message || ''
   );
 }
@@ -11,7 +11,9 @@ export function isPlanLimitError(err) {
 export function upgradeReasonFromError(err, fallback = 'items') {
   const plan = err?.data?.upgradePlan;
   if (plan === 'diaspora') return 'diaspora';
+  if (plan === 'care') return 'care';
   if (plan === 'family') return fallback === 'estate' ? 'estate' : 'items';
+  if (/care network|nurses|maids/i.test(err?.message || '')) return 'care';
   if (/diaspora|cross-border|india \+ (us|uk)/i.test(err?.message || '')) return 'diaspora';
   if (/estate/i.test(err?.message || '')) return 'estate';
   return fallback;
@@ -53,10 +55,24 @@ const COPY = {
       'Everything in Family',
       'India + US and India + UK packs',
       'NRI / cross-border execution pathway',
+      'Care Network (city nurses & maids) included',
     ],
     cta: 'Upgrade to Diaspora — ₹12,499/yr',
     href: '/pricing?plan=diaspora',
     note: 'Family (₹1,499) still works for India-only checklists if you stay on the India pack.',
+  },
+  care: {
+    plan: 'care',
+    title: 'City care unlocks with Care Network',
+    body: 'See nurses, maids, and attendants in your parent’s city — then save them to the Life Map. ₹2,998/year (2× Family). Diaspora includes this.',
+    features: [
+      'Browse caregivers by city & role',
+      'Phone numbers unlocked',
+      'Save into Care at home vault',
+    ],
+    cta: 'Get Care Network — ₹2,998/yr',
+    href: '/pricing?plan=care',
+    note: 'Already on Diaspora? Care Network is included — refresh after login.',
   },
   abroad_checkout: {
     plan: 'diaspora',
@@ -97,7 +113,7 @@ export default function UpgradeGate({
     >
       <div className="upgrade-gate-panel">
         <p className="small muted" style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
-          {copy.plan === 'diaspora' ? 'Diaspora' : 'Upgrade'}
+          {copy.plan === 'diaspora' ? 'Diaspora' : copy.plan === 'care' ? 'Care Network' : 'Upgrade'}
         </p>
         <h2 id="upgrade-gate-title" className="display" style={{ fontSize: '1.85rem', margin: '0.35rem 0 0.55rem' }}>
           {copy.title}

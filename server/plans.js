@@ -8,7 +8,7 @@ export const PLAN_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 export const RENEWAL_WARN_DAYS = 30;
 
 export function isPaidPlanName(plan) {
-  return plan === 'family' || plan === 'diaspora' || plan === 'counsel';
+  return plan === 'family' || plan === 'diaspora' || plan === 'counsel' || plan === 'care';
 }
 
 /** @deprecated prefer userHasPaidAccess(user) — string-only checks ignore expiry */
@@ -35,6 +35,18 @@ export function userHasPaidAccess(user) {
 /** City leads + approach — Counsel Pro only (not Family/Diaspora). */
 export function userHasCounselPro(user) {
   return Boolean(user && user.plan === 'counsel' && userHasPaidAccess(user));
+}
+
+/**
+ * City nurses / maids directory — Care Network (2× Family) or Diaspora.
+ * Family alone does not unlock care browse.
+ */
+export function userHasCareNetwork(user) {
+  return Boolean(
+    user &&
+      userHasPaidAccess(user) &&
+      (user.plan === 'care' || user.plan === 'diaspora')
+  );
 }
 
 export const MAX_OPEN_APPROACHES_PER_LAWYER = 10;
@@ -125,7 +137,7 @@ export function canUseCrossBorderPack(userOrPlan) {
 
 export function assertCanCreateEstate(store, user) {
   applyPlanExpiryInPlace(user);
-  if (user.accountType === 'lawyer' || userHasPaidAccess(user)) return;
+  if (user.accountType === 'lawyer' || user.accountType === 'care' || userHasPaidAccess(user)) return;
   const owned = store.estates.filter((e) => e.ownerId === user.id).length;
   if (owned >= FREE_MAX_ESTATES) {
     const err = new Error(
