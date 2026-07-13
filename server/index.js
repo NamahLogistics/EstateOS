@@ -27,7 +27,8 @@ import {
 } from './auth.js';
 import {
   ITEM_CATEGORIES,
-  buildIndiaExecutionTasks,
+  buildExecutionTasks,
+  COUNTRY_PACKS,
   renderLetter,
 } from './checklist.js';
 import {
@@ -39,6 +40,15 @@ import { sendInviteEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
+import {
+  assertCanCreateEstate,
+  assertCanAddItems,
+  normalizeCountryPack,
+  FREE_MAX_ITEMS,
+  FREE_MAX_ESTATES,
+  isPaidPlan,
+} from './plans.js';
+import { draftFromPhoto } from './scan.js';
 
 const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -252,16 +262,24 @@ app.get('/api/estates', authRequired, (req, res) => {
 });
 
 app.post('/api/estates', authRequired, (req, res) => {
-  const { subjectName, subjectRelation, country, notes } = req.body || {};
+  const { subjectName, subjectRelation, country, countryPack, notes } = req.body || {};
   if (!subjectName?.trim()) {
     return res.status(400).json({ error: 'Parent / subject name required' });
   }
+  const store = readStore();
+  try {
+    assertCanCreateEstate(store, req.user);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  const pack = normalizeCountryPack(countryPack || country || 'IN', req.user.plan);
   const estate = {
     id: uuid(),
     ownerId: req.user.id,
     subjectName: subjectName.trim(),
     subjectRelation: subjectRelation?.trim() || 'Parent',
-    country: country || 'IN',
+    country: pack === 'IN' ? 'IN' : pack,
+    countryPack: pack,
     notes: notes?.trim() || '',
     status: 'locked', // locked | unlock_pending | unlocked
     unlockRules: {
@@ -276,13 +294,13 @@ app.post('/api/estates', authRequired, (req, res) => {
     updatedAt: new Date().toISOString(),
   };
   ensureEstateDefaults(estate);
-  mutate((store) => {
-    store.estates.push(estate);
-    audit(store, {
+  mutate((s) => {
+    s.estates.push(estate);
+    audit(s, {
       estateId: estate.id,
       userId: req.user.id,
       action: 'estate_created',
-      detail: `Created estate for ${estate.subjectName}`,
+      detail: `Created estate for ${estate.subjectName} (${pack})`,
     });
   });
   res.status(201).json({ estate });
@@ -353,9 +371,17 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     tasks,
     audit: auditLog,
     categories: ITEM_CATEGORIES,
+    countryPacks: COUNTRY_PACKS,
     interviewQuestions: INTERVIEW_QUESTIONS,
     expiringSoon,
     expired,
+    limits: {
+      plan: owner?.plan || 'free',
+      freeMaxItems: FREE_MAX_ITEMS,
+      freeMaxEstates: FREE_MAX_ESTATES,
+      itemCount: items.length,
+      paid: isPaidPlan(owner?.plan),
+    },
   });
 });
 
@@ -366,12 +392,17 @@ app.patch('/api/estates/:id', authRequired, (req, res) => {
   if (access.role !== 'owner' && access.role !== 'manager') {
     return res.status(403).json({ error: 'Only owner/manager can edit estate' });
   }
+  const owner = store.users.find((u) => u.id === access.estate.ownerId);
   const updated = mutate((s) => {
     const estate = s.estates.find((e) => e.id === req.params.id);
-    const { subjectName, subjectRelation, country, notes, unlockRules } = req.body || {};
+    const { subjectName, subjectRelation, country, countryPack, notes, unlockRules } = req.body || {};
     if (subjectName != null) estate.subjectName = subjectName.trim();
     if (subjectRelation != null) estate.subjectRelation = subjectRelation.trim();
-    if (country != null) estate.country = country;
+    if (countryPack != null || country != null) {
+      const pack = normalizeCountryPack(countryPack || country, owner?.plan || 'free');
+      estate.countryPack = pack;
+      estate.country = pack === 'IN' ? 'IN' : pack;
+    }
     if (notes != null) estate.notes = notes;
     if (unlockRules) {
       estate.unlockRules = { ...estate.unlockRules, ...unlockRules };
@@ -460,6 +491,11 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
       notes: 'Simple cremation; inform village relatives within 24h.',
     },
   ];
+  try {
+    assertCanAddItems(store, req.user, access.estate.id, samples.length);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
   mutate((s) => {
     for (const sample of samples) {
       s.items.push({
@@ -489,6 +525,11 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
   if (!access.ok) return res.status(access.status).json({ error: access.error });
   if (access.estate.status === 'unlocked' && access.role === 'viewer') {
     return res.status(403).json({ error: 'Viewers cannot add items after unlock' });
+  }
+  try {
+    assertCanAddItems(store, req.user, access.estate.id, 1);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
   }
   const { category, title, institution, accountRef, notes } = req.body || {};
   if (!category || !title?.trim()) {
@@ -527,6 +568,57 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
     });
   });
   res.status(201).json({ item });
+});
+
+app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), async (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (!['owner', 'manager'].includes(access.role)) {
+    return res.status(403).json({ error: 'Only owner/manager can scan' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'Photo required' });
+  try {
+    assertCanAddItems(store, req.user, access.estate.id, 1);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  const draft = await draftFromPhoto({
+    buffer: req.file.buffer,
+    mime: req.file.mimetype,
+    name: req.file.originalname,
+    categoryHint: req.body?.category || '',
+  });
+  const saved = await saveUpload({
+    name: req.file.originalname,
+    mime: req.file.mimetype,
+    buffer: req.file.buffer,
+  });
+  const item = {
+    id: uuid(),
+    estateId: access.estate.id,
+    category: draft.category,
+    title: draft.title,
+    institution: draft.institution,
+    accountRef: draft.accountRef,
+    notes: draft.notes,
+    expiresOn: null,
+    files: [saved],
+    source: draft.source || 'scan',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: req.user.id,
+  };
+  mutate((s) => {
+    s.items.push(item);
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'item_scanned',
+      detail: `Photo draft: ${item.title} (${draft.source})`,
+    });
+  });
+  res.status(201).json({ item, draftSource: draft.source });
 });
 
 app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
@@ -889,7 +981,7 @@ function finalizeUnlock(store, estate, user, request) {
   estate.status = 'unlocked';
   estate.unlockedAt = new Date().toISOString();
   const items = store.items.filter((i) => i.estateId === estate.id);
-  const tasks = buildIndiaExecutionTasks(estate, items);
+  const tasks = buildExecutionTasks(estate, items);
   store.tasks = store.tasks.filter((t) => t.estateId !== estate.id);
   store.tasks.push(...tasks);
   audit(store, {
@@ -981,7 +1073,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.3.0',
+    version: '1.4.0',
   });
 });
 
@@ -1052,6 +1144,11 @@ app.post('/api/estates/:id/interview', authRequired, (req, res) => {
   const created = answersToItems(answers, access.estate.id, req.user.id);
   if (!created.length) {
     return res.status(400).json({ error: 'Add at least one answer' });
+  }
+  try {
+    assertCanAddItems(store, req.user, access.estate.id, created.length);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
   }
   mutate((s) => {
     s.items.push(...created);

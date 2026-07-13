@@ -9,12 +9,12 @@ function statusBadge(status) {
 }
 
 export default function Dashboard() {
-  const { api, toast } = useAuth();
+  const { api, toast, user } = useAuth();
   const [estates, setEstates] = useState([]);
   const [form, setForm] = useState({
     subjectName: '',
     subjectRelation: 'Parent',
-    country: 'IN',
+    countryPack: 'IN',
     notes: '',
   });
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,7 @@ export default function Dashboard() {
     setBusy(true);
     try {
       await api('/api/estates', { method: 'POST', body: form });
-      setForm({ subjectName: '', subjectRelation: 'Parent', country: 'IN', notes: '' });
+      setForm({ subjectName: '', subjectRelation: 'Parent', countryPack: 'IN', notes: '' });
       toast('Estate created');
       await load();
     } catch (err) {
@@ -43,6 +43,9 @@ export default function Dashboard() {
     }
   }
 
+  const packLabel = { IN: 'India', IN_US: 'India + US', IN_UK: 'India + UK' };
+  const diaspora = user?.plan === 'diaspora';
+
   return (
     <section style={{ paddingBottom: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
@@ -50,7 +53,12 @@ export default function Dashboard() {
           <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>
             Your estates
           </h1>
-          <p className="muted">One estate per parent (or person you help manage).</p>
+          <p className="muted">
+            One estate per parent.
+            {user?.plan === 'free' || !user?.plan
+              ? ' Free: 1 estate, 5 vault items.'
+              : ` Plan: ${user.plan}.`}
+          </p>
         </div>
       </div>
 
@@ -70,7 +78,8 @@ export default function Dashboard() {
                   <div>
                     <strong style={{ fontSize: '1.05rem' }}>{e.subjectName}</strong>
                     <div className="small muted">
-                      {e.subjectRelation} · {e.itemCount} items · {e.myRole}
+                      {e.subjectRelation} · {packLabel[e.countryPack || e.country] || e.country} ·{' '}
+                      {e.itemCount} items · {e.myRole}
                     </div>
                   </div>
                   {statusBadge(e.status)}
@@ -103,8 +112,17 @@ export default function Dashboard() {
           </div>
           <div className="field">
             <label>Country pack</label>
-            <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
+            <select
+              value={form.countryPack}
+              onChange={(e) => setForm({ ...form, countryPack: e.target.value })}
+            >
               <option value="IN">India</option>
+              <option value="IN_US" disabled={!diaspora}>
+                India + US {diaspora ? '' : '(Diaspora plan)'}
+              </option>
+              <option value="IN_UK" disabled={!diaspora}>
+                India + UK {diaspora ? '' : '(Diaspora plan)'}
+              </option>
             </select>
           </div>
           <div className="field">
@@ -113,7 +131,7 @@ export default function Dashboard() {
               rows={3}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Lives in Pune; CA is Sharma…"
+              placeholder="Lives in Pune; you’re in NYC / London…"
             />
           </div>
           <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>

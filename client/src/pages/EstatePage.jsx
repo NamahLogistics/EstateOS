@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
 import { useI18n } from '../i18n.jsx';
+import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsapp.js';
 
 const TABS = ['map', 'interview', 'rules', 'unlock', 'execute', 'counsel', 'family', 'emergency', 'audit'];
 
@@ -33,6 +34,9 @@ export default function EstatePage() {
   const [proofFile, setProofFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [answers, setAnswers] = useState({});
+  const [scanCategory, setScanCategory] = useState('bank');
+  const [scanFile, setScanFile] = useState(null);
+  const [lastInviteLink, setLastInviteLink] = useState('');
 
   async function load() {
     const res = await api(`/api/estates/${id}`);
@@ -138,11 +142,13 @@ export default function EstatePage() {
     e.preventDefault();
     const mode = e.target.mode.value;
     const requireProof = e.target.requireProof.checked;
+    const countryPack = e.target.countryPack?.value;
     setBusy(true);
     try {
       await api(`/api/estates/${id}`, {
         method: 'PATCH',
         body: {
+          countryPack,
           unlockRules: {
             ...data.estate.unlockRules,
             mode,
@@ -191,6 +197,33 @@ export default function EstatePage() {
     }
   }
 
+  async function scanPhoto(e) {
+    e.preventDefault();
+    if (!scanFile) {
+      toast('Choose a photo first');
+      return;
+    }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('photo', scanFile);
+      fd.append('category', scanCategory);
+      const res = await api(`/api/estates/${id}/items/scan`, { method: 'POST', body: fd });
+      setScanFile(null);
+      toast(
+        res.draftSource === 'openai_vision'
+          ? 'Photo scanned — review the draft item'
+          : 'Photo saved as draft — edit title & details'
+      );
+      setTab('map');
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function inviteMember(e) {
     e.preventDefault();
     setBusy(true);
@@ -201,13 +234,14 @@ export default function EstatePage() {
           ? `${window.location.origin}/invite/${res.invite.token}`
           : res.invite?.link || '';
       if (link) {
+        setLastInviteLink(link);
         await navigator.clipboard.writeText(link).catch(() => {});
         const emailed =
           res.invite?.emailStatus === 'resend'
             ? 'Email sent + link copied'
             : res.invite?.emailStatus === 'logged'
               ? 'Invite logged + link copied (add RESEND_API_KEY to send email)'
-              : 'Invite link copied — send it to your sibling';
+              : 'Invite link copied — send it on WhatsApp';
         toast(emailed);
       } else {
         toast('Member added');
@@ -282,7 +316,7 @@ export default function EstatePage() {
     return <p className="muted">Loading estate…</p>;
   }
 
-  const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired } = data;
+  const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired, limits, countryPacks } = data;
   const done = tasks.filter((t) => t.status === 'done').length;
   const tabLabel = {
     map: t('lifeMap'),
@@ -299,6 +333,10 @@ export default function EstatePage() {
     estate.emergencyUrl ||
     `${typeof window !== 'undefined' ? window.location.origin : ''}/e/${estate.emergencyToken}`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(emergencyUrl)}`;
+  const packLabel =
+    (countryPacks || []).find((p) => p.id === (estate.countryPack || estate.country))?.label ||
+    estate.countryPack ||
+    'India';
 
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
@@ -311,7 +349,7 @@ export default function EstatePage() {
             {estate.subjectName}
           </h1>
           <p className="muted" style={{ margin: 0 }}>
-            {estate.subjectRelation} · India pack · {items.length} vault items
+            {estate.subjectRelation} · {packLabel} · {items.length} vault items
             {estate.nextReviewAt
               ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
               : ''}
@@ -319,6 +357,12 @@ export default function EstatePage() {
         </div>
         {statusBadge(estate.status)}
       </div>
+      {limits && !limits.paid && (
+        <p className="small muted" style={{ marginTop: '0.65rem' }}>
+          Free plan: {limits.itemCount}/{limits.freeMaxItems} items used.{' '}
+          <Link to="/pricing">Upgrade</Link> for unlimited vault + cross-border packs.
+        </p>
+      )}
       {(expired?.length > 0 || expiringSoon?.length > 0) && (
         <div className="card" style={{ padding: '0.85rem 1.1rem', marginTop: '0.85rem', borderColor: 'var(--terracotta, #b45309)' }}>
           {expired?.length > 0 && (
@@ -412,7 +456,38 @@ export default function EstatePage() {
           </div>
 
           {estate.status !== 'unlocked' && (
-            <form className="card" style={{ padding: '1.2rem' }} onSubmit={addItem}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <form className="card" style={{ padding: '1.2rem' }} onSubmit={scanPhoto}>
+                <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
+                  Scan photo
+                </p>
+                <p className="small muted">
+                  Passbook / policy / deed photo → draft vault item (edit details after).
+                </p>
+                <div className="field">
+                  <label>Likely category</label>
+                  <select value={scanCategory} onChange={(e) => setScanCategory(e.target.value)}>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => setScanFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+                <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
+                  {busy ? 'Scanning…' : 'Add from photo'}
+                </button>
+              </form>
+              <form className="card" style={{ padding: '1.2rem' }} onSubmit={addItem}>
               <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
                 Add item
               </p>
@@ -461,6 +536,7 @@ export default function EstatePage() {
                 Save to Life Map
               </button>
             </form>
+            </div>
           )}
         </div>
       )}
@@ -506,11 +582,23 @@ export default function EstatePage() {
                   {emergencyUrl}
                 </a>
               </p>
-              {estate.myRole === 'owner' && (
-                <button type="button" className="btn btn-ghost" onClick={rotateEmergency} disabled={busy}>
-                  Rotate QR token
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                <a
+                  className="btn btn-primary"
+                  href={whatsappShareUrl(
+                    shareEmergencyText({ subjectName: estate.subjectName, url: emergencyUrl })
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Share on WhatsApp
+                </a>
+                {estate.myRole === 'owner' && (
+                  <button type="button" className="btn btn-ghost" onClick={rotateEmergency} disabled={busy}>
+                    Rotate QR token
+                  </button>
+                )}
+              </div>
             </>
           ) : (
             <p className="muted">Emergency token missing — refresh the page.</p>
@@ -526,6 +614,21 @@ export default function EstatePage() {
           <p className="muted">
             Owner decides in advance. The app releases the map and playbook — banks still run their own nominee process.
           </p>
+          <div className="field">
+            <label>Country pack</label>
+            <select name="countryPack" defaultValue={estate.countryPack || estate.country || 'IN'}>
+              {(countryPacks || [
+                { id: 'IN', label: 'India' },
+                { id: 'IN_US', label: 'India + US' },
+                { id: 'IN_UK', label: 'India + UK' },
+              ]).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                  {p.needsDiaspora ? ' (Diaspora plan)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="field">
             <label>Unlock mode</label>
             <select name="mode" defaultValue={estate.unlockRules?.mode || 'single'}>
@@ -716,6 +819,23 @@ export default function EstatePage() {
               <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
                 Invite
               </button>
+              {lastInviteLink && (
+                <a
+                  className="btn btn-ghost"
+                  style={{ width: '100%', marginTop: '0.65rem', textAlign: 'center' }}
+                  href={whatsappShareUrl(
+                    shareInviteText({
+                      estateName: estate.subjectName,
+                      link: lastInviteLink,
+                      inviterName: user?.name,
+                    })
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Share invite on WhatsApp
+                </a>
+              )}
             </form>
           )}
         </div>

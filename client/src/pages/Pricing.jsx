@@ -8,7 +8,7 @@ const plans = [
     name: 'Free',
     price: '₹0',
     blurb: 'Start mapping today',
-    features: ['1 estate', 'Core Life Map', 'Unlock rules', 'India checklist on unlock'],
+    features: ['1 estate / parent', '5 Life Map items', 'Unlock rules', 'India checklist on unlock'],
     cta: 'Start free',
   },
   {
@@ -18,7 +18,7 @@ const plans = [
     blurb: 'Siblings + counsel-ready',
     features: [
       'Unlimited vault items',
-      'Invite links for siblings',
+      'Invite links + WhatsApp share',
       'Counsel retain + brief',
       'ZIP export + audit log',
     ],
@@ -31,9 +31,9 @@ const plans = [
     blurb: 'When family spans countries',
     features: [
       'Everything in Family',
+      'India + US / India + UK packs',
       'NRI / cross-border pathway',
       'Priority counsel matching',
-      'Multi-country checklist packs (rolling out)',
     ],
     cta: 'Pay with UPI / card',
   },

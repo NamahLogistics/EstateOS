@@ -150,6 +150,100 @@ export function buildIndiaExecutionTasks(estate, items) {
   return tasks.sort((a, b) => a.priority - b.priority);
 }
 
+/** Extra tasks for diaspora packs (India assets + foreign residence) */
+function buildDiasporaExtraTasks(estate, pack) {
+  const tasks = [];
+  const push = (task) =>
+    tasks.push({
+      id: crypto.randomUUID(),
+      estateId: estate.id,
+      status: 'todo',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      notes: '',
+      ...task,
+    });
+
+  if (pack === 'IN_US') {
+    push({
+      priority: 3,
+      category: 'crossborder',
+      title: 'US: order apostille / certified copies if needed',
+      detail:
+        'Indian death certificate often needs apostille or embassy attestation before US banks/insurers accept it. Start early — this is a common diaspora bottleneck.',
+      documents: ['Death certificate', 'Apostille / MEA attestation'],
+      letterKey: null,
+    });
+    push({
+      priority: 4,
+      category: 'crossborder',
+      title: 'US: notify Social Security / employer benefits if applicable',
+      detail:
+        'If the parent had US SSA benefits, 401(k), or employer life cover, notify those administrators separately from India claims.',
+      documents: ['Death certificate', 'SSN / benefit refs if known'],
+      letterKey: null,
+    });
+    push({
+      priority: 5,
+      category: 'crossborder',
+      title: 'Coordinate India branch visits while abroad',
+      detail:
+        'Appoint a local relative / counsel with power of attorney where banks require in-person. Use Estate OS letters + vault photos; do not courier original deeds casually.',
+      documents: ['POA if any', 'Unlocker ID', 'Vault export ZIP'],
+      letterKey: null,
+    });
+  }
+
+  if (pack === 'IN_UK') {
+    push({
+      priority: 3,
+      category: 'crossborder',
+      title: 'UK: FCDO / solicitor-certified copy path',
+      detail:
+        'UK institutions may need legalised or solicitor-certified copies of Indian death docs. Confirm with the receiving bank/insurer before you fly.',
+      documents: ['Death certificate', 'Certified copy plan'],
+      letterKey: null,
+    });
+    push({
+      priority: 4,
+      category: 'crossborder',
+      title: 'UK: check UK estate / probate need separately',
+      detail:
+        'UK assets (ISA, property, pensions) follow UK probate rules — separate from India nominee claims. Note which assets sit in which country in the Life Map.',
+      documents: ['UK asset list from Life Map', 'Will if any'],
+      letterKey: null,
+    });
+    push({
+      priority: 5,
+      category: 'crossborder',
+      title: 'India remote claim logistics from UK',
+      detail:
+        'Plan courier of attested docs, local attorney visits, and time-zone follow-ups. Keep a single sibling as India ops lead in Family tab.',
+      documents: ['Vault ZIP', 'Counsel brief if retained'],
+      letterKey: null,
+    });
+  }
+
+  return tasks;
+}
+
+export function buildExecutionTasks(estate, items) {
+  const base = buildIndiaExecutionTasks(estate, items);
+  const pack = estate.countryPack || estate.country || 'IN';
+  if (pack === 'IN_US' || pack === 'IN_UK') {
+    return [...base, ...buildDiasporaExtraTasks(estate, pack)].sort(
+      (a, b) => a.priority - b.priority
+    );
+  }
+  return base;
+}
+
+export const COUNTRY_PACKS = [
+  { id: 'IN', label: 'India', needsDiaspora: false },
+  { id: 'IN_US', label: 'India + US', needsDiaspora: true },
+  { id: 'IN_UK', label: 'India + UK', needsDiaspora: true },
+];
+
 export function renderLetter(key, { estate, item, requester, proofType }) {
   const today = new Date().toLocaleDateString('en-IN', {
     day: 'numeric',

@@ -7,57 +7,76 @@ export default function Landing() {
     <>
       <section className="hero">
         <div>
-          <p
-            className="small muted"
-            style={{
-              marginBottom: '0.8rem',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-            }}
-          >
-            Family continuity software
-          </p>
           <h1>Estate OS</h1>
           <p>
-            Build your parent’s life map while there’s time. When death or incapacity hits, unlock a
-            guided execution plan — and bring counsel onto the same matter, with a full brief ready.
+            You’re abroad. Your parents’ banks, LIC, flat papers, and phone SIM still sit in India.
+            Map it now — so when something happens, your family isn’t guessing on WhatsApp.
           </p>
           <div className="hero-actions">
             <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
-              {user ? 'Open your estates' : 'Start free'}
+              {user ? 'Open your estates' : 'Start free — 1 parent, 5 items'}
             </Link>
             <Link className="btn btn-ghost" to="/pricing">
-              Pricing
+              Family & Diaspora plans
             </Link>
           </div>
         </div>
-        <div className="card" style={{ padding: '1.4rem', alignSelf: 'stretch' }}>
-          <p className="display" style={{ fontSize: '1.45rem', margin: '0 0 0.75rem' }}>
-            Built for real distribution
+        <div
+          style={{
+            alignSelf: 'stretch',
+            minHeight: 280,
+            borderRadius: 0,
+            background:
+              'linear-gradient(145deg, rgba(44,77,60,0.92) 0%, rgba(20,32,26,0.88) 55%, rgba(90,110,70,0.75) 100%), radial-gradient(ellipse at 70% 20%, rgba(231,239,233,0.25), transparent 55%)',
+            color: '#f3f6f2',
+            padding: '1.6rem 1.4rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <p
+            className="small"
+            style={{
+              margin: '0 0 0.5rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              opacity: 0.75,
+              fontWeight: 700,
+            }}
+          >
+            Built for adult children abroad
           </p>
-          <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--ink-soft)', lineHeight: 1.65 }}>
-            <li>Life Map vault for banks, insurance, property, digital</li>
-            <li>Unlock rules decided before crisis</li>
-            <li>India execution checklist + claim letters</li>
-            <li>Counsel directory, retain, pathway, privileged matter room</li>
-            <li>Sibling invite links · ZIP export · audit trail</li>
-          </ul>
-          <p className="small muted" style={{ marginTop: '1.1rem', marginBottom: 0 }}>
-            Not a will. Not a bank. Not a substitute for licensed legal advice.
+          <p className="display" style={{ fontSize: '1.55rem', margin: 0, color: '#fbfcf9' }}>
+            Life map. Unlock rules. Execution checklist. Counsel brief.
           </p>
         </div>
       </section>
 
       <section style={{ padding: '0 0 3.5rem' }}>
+        <h2 className="display" style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>
+          How it works
+        </h2>
+        <p className="muted" style={{ maxWidth: 520, marginBottom: '1.25rem' }}>
+          One job at a time — build the map while there’s calm, then run the playbook when there isn’t.
+        </p>
         <div className="panel-grid">
           {[
-            ['Before', 'Adult children quietly map accounts, papers, and wishes — often from abroad.'],
-            ['When it happens', 'Appointed unlockers open Execution Mode with proof. Tasks and letters appear in order.'],
-            ['With counsel', 'Retain an advocate. They get a counsel brief, pathway, and a shared privileged workspace.'],
+            [
+              'While you’re abroad',
+              'Interview a parent on a call, snap passbook photos, invite siblings. Hindi or English.',
+            ],
+            [
+              'When something happens',
+              'Appointed unlockers open Execution Mode with proof. India — or India+US / India+UK — tasks appear in order.',
+            ],
+            [
+              'With counsel',
+              'Retain an advocate. They get the brief, pathway, and a privileged workspace — not a chaotic email dump.',
+            ],
           ].map(([t, b]) => (
-            <div key={t} className="card" style={{ padding: '1.2rem' }}>
-              <p className="display" style={{ fontSize: '1.35rem', margin: '0 0 0.45rem' }}>
+            <div key={t} style={{ padding: '0.25rem 0' }}>
+              <p className="display" style={{ fontSize: '1.25rem', margin: '0 0 0.35rem' }}>
                 {t}
               </p>
               <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
@@ -66,6 +85,9 @@ export default function Landing() {
             </div>
           ))}
         </div>
+        <p className="small muted" style={{ marginTop: '1.5rem' }}>
+          Not a will. Not a bank. Not a substitute for licensed legal advice.
+        </p>
       </section>
     </>
   );
