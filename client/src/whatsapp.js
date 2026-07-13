@@ -40,22 +40,23 @@ export function shareEmergencyText({ subjectName, url, lang = 'en' }) {
 export function shareReferralText({ link, inviterName, accountType, lang = 'en' }) {
   const who = firstName(inviterName);
   if (lang === 'hi') {
+    const hiOpen = who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n';
     if (accountType === 'lawyer') {
       return (
-        `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+        hiOpen +
         `मैं HeirReady वकील डेस्क पर हूँ (शहर लीड + उत्तराधिकार मामले)।\n\n` +
         `वकील के रूप में जुड़ें (शुरुआत मुफ़्त):\n${link}`
       );
     }
     if (accountType === 'care') {
       return (
-        `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+        hiOpen +
         `विदेश में रहने वाले परिवार HeirReady से नर्स / आया ढूँढते हैं।\n\n` +
         `मुफ़्त में अपना नाम लिखें:\n${link}`
       );
     }
     return (
-      `नमस्ते —${who ? ` ${who}।` : ''}\n\n` +
+      hiOpen +
       `मैं HeirReady इस्तेमाल कर रहा/रही हूँ ताकि भाई-बहन माता-पिता के कागज़ (बैंक, एलआईसी, चाबियाँ) साथ संभाल सकें।\n\n` +
       `मुफ़्त जुड़ें — माता-पिता का खाता ज़रूरी नहीं:\n${link}`
     );
@@ -87,8 +88,9 @@ export function shareFamilyOnboardText({ link, city, inviterName, lang = 'en' })
   const who = firstName(inviterName);
   if (lang === 'hi') {
     const where = place ? ` (${place})` : '';
+    const hiOpen = who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n';
     return (
-      `नमस्ते${who ? ` — ${who}` : ''}।\n\n` +
+      hiOpen +
       `मैं HeirReady सेट कर रहा/रही हूँ ताकि हम भाई-बहन माँ-पापा के कागज़${where} साथ रख सकें — बैंक, एलआईसी, संपत्ति, चाबियाँ, देखभाल वाले।\n\n` +
       `माता-पिता का खाता नहीं चाहिए — हम उनके लिए मैप करते हैं।\n\n` +
       `मुफ़्त जुड़ें (२ मिनट) और जो जानते हो जोड़ें:\n${link}`
@@ -109,8 +111,9 @@ export function shareCareOnboardText({ link, city, inviterName, lang = 'en' }) {
   const who = firstName(inviterName);
   if (lang === 'hi') {
     const where = place ? ` ${place} में` : '';
+    const hiOpen = who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n';
     return (
-      `नमस्ते${who ? ` — ${who}` : ''}।\n\n` +
+      hiOpen +
       `जिनके माता-पिता${where} हैं, वे परिवार HeirReady से नर्स, आया और अटेंडेंट ढूँढते हैं।\n\n` +
       `मुफ़्त लिखें — शहर, फ़ोन, रेट:\n${link}\n\n` +
       `जुड़ने का कोई शुल्क नहीं।`
