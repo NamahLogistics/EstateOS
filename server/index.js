@@ -344,7 +344,11 @@ app.post('/api/estates', authRequired, (req, res) => {
   try {
     assertCanCreateEstate(store, req.user);
   } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message });
+    return res.status(err.status || 400).json({
+      error: err.message,
+      code: err.code || (err.status === 402 ? 'PLAN_LIMIT' : undefined),
+      upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
+    });
   }
   const pack = normalizeCountryPack(countryPack || country || 'IN', req.user);
   const estate = {
@@ -598,6 +602,8 @@ app.post('/api/estates/:id/seed-sample', authRequired, (req, res) => {
   if (slots === 0) {
     return res.status(402).json({
       error: `Free plan vault is full (${FREE_MAX_ITEMS} items). Delete some items or upgrade on Pricing.`,
+      code: 'PLAN_LIMIT',
+      upgradePlan: 'family',
     });
   }
   const toAdd = Number.isFinite(slots) ? samples.slice(0, slots) : samples;
@@ -642,7 +648,11 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
   try {
     assertCanAddItems(store, req.user, access.estate.id, 1);
   } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message });
+    return res.status(err.status || 400).json({
+      error: err.message,
+      code: err.code || (err.status === 402 ? 'PLAN_LIMIT' : undefined),
+      upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
+    });
   }
   const { category, title, institution, accountRef, notes, shift, paidBy, backupContact } =
     req.body || {};
@@ -698,7 +708,11 @@ app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), as
   try {
     assertCanAddItems(store, req.user, access.estate.id, 1);
   } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message });
+    return res.status(err.status || 400).json({
+      error: err.message,
+      code: err.code || (err.status === 402 ? 'PLAN_LIMIT' : undefined),
+      upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
+    });
   }
   const draft = await draftFromPhoto({
     buffer: req.file.buffer,
@@ -1246,7 +1260,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.8.2',
+    version: '1.8.3',
   });
 });
 
@@ -1384,7 +1398,11 @@ app.post('/api/estates/:id/interview', authRequired, (req, res) => {
   try {
     assertCanAddItems(store, req.user, access.estate.id, created.length);
   } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message });
+    return res.status(err.status || 400).json({
+      error: err.message,
+      code: err.code || (err.status === 402 ? 'PLAN_LIMIT' : undefined),
+      upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
+    });
   }
   mutate((s) => {
     s.items.push(...created);

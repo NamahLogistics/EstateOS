@@ -132,6 +132,8 @@ export function assertCanCreateEstate(store, user) {
       `Free plan allows ${FREE_MAX_ESTATES} estate. Upgrade to Family or Diaspora on Pricing.`
     );
     err.status = 402;
+    err.code = 'PLAN_LIMIT';
+    err.upgradePlan = 'family';
     throw err;
   }
 }
@@ -154,6 +156,8 @@ export function assertCanAddItems(store, user, estateId, addCount = 1) {
         : `Free plan allows ${FREE_MAX_ITEMS} items (${remaining} left). Upgrade for unlimited.`
     );
     err.status = 402;
+    err.code = 'PLAN_LIMIT';
+    err.upgradePlan = 'family';
     throw err;
   }
 }

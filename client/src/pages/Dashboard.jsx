@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import ReferralCard from '../components/ReferralCard.jsx';
+import UpgradeGate, { isPlanLimitError } from '../components/UpgradeGate.jsx';
 
 function statusBadge(status) {
   if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
@@ -20,6 +21,7 @@ export default function Dashboard() {
     notes: '',
   });
   const [busy, setBusy] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   async function load() {
     const data = await api('/api/estates');
@@ -44,17 +46,24 @@ export default function Dashboard() {
         await load();
       }
     } catch (err) {
-      toast(err.message);
+      if (isPlanLimitError(err)) setUpgradeOpen(true);
+      else toast(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   const packLabel = { IN: 'India', IN_US: 'India + US', IN_UK: 'India + UK' };
-  const diaspora = user?.plan === 'diaspora';
+  const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+  const isFreeUser =
+    user?.accountType !== 'lawyer' &&
+    (user?.plan === 'free' || !user?.plan || user?.planActive === false);
+  const ownsEstate = estates.some((e) => e.myRole === 'owner');
+  const freeAtEstateCap = isFreeUser && ownsEstate;
 
   return (
     <section style={{ paddingBottom: '2rem' }}>
+      <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason="estate" />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
         <div>
           <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>
@@ -82,6 +91,23 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+
+      {freeAtEstateCap && (
+        <div className="upgrade-limit-banner">
+          <p className="small">
+            <strong>Free plan: one parent.</strong> Upgrade to Family to map another estate and unlock
+            unlimited vault items.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ padding: '0.45rem 0.95rem' }}
+            onClick={() => setUpgradeOpen(true)}
+          >
+            Upgrade
+          </button>
+        </div>
+      )}
 
       <div style={{ marginTop: '1rem', maxWidth: 640 }}>
         <ReferralCard compact />
@@ -114,7 +140,18 @@ export default function Dashboard() {
           )}
         </div>
 
-        <form className="card" style={{ padding: '1.2rem' }} onSubmit={createEstate}>
+        <form
+          className="card"
+          style={{ padding: '1.2rem' }}
+          onSubmit={(e) => {
+            if (freeAtEstateCap) {
+              e.preventDefault();
+              setUpgradeOpen(true);
+              return;
+            }
+            createEstate(e);
+          }}
+        >
           <p className="display" style={{ fontSize: '1.35rem', marginTop: 0 }}>
             New estate · Digital Housewarming
           </p>
@@ -163,7 +200,7 @@ export default function Dashboard() {
             />
           </div>
           <button className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
-            {busy ? 'Creating…' : 'Create estate'}
+            {busy ? 'Creating…' : freeAtEstateCap ? 'Upgrade to add another estate' : 'Create estate'}
           </button>
         </form>
       </div>

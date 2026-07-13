@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
+import UpgradeGate, { isPlanLimitError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
 import { shareEmergencyText, shareInviteText, whatsappShareUrl } from '../whatsapp.js';
 
@@ -121,6 +122,21 @@ export default function EstatePage() {
   const [scanCategory, setScanCategory] = useState('bank');
   const [scanFile, setScanFile] = useState(null);
   const [lastInviteLink, setLastInviteLink] = useState('');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState('items');
+
+  function openUpgrade(reason = 'items') {
+    setUpgradeReason(reason);
+    setUpgradeOpen(true);
+  }
+
+  function handleLimitError(err, reason = 'items') {
+    if (isPlanLimitError(err)) {
+      openUpgrade(reason);
+      return true;
+    }
+    return false;
+  }
 
   async function load() {
     const res = await api(`/api/estates/${id}`);
@@ -130,6 +146,16 @@ export default function EstatePage() {
   useEffect(() => {
     load().catch((e) => toast(e.message));
   }, [id]);
+
+  useEffect(() => {
+    const limits = data?.limits;
+    if (!limits || limits.paid) return;
+    if (limits.itemCount < limits.freeMaxItems) return;
+    const key = `hr_upgrade_full_${id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    openUpgrade('items');
+  }, [data?.limits?.itemCount, data?.limits?.paid, data?.limits?.freeMaxItems, id]);
 
   useEffect(() => {
     const t = searchParams.get('tab');
@@ -151,6 +177,11 @@ export default function EstatePage() {
 
   async function addItem(e) {
     e.preventDefault();
+    const lim = data?.limits;
+    if (lim && !lim.paid && lim.itemCount >= lim.freeMaxItems) {
+      openUpgrade('items');
+      return;
+    }
     setBusy(true);
     try {
       const fd = new FormData();
@@ -172,20 +203,25 @@ export default function EstatePage() {
       toast('Item added to Life Map');
       await load();
     } catch (err) {
-      toast(err.message);
+      if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   async function seedDemo() {
+    const lim = data?.limits;
+    if (lim && !lim.paid && lim.itemCount >= lim.freeMaxItems) {
+      openUpgrade('items');
+      return;
+    }
     setBusy(true);
     try {
       const res = await api(`/api/estates/${id}/seed-sample`, { method: 'POST', body: {} });
       toast(res.message || `Loaded ${res.added || ''} sample items`);
       await load();
     } catch (err) {
-      toast(err.message);
+      if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
       setBusy(false);
     }
@@ -193,6 +229,11 @@ export default function EstatePage() {
 
   async function submitInterview(e) {
     e.preventDefault();
+    const lim = data?.limits;
+    if (lim && !lim.paid && lim.itemCount >= lim.freeMaxItems) {
+      openUpgrade('items');
+      return;
+    }
     setBusy(true);
     try {
       const res = await api(`/api/estates/${id}/interview`, { method: 'POST', body: { answers } });
@@ -201,7 +242,7 @@ export default function EstatePage() {
       setTab('map');
       await load();
     } catch (err) {
-      toast(err.message);
+      if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
       setBusy(false);
     }
@@ -299,6 +340,11 @@ export default function EstatePage() {
       toast('Choose a photo first');
       return;
     }
+    const lim = data?.limits;
+    if (lim && !lim.paid && lim.itemCount >= lim.freeMaxItems) {
+      openUpgrade('items');
+      return;
+    }
     setBusy(true);
     try {
       const fd = new FormData();
@@ -314,7 +360,7 @@ export default function EstatePage() {
       setTab('map');
       await load();
     } catch (err) {
-      toast(err.message);
+      if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
       setBusy(false);
     }
@@ -455,11 +501,28 @@ export default function EstatePage() {
         {statusBadge(estate.status)}
       </div>
       {limits && !limits.paid && (
-        <p className="small muted" style={{ marginTop: '0.65rem' }}>
-          Free plan: {limits.itemCount}/{limits.freeMaxItems} items used.{' '}
-          <Link to="/pricing">Upgrade</Link> for unlimited vault + cross-border packs.
-        </p>
+        <div className="upgrade-limit-banner">
+          <p className="small">
+            {limits.itemCount >= limits.freeMaxItems ? (
+              <>
+                <strong>Vault full</strong> — free plan uses {limits.itemCount}/{limits.freeMaxItems} items.
+                Upgrade to keep mapping banks, LIC, and property.
+              </>
+            ) : (
+              <>
+                Free plan: {limits.itemCount}/{limits.freeMaxItems} items used
+                {limits.itemCount >= limits.freeMaxItems - 1
+                  ? ' — one slot left before upgrade.'
+                  : '.'}
+              </>
+            )}
+          </p>
+          <button type="button" className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} onClick={() => openUpgrade(limits.itemCount >= limits.freeMaxItems ? 'items' : 'near')}>
+            Upgrade
+          </button>
+        </div>
       )}
+      <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
       {(expired?.length > 0 || expiringSoon?.length > 0) && (
         <div className="card" style={{ padding: '0.85rem 1.1rem', marginTop: '0.85rem', borderColor: 'var(--terracotta, #b45309)' }}>
           {expired?.length > 0 && (
