@@ -1,14 +1,19 @@
 import { Link } from 'react-router-dom';
 
 export function isPlanLimitError(err) {
+  if (err?.data?.code === 'CARE_COMING_SOON' || err?.data?.comingSoon) return false;
+  if (/coming soon/i.test(err?.message || '')) return false;
   if (err?.status === 402) return true;
   if (err?.data?.code === 'PLAN_LIMIT') return true;
-  return /free plan|upgrade on pricing|vault is full|allows \d+ estate|diaspora|cross-border|india \+ (us|uk)|care network|nurses|maids/i.test(
+  return /free plan|upgrade on pricing|vault is full|allows \d+ estate|diaspora|cross-border|india \+ (us|uk)/i.test(
     err?.message || ''
   );
 }
 
 export function upgradeReasonFromError(err, fallback = 'items') {
+  if (err?.data?.code === 'CARE_COMING_SOON' || /coming soon/i.test(err?.message || '')) {
+    return 'care';
+  }
   const plan = err?.data?.upgradePlan;
   if (plan === 'diaspora' || plan === 'diaspora_care') return 'diaspora';
   if (plan === 'care' || plan === 'family_care') return 'care';
@@ -63,15 +68,15 @@ const COPY = {
   care: {
     plan: 'family',
     title: 'City care — coming soon',
-    body: 'Browse nurses, maids, and attendants isn’t open for families yet. Caregivers can still join free and list their city.',
+    body: 'Nothing to unlock or pay for yet. Caregivers can join free and list their city; family browse launches later.',
     features: [
       'Caregivers join free today',
       'List city, role, phone, rate',
-      'Family browse unlocks when we launch',
+      'No Family + Care purchase available yet',
     ],
-    cta: 'Join as caregiver — free',
+    cta: 'Invite caregiver — free',
     href: '/auth?mode=register&type=care',
-    note: 'Family + Care and Diaspora + Care aren’t available to purchase yet.',
+    note: 'Family + Care / Diaspora + Care checkout is closed until launch.',
     secondaryCta: 'WhatsApp invite',
     secondaryHref: '/app#grow',
   },
@@ -114,7 +119,7 @@ export default function UpgradeGate({
     >
       <div className="upgrade-gate-panel">
         <p className="small muted" style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
-          {copy.plan === 'diaspora' ? 'Diaspora' : 'Upgrade'}
+          {reason === 'care' ? 'Coming soon' : copy.plan === 'diaspora' ? 'Diaspora' : 'Upgrade'}
         </p>
         <h2 id="upgrade-gate-title" className="display" style={{ fontSize: '1.85rem', margin: '0.35rem 0 0.55rem' }}>
           {copy.title}
