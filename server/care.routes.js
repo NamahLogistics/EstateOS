@@ -118,7 +118,7 @@ export function registerCareRoutes(app) {
     });
   });
 
-  /** Families with Care Network / Diaspora — browse by city */
+  /** Families with Family / Diaspora — browse by city */
   app.get('/api/care/directory', authRequired, (req, res) => {
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
@@ -183,7 +183,7 @@ export function registerCareRoutes(app) {
           worker.shift && `Shift: ${worker.shift}`,
           (worker.cities || []).length && `Cities: ${worker.cities.join(', ')}`,
           worker.bio,
-          'Added from HeirReady Care Network',
+          'Added from HeirReady city care',
         ]
           .filter(Boolean)
           .join(' · '),

@@ -55,7 +55,7 @@ const COPY = {
       'Everything in Family',
       'India + US and India + UK packs',
       'NRI / cross-border execution pathway',
-      'Care Network (city nurses & maids) included',
+      'City nurses & maids directory included',
     ],
     cta: 'Upgrade to Diaspora — ₹24,998/yr',
     href: '/pricing?plan=diaspora',
