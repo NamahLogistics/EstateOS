@@ -115,8 +115,13 @@ const upload = multer({
 app.get('/uploads/:fileId', async (req, res) => {
   const file = await readUpload(req.params.fileId);
   if (!file) return res.status(404).send('Not found');
+  const safeName = encodeURIComponent(file.name || 'document');
+  const asDownload = String(req.query.download || '') === '1';
   res.setHeader('Content-Type', file.mime || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
+  res.setHeader(
+    'Content-Disposition',
+    `${asDownload ? 'attachment' : 'inline'}; filename="${safeName}"`
+  );
   res.send(file.buffer);
 });
 
@@ -1241,7 +1246,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.6.0',
+    version: '1.6.1',
   });
 });
 

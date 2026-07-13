@@ -25,6 +25,75 @@ function statusBadge(status) {
   return <span className="badge badge-locked">Locked</span>;
 }
 
+function fileAbsoluteUrl(file) {
+  if (!file?.path) return '';
+  if (/^https?:\/\//i.test(file.path)) return file.path;
+  return `${window.location.origin}${file.path}`;
+}
+
+async function downloadVaultFile(file) {
+  const a = document.createElement('a');
+  a.href = `${file.path}${file.path.includes('?') ? '&' : '?'}download=1`;
+  a.download = file.name || 'document';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function printVaultFile(file) {
+  const res = await fetch(file.path);
+  if (!res.ok) throw new Error('Could not open file');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!w) {
+    URL.revokeObjectURL(url);
+    throw new Error('Allow pop-ups to print');
+  }
+  const trigger = () => {
+    try {
+      w.focus();
+      w.print();
+    } catch {
+      /* browser may block until load */
+    }
+  };
+  w.addEventListener('load', trigger);
+  setTimeout(trigger, 900);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+async function shareVaultFile(file) {
+  const absolute = fileAbsoluteUrl(file);
+  const title = file.name || 'HeirReady document';
+  if (navigator.share) {
+    try {
+      const res = await fetch(file.path);
+      if (res.ok) {
+        const blob = await res.blob();
+        const shareFile = new File([blob], file.name || 'document', {
+          type: blob.type || file.mime || 'application/octet-stream',
+        });
+        if (navigator.canShare?.({ files: [shareFile] })) {
+          await navigator.share({ files: [shareFile], title, text: `HeirReady — ${title}` });
+          return 'shared';
+        }
+      }
+      await navigator.share({ title, text: `HeirReady document: ${title}`, url: absolute });
+      return 'shared';
+    } catch (err) {
+      if (err?.name === 'AbortError') return 'cancelled';
+    }
+  }
+  window.open(
+    whatsappShareUrl(`HeirReady document: ${title}\n\n${absolute}`),
+    '_blank',
+    'noopener,noreferrer'
+  );
+  return 'whatsapp';
+}
+
 export default function EstatePage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -521,11 +590,72 @@ export default function EstatePage() {
                             </p>
                           )}
                           {item.files?.length > 0 && (
-                            <div className="small" style={{ marginTop: '0.35rem' }}>
+                            <div style={{ marginTop: '0.55rem', display: 'grid', gap: '0.45rem' }}>
                               {item.files.map((f) => (
-                                <a key={f.path} href={f.path} target="_blank" rel="noreferrer" style={{ marginRight: '0.6rem', color: 'var(--sage-deep)' }}>
-                                  {f.name}
-                                </a>
+                                <div
+                                  key={f.path || f.id}
+                                  style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                  }}
+                                >
+                                  <a
+                                    href={f.path}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="small"
+                                    style={{ color: 'var(--sage-deep)', fontWeight: 600, marginRight: '0.25rem' }}
+                                  >
+                                    {f.name}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
+                                    onClick={async () => {
+                                      try {
+                                        await downloadVaultFile(f);
+                                        toast('Download started');
+                                      } catch (err) {
+                                        toast(err.message || 'Download failed');
+                                      }
+                                    }}
+                                  >
+                                    Download
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
+                                    onClick={async () => {
+                                      try {
+                                        await printVaultFile(f);
+                                      } catch (err) {
+                                        toast(err.message || 'Print failed');
+                                      }
+                                    }}
+                                  >
+                                    Print
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
+                                    onClick={async () => {
+                                      try {
+                                        const mode = await shareVaultFile(f);
+                                        if (mode === 'shared') toast('Shared');
+                                        else if (mode === 'whatsapp') toast('Opening WhatsApp…');
+                                      } catch (err) {
+                                        toast(err.message || 'Share failed');
+                                      }
+                                    }}
+                                  >
+                                    Share
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           )}
