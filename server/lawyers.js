@@ -303,6 +303,7 @@ export function ensureLawyerSeed(store, { passwordHash } = {}) {
   if (!store.legalNotes) store.legalNotes = [];
   if (!store.legalActions) store.legalActions = [];
   if (!store.counselNeeds) store.counselNeeds = [];
+  if (!store.counselListings) store.counselListings = [];
 
   for (const seed of SEED_LAWYERS) {
     if (store.lawyers.some((l) => l.slug === seed.slug)) continue;
@@ -313,7 +314,7 @@ export function ensureLawyerSeed(store, { passwordHash } = {}) {
         name: seed.name,
         email: seed.email,
         passwordHash: passwordHash || null,
-        plan: 'diaspora',
+        plan: 'free',
         accountType: 'lawyer',
         createdAt: new Date().toISOString(),
       };

@@ -46,8 +46,10 @@ import {
   normalizeCountryPack,
   FREE_MAX_ITEMS,
   FREE_MAX_ESTATES,
-  isPaidPlan,
   remainingItemSlots,
+  planPublicFields,
+  applyPlanExpiryInPlace,
+  ownerHasPaidPlan,
 } from './plans.js';
 import { draftFromPhoto } from './scan.js';
 import {
@@ -126,11 +128,19 @@ function canAccessEstateBase(store, userId, estateId) {
 const canAccessEstate = attachLawyerAccess(canAccessEstateBase);
 
 function publicUser(user) {
+  applyPlanExpiryInPlace(user);
+  const plan = planPublicFields(user);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    plan: user.plan,
+    plan: plan.plan,
+    planExpiresAt: plan.planExpiresAt,
+    planActive: plan.planActive,
+    daysUntilExpiry: plan.daysUntilExpiry,
+    needsRenewal: plan.needsRenewal,
+    previousPlan: plan.previousPlan,
+    planLapsedAt: plan.planLapsedAt,
     accountType: user.accountType || 'family',
     referralCode: user.referralCode || null,
     referralDiscountCredits: user.referralDiscountCredits || 0,
@@ -292,7 +302,7 @@ app.post('/api/estates', authRequired, (req, res) => {
   } catch (err) {
     return res.status(err.status || 400).json({ error: err.message });
   }
-  const pack = normalizeCountryPack(countryPack || country || 'IN', req.user.plan);
+  const pack = normalizeCountryPack(countryPack || country || 'IN', req.user);
   const estate = {
     id: uuid(),
     ownerId: req.user.id,
@@ -397,10 +407,11 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     expired,
     limits: {
       plan: owner?.plan || 'free',
+      planExpiresAt: owner?.planExpiresAt || null,
       freeMaxItems: FREE_MAX_ITEMS,
       freeMaxEstates: FREE_MAX_ESTATES,
       itemCount: items.length,
-      paid: isPaidPlan(owner?.plan),
+      paid: owner ? ownerHasPaidPlan(store, access.estate) : false,
     },
   });
 });
@@ -419,7 +430,7 @@ app.patch('/api/estates/:id', authRequired, (req, res) => {
     if (subjectName != null) estate.subjectName = subjectName.trim();
     if (subjectRelation != null) estate.subjectRelation = subjectRelation.trim();
     if (countryPack != null || country != null) {
-      const pack = normalizeCountryPack(countryPack || country, owner?.plan || 'free');
+      const pack = normalizeCountryPack(countryPack || country, owner || 'free');
       estate.countryPack = pack;
       estate.country = pack === 'IN' ? 'IN' : pack;
     }
@@ -1149,7 +1160,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.4.4',
+    version: '1.4.6',
   });
 });
 

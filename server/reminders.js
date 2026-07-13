@@ -1,12 +1,47 @@
 import crypto from 'crypto';
 import { mutate, readStore } from './db.js';
 import { sendEmail } from './mail.js';
+import {
+  applyPlanExpiryInPlace,
+  RENEWAL_WARN_DAYS,
+  userHasPaidAccess,
+} from './plans.js';
 
 export async function runReminderPass() {
   const store = readStore();
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
   let sent = 0;
+  const app = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(/\/$/, '');
+
+  for (const user of store.users) {
+    if (applyPlanExpiryInPlace(user)) {
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === user.id);
+        if (u) applyPlanExpiryInPlace(u);
+      });
+    }
+    if (!user.email || !userHasPaidAccess(user) || !user.planExpiresAt) continue;
+    const daysLeft = Math.ceil((new Date(user.planExpiresAt).getTime() - now) / day);
+    if (daysLeft < 0 || daysLeft > RENEWAL_WARN_DAYS) continue;
+    const key = `plan-renew:${user.id}:${user.planExpiresAt.slice(0, 10)}`;
+    if (user.lastPlanRenewalAlertKey === key) continue;
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: `Renew Estate OS ${user.plan} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+        text: `Your ${user.plan} plan expires on ${new Date(user.planExpiresAt).toLocaleDateString()}.\n\nRenew here (adds another year from your current end date):\n${app}/pricing\n\nIf it lapses, paid features lock until you renew.`,
+        html: `<p>Your <strong>${user.plan}</strong> plan expires on <strong>${new Date(user.planExpiresAt).toLocaleDateString()}</strong> (${daysLeft} days).</p><p><a href="${app}/pricing">Renew on Pricing</a> — renewal stacks another year from your current end date.</p>`,
+      });
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === user.id);
+        if (u) u.lastPlanRenewalAlertKey = key;
+      });
+      sent++;
+    } catch (err) {
+      console.error('plan renewal reminder failed', err.message);
+    }
+  }
 
   for (const estate of store.estates) {
     const owner = store.users.find((u) => u.id === estate.ownerId);
@@ -16,7 +51,6 @@ export async function runReminderPass() {
     if (estate.nextReviewAt) {
       const due = new Date(estate.nextReviewAt).getTime();
       if (due <= now && !estate.reviewReminderSentAt) {
-        const app = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(/\/$/, '');
         try {
           await sendEmail({
             to: owner.email,
@@ -44,7 +78,6 @@ export async function runReminderPass() {
     if (expiring.length) {
       const key = `expiry:${estate.id}:${expiring.map((i) => i.id).sort().join(',')}`;
       if (estate.lastExpiryAlertKey === key) continue;
-      const app = (process.env.APP_URL || 'https://estate-os-production.up.railway.app').replace(/\/$/, '');
       const list = expiring.map((i) => `• ${i.title} — ${i.expiresOn}`).join('\n');
       try {
         await sendEmail({

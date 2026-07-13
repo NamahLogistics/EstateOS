@@ -58,7 +58,21 @@ export default function Dashboard() {
             One estate per parent.
             {user?.plan === 'free' || !user?.plan
               ? ' Free: 1 estate, 5 vault items.'
-              : ` Plan: ${user.plan}.`}
+              : user?.planExpiresAt
+                ? ` Plan: ${user.plan} · renews ${new Date(user.planExpiresAt).toLocaleDateString()}.`
+                : ` Plan: ${user.plan}.`}
+            {user?.needsRenewal ? (
+              <>
+                {' '}
+                <Link to="/pricing">Renew soon</Link>
+              </>
+            ) : null}
+            {user?.planLapsedAt || (user?.previousPlan && user?.plan === 'free') ? (
+              <>
+                {' '}
+                <Link to="/pricing">Plan lapsed — renew</Link>
+              </>
+            ) : null}
           </p>
         </div>
       </div>

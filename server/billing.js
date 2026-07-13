@@ -7,11 +7,13 @@ import {
   consumeReferralDiscountCredit,
   referralPublicFields,
 } from './referrals.js';
+import { nextPlanExpiresAt, planPublicFields, applyPlanExpiryInPlace } from './plans.js';
 
 const PLAN_AMOUNTS = {
   // paise (INR)
   family: Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900), // ₹1,499
   diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 1249900), // ₹12,499
+  counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499 — counsel lead board
 };
 
 export function razorpayConfigured() {
@@ -47,17 +49,31 @@ async function razorpayRequest(path, body) {
 function freshUser(userId) {
   const store = readStore();
   const user = store.users.find((u) => u.id === userId);
-  if (user) ensureUserReferralFields(user, store);
+  if (user) {
+    ensureUserReferralFields(user, store);
+    if (applyPlanExpiryInPlace(user)) {
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === userId);
+        if (u) applyPlanExpiryInPlace(u);
+      });
+    }
+  }
   return user;
 }
 
 function activatePlan(userId, plan, paymentMeta = {}) {
+  let expiresAt = null;
   mutate((s) => {
     const u = s.users.find((x) => x.id === userId);
     if (u) {
       ensureUserReferralFields(u, s);
+      applyPlanExpiryInPlace(u);
+      expiresAt = nextPlanExpiresAt(u);
       u.plan = plan;
       u.planPaidAt = new Date().toISOString();
+      u.planExpiresAt = expiresAt;
+      u.planLapsedAt = null;
+      u.previousPlan = null;
       u.razorpayPaymentId = paymentMeta.paymentId || u.razorpayPaymentId;
       u.razorpayOrderId = paymentMeta.orderId || u.razorpayOrderId;
     }
@@ -71,10 +87,12 @@ function activatePlan(userId, plan, paymentMeta = {}) {
       paymentId: paymentMeta.paymentId || null,
       orderId: paymentMeta.orderId || null,
       referralDiscount: Boolean(paymentMeta.referralDiscount),
+      planExpiresAt: expiresAt,
       at: new Date().toISOString(),
     });
   });
   grantReferrerDiscountOnPaidSignup(userId);
+  return expiresAt;
 }
 
 async function createCheckout(user, plan) {
@@ -91,23 +109,26 @@ async function createCheckout(user, plan) {
   const applyDiscount = credits > 0;
   const amount = applyDiscount ? Math.round(fullAmount / 2) : fullAmount;
   const description = applyDiscount
-    ? `${plan === 'diaspora' ? 'Diaspora' : 'Family'} plan — 1 year (50% referral reward)`
+    ? `${plan === 'diaspora' ? 'Diaspora' : plan === 'counsel' ? 'Counsel Pro' : 'Family'} plan — 1 year (50% referral reward)`
     : plan === 'diaspora'
       ? 'Diaspora plan — 1 year'
-      : 'Family plan — 1 year';
+      : plan === 'counsel'
+        ? 'Counsel Pro — 1 year (city leads)'
+        : 'Family plan — 1 year';
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
-    activatePlan(user.id, plan, { referralDiscount: applyDiscount });
+    const planExpiresAt = activatePlan(user.id, plan, { referralDiscount: applyDiscount });
     return {
       mode: 'direct',
       plan,
+      planExpiresAt,
       amount,
       fullAmount,
       referralDiscount: applyDiscount,
       message: applyDiscount
-        ? `Plan set to ${plan} at 50% (referral reward). Add Razorpay keys for real checkout.`
-        : `Plan set to ${plan}. Add RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET for UPI/card/netbanking.`,
+        ? `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()} (50% referral). Add Razorpay keys for real checkout.`
+        : `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()}. Add RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET for UPI/card/netbanking.`,
     };
   }
 
@@ -167,7 +188,7 @@ export function registerBillingRoutes(app) {
     const user = freshUser(req.user.id);
     const appUrl = (process.env.APP_URL || '').replace(/\/$/, '') || '';
     res.json({
-      plan: user?.plan || 'free',
+      ...planPublicFields(user),
       provider: razorpayConfigured() ? 'razorpay' : 'direct',
       currency: 'INR',
       amounts: PLAN_AMOUNTS,
@@ -203,7 +224,12 @@ export function registerBillingRoutes(app) {
 
   app.post('/api/billing/checkout', authRequired, async (req, res, next) => {
     try {
-      const plan = req.body?.plan === 'diaspora' ? 'diaspora' : 'family';
+      const plan =
+        req.body?.plan === 'diaspora'
+          ? 'diaspora'
+          : req.body?.plan === 'counsel'
+            ? 'counsel'
+            : 'family';
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
@@ -213,7 +239,12 @@ export function registerBillingRoutes(app) {
 
   app.post('/api/billing/upgrade', authRequired, async (req, res, next) => {
     try {
-      const plan = req.body?.plan === 'diaspora' ? 'diaspora' : 'family';
+      const plan =
+        req.body?.plan === 'diaspora'
+          ? 'diaspora'
+          : req.body?.plan === 'counsel'
+            ? 'counsel'
+            : 'family';
       const payload = await createCheckout(req.user, plan);
       res.json(payload);
     } catch (err) {
@@ -245,9 +276,11 @@ export function registerBillingRoutes(app) {
       return res.status(403).json({ error: 'Order does not belong to this account' });
     }
 
-    const plan = pending?.plan || (bodyPlan === 'diaspora' ? 'diaspora' : 'family');
+    const plan =
+      pending?.plan ||
+      (bodyPlan === 'diaspora' ? 'diaspora' : bodyPlan === 'counsel' ? 'counsel' : 'family');
 
-    activatePlan(req.user.id, plan, {
+    const planExpiresAt = activatePlan(req.user.id, plan, {
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
       referralDiscount: Boolean(pending?.referralDiscount),
@@ -266,7 +299,9 @@ export function registerBillingRoutes(app) {
     res.json({
       ok: true,
       plan,
+      planExpiresAt,
       referralDiscount: Boolean(pending?.referralDiscount),
+      ...planPublicFields(user || {}),
       ...referralPublicFields(user || {}),
     });
   });

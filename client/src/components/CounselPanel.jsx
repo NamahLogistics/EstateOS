@@ -27,6 +27,14 @@ export default function CounselPanel({ estateId, onToast }) {
   });
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [listingForm, setListingForm] = useState({
+    city: '',
+    blurb: '',
+    urgency: 'normal',
+    scopes: ['succession', 'property'],
+    published: true,
+    showContact: false,
+  });
 
   async function load() {
     const [c, dir] = await Promise.all([
@@ -39,6 +47,16 @@ export default function CounselPanel({ estateId, onToast }) {
     ]);
     setCounsel(c);
     setLawyers(dir.lawyers || []);
+    if (c.listing) {
+      setListingForm({
+        city: c.listing.city || '',
+        blurb: c.listing.blurb || '',
+        urgency: c.listing.urgency || 'normal',
+        scopes: c.listing.scopes?.length ? c.listing.scopes : ['succession'],
+        published: c.listing.status === 'open',
+        showContact: !!c.listing.showContact,
+      });
+    }
   }
 
   useEffect(() => {
@@ -143,10 +161,45 @@ export default function CounselPanel({ estateId, onToast }) {
     }
   }
 
+  async function saveListing(published = true) {
+    setBusy(true);
+    try {
+      await api(`/api/estates/${estateId}/counsel/listing`, {
+        method: 'PUT',
+        body: { ...listingForm, published },
+      });
+      notify(published ? 'Listed for counsel in your city' : 'Listing paused');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function respondApproach(engagementId, decision) {
+    setBusy(true);
+    try {
+      await api(`/api/counsel/engagements/${engagementId}/family-respond`, {
+        method: 'POST',
+        body: { decision },
+      });
+      notify(decision === 'accept' ? 'Counsel retained — matter is active' : 'Approach declined');
+      await load();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!counsel) return <p className="muted">Loading counsel layer…</p>;
 
-  const { pathway, engagements, notes, actions, needs, role } = counsel;
-  const active = engagements.find((e) => ['active', 'engaged', 'requested'].includes(e.status));
+  const { pathway, engagements, notes, actions, needs, role, listing } = counsel;
+  const active =
+    engagements.find((e) => ['active', 'engaged', 'requested'].includes(e.status)) ||
+    engagements.find((e) => e.status === 'approached');
+  const approached = engagements.filter((e) => e.status === 'approached');
 
   return (
     <div className="split">
@@ -282,11 +335,142 @@ export default function CounselPanel({ estateId, onToast }) {
       </div>
 
       <div style={{ display: 'grid', gap: '1rem', alignContent: 'start' }}>
+        {approached.length > 0 && ['owner', 'manager'].includes(role) && (
+          <div className="card">
+            <div style={{ padding: '1rem 1.1rem' }}>
+              <strong>Counsel approached you</strong>
+              <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                Paid lawyers found your listing. Accept to open the matter.
+              </p>
+            </div>
+            {approached.map((e) => (
+              <div key={e.id} className="item-row">
+                <strong>{e.lawyer?.name}</strong>
+                <div className="small muted">{e.lawyer?.firm}</div>
+                {e.lawyerPitch && (
+                  <p className="small" style={{ margin: '0.35rem 0' }}>
+                    {e.lawyerPitch}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ padding: '0.4rem 0.8rem' }}
+                    disabled={busy}
+                    onClick={() => respondApproach(e.id, 'accept')}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ padding: '0.4rem 0.8rem' }}
+                    disabled={busy}
+                    onClick={() => respondApproach(e.id, 'decline')}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {['owner', 'manager'].includes(role) && (
+          <div className="card" style={{ padding: '1.15rem' }}>
+            <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
+              Looking for counsel?
+            </p>
+            <p className="small muted" style={{ marginTop: 0 }}>
+              Opt in so paid lawyers in your city can find you. Share city + need only — vault stays private.
+              {listing?.status === 'open' ? (
+                <span> · Currently listed in {listing.city}</span>
+              ) : listing ? (
+                <span> · Listing paused</span>
+              ) : null}
+            </p>
+            <div className="field">
+              <label>City</label>
+              <input
+                value={listingForm.city}
+                onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}
+                placeholder="Pune"
+              />
+            </div>
+            <div className="field">
+              <label>What you need (public blurb)</label>
+              <textarea
+                rows={3}
+                value={listingForm.blurb}
+                onChange={(e) => setListingForm({ ...listingForm, blurb: e.target.value })}
+                placeholder="Father passed in Pune. Two siblings abroad. Need succession path for flat + bank — no account numbers here."
+              />
+            </div>
+            <div className="field">
+              <label>Urgency</label>
+              <select
+                value={listingForm.urgency}
+                onChange={(e) => setListingForm({ ...listingForm, urgency: e.target.value })}
+              >
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Scopes</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {SCOPE_OPTIONS.map((s) => {
+                  const on = listingForm.scopes.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`tab ${on ? 'active' : ''}`}
+                      onClick={() =>
+                        setListingForm({
+                          ...listingForm,
+                          scopes: on
+                            ? listingForm.scopes.filter((x) => x !== s)
+                            : [...listingForm.scopes, s],
+                        })
+                      }
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => saveListing(true)}
+              >
+                {listing?.status === 'open' ? 'Update listing' : 'Publish for counsel'}
+              </button>
+              {listing?.status === 'open' && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => saveListing(false)}
+                >
+                  Pause listing
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="card" style={{ padding: '1.15rem' }}>
           <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
             Retain counsel
           </p>
-          {active ? (
+          {active && active.status !== 'approached' ? (
             <div>
               <p style={{ marginTop: 0 }}>
                 <strong>{active.lawyer?.name}</strong>
@@ -349,7 +533,7 @@ export default function CounselPanel({ estateId, onToast }) {
           )}
         </div>
 
-        {!active && (
+        {(!active || active.status === 'approached') && (
           <div className="card">
             <div style={{ padding: '1rem 1.1rem' }}>
               <strong>Counsel directory</strong>

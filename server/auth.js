@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { readStore } from './db.js';
+import { mutate, readStore } from './db.js';
+import { applyPlanExpiryInPlace, planPublicFields } from './plans.js';
 
 const SECRET = process.env.JWT_SECRET || 'estate-os-dev-secret';
 
@@ -19,11 +20,23 @@ export function authRequired(req, res, next) {
     const store = readStore();
     const user = store.users.find((u) => u.id === payload.sub);
     if (!user) return res.status(401).json({ error: 'User not found' });
+
+    if (applyPlanExpiryInPlace(user)) {
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === user.id);
+        if (!u) return;
+        applyPlanExpiryInPlace(u);
+      });
+    }
+
+    const planFields = planPublicFields(user);
     req.user = {
       id: user.id,
       email: user.email,
       name: user.name,
-      plan: user.plan,
+      plan: planFields.plan,
+      planExpiresAt: planFields.planExpiresAt,
+      planActive: planFields.planActive,
       accountType: user.accountType || 'family',
     };
     next();

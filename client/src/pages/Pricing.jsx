@@ -38,6 +38,19 @@ const plans = [
     ],
     cta: 'Pay with UPI / card',
   },
+  {
+    id: 'counsel',
+    name: 'Counsel Pro',
+    price: '₹1,499/yr',
+    blurb: 'For lawyers — city family leads',
+    features: [
+      'See families looking for counsel in your cities',
+      'Approach opted-in estates',
+      'Counsel desk + matter brief',
+      'No vault access until family accepts',
+    ],
+    cta: 'Unlock city leads',
+  },
 ];
 
 function loadRazorpay() {
@@ -99,13 +112,17 @@ export default function Pricing() {
               setUser({
                 ...user,
                 plan: verified.plan,
+                planExpiresAt: verified.planExpiresAt,
+                planActive: verified.planActive,
+                daysUntilExpiry: verified.daysUntilExpiry,
+                needsRenewal: verified.needsRenewal,
                 referralDiscountCredits: verified.referralDiscountCredits ?? 0,
               });
               setCredits(verified.referralDiscountCredits ?? 0);
               toast(
                 verified.referralDiscount
-                  ? `Paid with 50% referral reward — you're on ${verified.plan}`
-                  : `Payment successful — you're on ${verified.plan}`
+                  ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                  : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
               );
             } catch (err) {
               toast(err.message);
@@ -118,7 +135,13 @@ export default function Pricing() {
         rzp.open();
         return;
       }
-      setUser({ ...user, plan: data.plan });
+      setUser({
+        ...user,
+        plan: data.plan,
+        planExpiresAt: data.planExpiresAt,
+        planActive: data.planActive ?? true,
+        needsRenewal: false,
+      });
       toast(data.message || `Plan set to ${data.plan}`);
     } catch (err) {
       toast(err.message);
@@ -153,7 +176,8 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 520 }}>
-        Free to start. Paid plans use Razorpay (UPI, cards, netbanking) — built for India.
+        Free to start. Paid plans are annual — renew before expiry or paid features lapse.
+        Razorpay (UPI, cards, netbanking) when configured.
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
 
@@ -180,7 +204,8 @@ export default function Pricing() {
               {p.price}
               {hasCredit && p.id !== 'free' && (
                 <span className="small" style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
-                  Your price with referral credit: ~{p.id === 'family' ? '₹750' : '₹6,250'}
+                  Your price with referral credit: ~
+                  {p.id === 'family' || p.id === 'counsel' ? '₹750' : '₹6,250'}
                 </span>
               )}
             </p>
@@ -198,12 +223,20 @@ export default function Pricing() {
               </Link>
             ) : (
               <button
-                className={`btn ${p.id === 'family' ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn ${p.id === 'family' || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
                 style={{ width: '100%', marginTop: '0.5rem' }}
                 disabled={busy}
                 onClick={() => choose(p.id)}
               >
-                {user?.plan === p.id ? 'Current plan' : hasCredit ? 'Pay with 50% credit' : p.cta}
+                {user?.plan === p.id && user?.planActive
+                  ? user?.needsRenewal
+                    ? 'Renew now'
+                    : 'Current plan'
+                  : user?.previousPlan === p.id && user?.plan === 'free'
+                    ? 'Renew plan'
+                    : hasCredit
+                      ? 'Pay with 50% credit'
+                      : p.cta}
               </button>
             )}
           </div>
