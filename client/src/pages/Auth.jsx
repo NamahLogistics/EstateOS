@@ -97,7 +97,7 @@ export default function AuthPage() {
           {isLawyer
             ? 'Counsel desk, city leads, and matter briefs — for advocates.'
             : isCare
-              ? 'List your cities and role — families on Family or Diaspora can find you.'
+              ? 'List your cities and role — families on Family + Care or Diaspora + Care can find you.'
               : 'Families map estates. Counsel and care network when you need them.'}
         </p>
         {mode === 'register' && referralCode && (

@@ -17,29 +17,54 @@ const plans = [
     id: 'family',
     name: 'Family',
     price: '₹1,499/yr',
-    blurb: 'India vault + siblings + city care',
+    blurb: 'India vault + siblings + counsel',
     features: [
       'Unlimited vault items',
       'Invite links + WhatsApp share',
       'Counsel retain + brief',
-      'City nurses & maids directory',
       'ZIP export + audit log',
       'India execution checklist',
     ],
     cta: 'Get Family',
   },
   {
+    id: 'family_care',
+    name: 'Family + Care',
+    price: '₹2,998/yr',
+    blurb: '2× Family — adds city nurses & maids',
+    features: [
+      'Everything in Family',
+      'Browse nurses / maids by city',
+      'Phone numbers unlocked',
+      'Save caregivers into Life Map',
+    ],
+    cta: 'Get Family + Care',
+  },
+  {
     id: 'diaspora',
     name: 'Diaspora',
-    price: '₹24,998/yr',
+    price: '₹12,499/yr',
     blurb: 'You’re abroad — parents’ papers are in India',
     features: [
-      'Everything in Family (including city care)',
+      'Everything in Family',
       'India + US / India + UK packs',
       'NRI / cross-border pathway',
       'Pay with international card from abroad',
     ],
     cta: 'Get Diaspora',
+  },
+  {
+    id: 'diaspora_care',
+    name: 'Diaspora + Care',
+    price: '₹24,998/yr',
+    blurb: '2× Diaspora — cross-border + city care',
+    features: [
+      'Everything in Diaspora',
+      'City nurses & maids directory',
+      'Phone numbers unlocked',
+      'Save caregivers into Life Map',
+    ],
+    cta: 'Get Diaspora + Care',
   },
   {
     id: 'counsel',
@@ -55,6 +80,14 @@ const plans = [
     cta: 'Unlock city leads',
   },
 ];
+
+function referralHalfPrice(planId) {
+  if (planId === 'family' || planId === 'counsel') return '₹750';
+  if (planId === 'family_care') return '₹1,499';
+  if (planId === 'diaspora') return '₹6,250';
+  if (planId === 'diaspora_care') return '₹12,499';
+  return null;
+}
 
 function loadRazorpay() {
   return new Promise((resolve, reject) => {
@@ -219,26 +252,37 @@ export default function Pricing() {
       <h1 className="display" style={{ fontSize: '2.4rem', marginBottom: '0.4rem' }}>
         Pricing
       </h1>
-      <p className="muted" style={{ maxWidth: 540 }}>
-        Annual subscriptions via Razorpay. In India: UPI or netbanking. From abroad: international card
-        (best on Diaspora).
+      <p className="muted" style={{ maxWidth: 560 }}>
+        Annual subscriptions via Razorpay. Base Family / Diaspora for the vault. Add Care (2×) for
+        city nurses & maids. From abroad: international card.
         {hasCredit ? ' You have a 50% referral credit ready for checkout.' : ''}
       </p>
 
       <div className="upgrade-limit-banner" style={{ marginTop: '1.1rem', maxWidth: 640 }}>
         <p className="small">
-          <strong>Living outside India?</strong> Family covers the India vault. Diaspora adds India+US /
-          India+UK pathways when something happens — that’s the NRI plan.
+          <strong>Want nurses & maids in their city?</strong> Take Family + Care (₹2,998) or Diaspora +
+          Care (₹24,998) — double the base plan.
         </p>
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ padding: '0.45rem 0.95rem' }}
-          disabled={busy}
-          onClick={() => checkout('diaspora')}
-        >
-          Choose Diaspora
-        </button>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ padding: '0.45rem 0.95rem' }}
+            disabled={busy}
+            onClick={() => checkout('family_care')}
+          >
+            Family + Care
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ padding: '0.45rem 0.95rem' }}
+            disabled={busy}
+            onClick={() => checkout('diaspora_care')}
+          >
+            Diaspora + Care
+          </button>
+        </div>
       </div>
 
       {user ? (
@@ -253,7 +297,9 @@ export default function Pricing() {
 
       <div className="panel-grid" style={{ marginTop: '1.5rem' }}>
         {plans.map((p) => {
-          const featured = p.id === 'diaspora' || highlight === p.id;
+          const featured =
+            p.id === 'family_care' || p.id === 'diaspora_care' || highlight === p.id;
+          const half = referralHalfPrice(p.id);
           return (
             <div
               key={p.id}
@@ -270,14 +316,13 @@ export default function Pricing() {
                 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}
               >
                 {p.name}
-                {p.id === 'diaspora' ? ' · recommended abroad' : ''}
+                {p.id === 'family_care' || p.id === 'diaspora_care' ? ' · care network' : ''}
               </p>
               <p className="display" style={{ fontSize: '2rem', margin: '0.35rem 0' }}>
                 {p.price}
-                {hasCredit && p.id !== 'free' && (
+                {hasCredit && half && (
                   <span className="small" style={{ display: 'block', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
-                    Your price with referral credit: ~
-                    {p.id === 'family' || p.id === 'counsel' ? '₹750' : '₹12,499'}
+                    Your price with referral credit: ~{half}
                   </span>
                 )}
               </p>
@@ -295,7 +340,11 @@ export default function Pricing() {
                 </Link>
               ) : (
                 <button
-                  className={`btn ${p.id === 'diaspora' || p.id === 'counsel' ? 'btn-primary' : 'btn-ghost'}`}
+                  className={`btn ${
+                    p.id === 'family_care' || p.id === 'diaspora_care' || p.id === 'counsel'
+                      ? 'btn-primary'
+                      : 'btn-ghost'
+                  }`}
                   style={{ width: '100%', marginTop: '0.5rem' }}
                   disabled={busy}
                   onClick={() => choose(p.id)}
@@ -337,8 +386,10 @@ export default function Pricing() {
         <div className="field">
           <label>Interest</label>
           <select value={lead.interest} onChange={(e) => setLead({ ...lead, interest: e.target.value })}>
-            <option value="diaspora">Diaspora (abroad / NRI)</option>
-            <option value="family">Family (India + city care)</option>
+            <option value="family">Family</option>
+            <option value="family_care">Family + Care</option>
+            <option value="diaspora">Diaspora</option>
+            <option value="diaspora_care">Diaspora + Care</option>
             <option value="counsel">Counsel / law firm</option>
           </select>
         </div>

@@ -282,7 +282,8 @@ export default function EstatePage() {
     const mode = e.target.mode.value;
     const requireProof = e.target.requireProof.checked;
     const countryPack = e.target.countryPack?.value;
-    const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+    const diaspora =
+      (user?.plan === 'diaspora' || user?.plan === 'diaspora_care') && user?.planActive !== false;
     if ((countryPack === 'IN_US' || countryPack === 'IN_UK') && !diaspora) {
       openUpgrade('diaspora');
       e.target.countryPack.value = data?.estate?.countryPack || data?.estate?.country || 'IN';
@@ -989,7 +990,8 @@ export default function EstatePage() {
               defaultValue={estate.countryPack || estate.country || 'IN'}
               onChange={(e) => {
                 const v = e.target.value;
-                const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+                const diaspora =
+      (user?.plan === 'diaspora' || user?.plan === 'diaspora_care') && user?.planActive !== false;
                 if ((v === 'IN_US' || v === 'IN_UK') && !diaspora) {
                   e.target.value = estate.countryPack || estate.country || 'IN';
                   openUpgrade('diaspora');

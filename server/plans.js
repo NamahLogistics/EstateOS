@@ -8,7 +8,14 @@ export const PLAN_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 export const RENEWAL_WARN_DAYS = 30;
 
 export function isPaidPlanName(plan) {
-  return plan === 'family' || plan === 'diaspora' || plan === 'counsel' || plan === 'care';
+  return (
+    plan === 'family' ||
+    plan === 'diaspora' ||
+    plan === 'counsel' ||
+    plan === 'care' ||
+    plan === 'family_care' ||
+    plan === 'diaspora_care'
+  );
 }
 
 /** @deprecated prefer userHasPaidAccess(user) — string-only checks ignore expiry */
@@ -38,12 +45,17 @@ export function userHasCounselPro(user) {
 }
 
 /**
- * City nurses / maids directory — included with Family or Diaspora (paid).
- * Legacy `care` plan still unlocks. Counsel Pro alone does not.
+ * City nurses / maids — Family+Care or Diaspora+Care only (2× base plans).
+ * Legacy `care` still unlocks. Base Family/Diaspora do not.
  */
 export function userHasCareNetwork(user) {
   if (!user || !userHasPaidAccess(user)) return false;
-  return user.plan === 'family' || user.plan === 'diaspora' || user.plan === 'care';
+  return user.plan === 'family_care' || user.plan === 'diaspora_care' || user.plan === 'care';
+}
+
+export function userHasDiasporaPack(user) {
+  if (!user || !userHasPaidAccess(user)) return false;
+  return user.plan === 'diaspora' || user.plan === 'diaspora_care';
 }
 
 export const MAX_OPEN_APPROACHES_PER_LAWYER = 10;
@@ -127,9 +139,9 @@ export function ownerHasPaidPlan(store, estate) {
 
 export function canUseCrossBorderPack(userOrPlan) {
   if (userOrPlan && typeof userOrPlan === 'object') {
-    return userHasPaidAccess(userOrPlan) && userOrPlan.plan === 'diaspora';
+    return userHasDiasporaPack(userOrPlan);
   }
-  return userOrPlan === 'diaspora';
+  return userOrPlan === 'diaspora' || userOrPlan === 'diaspora_care';
 }
 
 export function assertCanCreateEstate(store, user) {
@@ -186,7 +198,7 @@ export function normalizeCountryPack(pack, userOrPlan, { strict = false } = {}) 
   if ((value === 'IN_US' || value === 'IN_UK') && !canUseCrossBorderPack(userOrPlan)) {
     if (strict) {
       const err = new Error(
-        'India + US / India + UK packs need Diaspora (₹24,998/yr). Upgrade on Pricing.'
+        'India + US / India + UK packs need Diaspora or Diaspora+Care. Upgrade on Pricing.'
       );
       err.status = 402;
       err.code = 'PLAN_LIMIT';

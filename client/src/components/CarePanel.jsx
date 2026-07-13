@@ -65,21 +65,22 @@ export default function CarePanel({ estateId, onSaved }) {
         Care in their city
       </p>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Nurses, maids, and attendants near your parent — included with Family or Diaspora.
+        Nurses, maids, and attendants near your parent — unlock with Family + Care or Diaspora + Care
+        (2× the base plans).
       </p>
 
       {unlocked === false && (
         <div className="upgrade-limit-banner" style={{ marginTop: '0.75rem' }}>
           <p className="small">
-            <strong>Upgrade to browse city care.</strong> Family (₹1,499/yr) or Diaspora (₹24,998/yr)
-            unlocks nurses and maids — then save them to the vault.
+            <strong>Add Care Network.</strong> Family + Care ₹2,998/yr or Diaspora + Care ₹24,998/yr —
+            then browse and save caregivers to the vault.
           </p>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <Link className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=family">
-              Family
+            <Link className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=family_care">
+              Family + Care
             </Link>
-            <Link className="btn btn-ghost" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=diaspora">
-              Diaspora
+            <Link className="btn btn-ghost" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=diaspora_care">
+              Diaspora + Care
             </Link>
           </div>
         </div>

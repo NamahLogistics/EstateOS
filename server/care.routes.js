@@ -122,9 +122,9 @@ export function registerCareRoutes(app) {
   app.get('/api/care/directory', authRequired, (req, res) => {
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
-        error: 'City nurses & maids unlock with Family (₹1,499/yr) or Diaspora. Upgrade on Pricing.',
+        error: 'City nurses & maids unlock with Family + Care (₹2,998/yr) or Diaspora + Care (₹24,998/yr). Upgrade on Pricing.',
         code: 'PLAN_LIMIT',
-        upgradePlan: 'family',
+        upgradePlan: 'family_care',
         careUnlocked: false,
       });
     }
@@ -153,9 +153,9 @@ export function registerCareRoutes(app) {
   app.post('/api/estates/:id/care/save', authRequired, (req, res) => {
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
-        error: 'Family or Diaspora required to save city caregivers. Upgrade on Pricing.',
+        error: 'Family + Care or Diaspora + Care required to save city caregivers. Upgrade on Pricing.',
         code: 'PLAN_LIMIT',
-        upgradePlan: 'family',
+        upgradePlan: 'family_care',
       });
     }
     const store = readStore();

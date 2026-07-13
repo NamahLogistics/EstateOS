@@ -57,7 +57,8 @@ export default function Dashboard() {
   }
 
   const packLabel = { IN: 'India', IN_US: 'India + US', IN_UK: 'India + UK' };
-  const diaspora = user?.plan === 'diaspora' && user?.planActive !== false;
+  const diaspora =
+    (user?.plan === 'diaspora' || user?.plan === 'diaspora_care') && user?.planActive !== false;
   const isFreeUser =
     user?.accountType !== 'lawyer' &&
     (user?.plan === 'free' || !user?.plan || user?.planActive === false);

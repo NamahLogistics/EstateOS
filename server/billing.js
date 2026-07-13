@@ -12,26 +12,34 @@ import {
 import { nextPlanExpiresAt, planPublicFields, applyPlanExpiryInPlace } from './plans.js';
 
 const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900); // ₹1,499
+const DIASPORA_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 1249900); // ₹12,499
 const PLAN_AMOUNTS = {
   // paise (INR)
   family: FAMILY_AMOUNT,
-  diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 2499800), // ₹24,998
-  counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499 — counsel lead board
-  /** @deprecated — city care is included with Family/Diaspora; keep for legacy renewals */
-  care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT),
+  diaspora: DIASPORA_AMOUNT,
+  counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499
+  /** Base + city care network (2×) */
+  family_care: Number(process.env.RAZORPAY_AMOUNT_FAMILY_CARE || FAMILY_AMOUNT * 2), // ₹2,998
+  diaspora_care: Number(process.env.RAZORPAY_AMOUNT_DIASPORA_CARE || DIASPORA_AMOUNT * 2), // ₹24,998
+  /** @deprecated legacy single care plan → treat like family_care */
+  care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT * 2),
 };
 
 function planLabel(plan) {
   if (plan === 'diaspora') return 'Diaspora';
+  if (plan === 'diaspora_care') return 'Diaspora + Care';
+  if (plan === 'family_care') return 'Family + Care';
   if (plan === 'counsel') return 'Counsel Pro';
-  if (plan === 'care') return 'Care Network';
+  if (plan === 'care') return 'Family + Care';
   return 'Family';
 }
 
 function normalizeCheckoutPlan(raw) {
   if (raw === 'diaspora') return 'diaspora';
+  if (raw === 'diaspora_care') return 'diaspora_care';
+  if (raw === 'family_care') return 'family_care';
   if (raw === 'counsel') return 'counsel';
-  if (raw === 'care') return 'care';
+  if (raw === 'care') return 'family_care'; // legacy checkout id
   return 'family';
 }
 
@@ -130,12 +138,14 @@ async function createCheckout(user, plan) {
   const description = applyDiscount
     ? `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.`
     : plan === 'diaspora'
-      ? 'Diaspora — 1 year. Pay with international card from abroad (UPI if you are in India).'
-      : plan === 'counsel'
-        ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
-        : plan === 'care'
-          ? 'Care (legacy) — use Family or Diaspora for city nurses & maids.'
-          : 'Family — 1 year. Unlimited vault + city nurses & maids. Card or UPI.';
+      ? 'Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.'
+      : plan === 'diaspora_care'
+        ? 'Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.'
+        : plan === 'counsel'
+          ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
+          : plan === 'family_care' || plan === 'care'
+            ? 'Family + Care — 1 year (2× Family). Vault + city nurses & maids.'
+            : 'Family — 1 year. Unlimited vault + siblings. Card or UPI.';
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
