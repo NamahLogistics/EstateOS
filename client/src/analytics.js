@@ -103,15 +103,27 @@ function flushQueue() {
 }
 
 export function identifyUser(user) {
-  if (!user?.id || !window.posthog?.identify) return;
-  try {
-    window.posthog.identify(user.id, {
-      email: user.email,
-      name: user.name,
-      plan: user.plan,
-      accountType: user.accountType,
-    });
-  } catch {
-    /* ignore */
-  }
+  if (!user?.id) return;
+  const props = {
+    email: user.email,
+    name: user.name,
+    plan: user.plan,
+    accountType: user.accountType,
+  };
+  const run = () => {
+    if (!window.posthog?.identify) return false;
+    try {
+      window.posthog.identify(user.id, props);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (run()) return;
+  // SDK may still be loading
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries += 1;
+    if (run() || tries > 20) clearInterval(timer);
+  }, 250);
 }

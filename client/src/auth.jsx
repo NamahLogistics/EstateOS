@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { identifyUser } from './analytics.js';
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = 'estate_os_session';
@@ -73,6 +74,10 @@ export function AuthProvider({ children }) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  useEffect(() => {
+    if (user?.id) identifyUser(user);
+  }, [user?.id, user?.plan, user?.accountType]);
+
   const value = useMemo(
     () => ({
       token,
@@ -84,6 +89,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         setToken(data.token);
         setUserState(data.user);
+        identifyUser(data.user);
         return data;
       },
       async login(payload) {
@@ -91,18 +97,25 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         setToken(data.token);
         setUserState(data.user);
+        identifyUser(data.user);
         return data;
       },
       logout() {
         localStorage.removeItem(STORAGE_KEY);
         setToken(null);
         setUserState(null);
+        try {
+          window.posthog?.reset?.();
+        } catch {
+          /* ignore */
+        }
         if (typeof navigator !== 'undefined' && navigator.clearAppBadge) {
           navigator.clearAppBadge().catch(() => {});
         }
       },
       setUser(next) {
         setUserState(next);
+        if (next?.id) identifyUser(next);
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           try {
