@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 /** Public business identity — matches Railway BUSINESS_* (never show X / set-me placeholders). */
 const FALLBACK_BIZ = {
-  brand: 'Estate OS',
+  brand: 'HeirReady',
   legalName: 'Namah',
   address: '1/172 Viraj Khand, Gomti Nagar, Lucknow, Uttar Pradesh 226010, India',
   email: 'shubhramishra137@gmail.com',
@@ -43,7 +43,7 @@ export function LegalTerms() {
   return (
     <LegalShell title="Terms & conditions">
       <p>
-        Estate OS is family continuity / coordination software operated by{' '}
+        HeirReady is family continuity / coordination software operated by{' '}
         <strong>{biz.legalName}</strong>. It helps organise documents, unlock rules, execution
         checklists, and counsel collaboration related to death or incapacity. It is{' '}
         <strong>not</strong> a law firm, notary, bank, insurer, or court, and does not provide legal
@@ -85,7 +85,7 @@ export function LegalPrivacy() {
         from Razorpay (we do not store full card numbers).
       </p>
       <p>
-        We use this data to operate Estate OS, process payments, send transactional email (invites,
+        We use this data to operate HeirReady, process payments, send transactional email (invites,
         receipts), secure accounts, and improve reliability. We do not sell personal data.
       </p>
       <p>
@@ -111,7 +111,7 @@ export function LegalRefunds() {
   return (
     <LegalShell title="Cancellation & refunds">
       <p>
-        Estate OS sells digital software subscriptions (Family and Diaspora annual plans). There is
+        HeirReady sells digital software subscriptions (Family and Diaspora annual plans). There is
         no physical product.
       </p>
       <p>
@@ -145,7 +145,7 @@ export function LegalShipping() {
   return (
     <LegalShell title="Shipping policy">
       <p>
-        Estate OS is a <strong>fully digital service</strong>. No physical goods are shipped.
+        HeirReady is a <strong>fully digital service</strong>. No physical goods are shipped.
       </p>
       <p>
         After successful payment, paid plan features are activated on your account immediately (or
@@ -192,7 +192,7 @@ export function ContactPage() {
   return (
     <LegalShell title="Contact us">
       <p>
-        For product support, billing, and grievances related to Estate OS (operated by{' '}
+        For product support, billing, and grievances related to HeirReady (operated by{' '}
         <strong>{biz.legalName}</strong>).
       </p>
 

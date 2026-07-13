@@ -1,6 +1,6 @@
 {
-  "name": "Estate OS",
-  "short_name": "Estate OS",
+  "name": "HeirReady",
+  "short_name": "HeirReady",
   "description": "For adult children abroad — map a parent’s India Life Map, unlock rules, and execution checklists.",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -8,8 +8,8 @@
   "display": "standalone",
   "display_override": ["standalone", "browser"],
   "orientation": "any",
-  "background_color": "#eef3ee",
-  "theme_color": "#2c4d3c",
+  "background_color": "#eef2ef",
+  "theme_color": "#1a4d3a",
   "lang": "en",
   "categories": ["finance", "productivity", "lifestyle"],
   "icons": [

@@ -22,7 +22,7 @@ function Shell({ children }) {
         <header className="nav">
           <Link to={user ? '/app' : '/'} className="brand">
             <span className="brand-mark" aria-hidden />
-            Estate OS
+            HeirReady
           </Link>
           <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {user && (
@@ -76,7 +76,7 @@ function Shell({ children }) {
             marginTop: '1rem',
           }}
         >
-          <span className="small muted">© {new Date().getFullYear()} Estate OS</span>
+          <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
             Pricing
           </Link>

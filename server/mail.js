@@ -10,7 +10,7 @@ export function mailConfigured() {
 }
 
 export async function sendEmail({ to, subject, html, text, replyTo, tags }) {
-  const from = process.env.MAIL_FROM || 'Estate OS <onboarding@resend.dev>';
+  const from = process.env.MAIL_FROM || 'HeirReady <onboarding@resend.dev>';
   const payload = {
     id: crypto.randomUUID(),
     to,
@@ -70,11 +70,11 @@ export async function sendEmail({ to, subject, html, text, replyTo, tags }) {
 }
 
 export async function sendInviteEmail({ to, estateName, role, link, inviterName }) {
-  const subject = `${inviterName || 'A family member'} invited you to Estate OS — ${estateName}`;
-  const text = `You've been invited to join the estate for ${estateName} as ${role}.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nEstate OS — family continuity software (not legal advice).`;
+  const subject = `${inviterName || 'A family member'} invited you to HeirReady — ${estateName}`;
+  const text = `You've been invited to join the estate for ${estateName} as ${role}.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nHeirReady — family continuity software (not legal advice).`;
   const html = `
     <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
-      <h2 style="font-weight:600">You're invited to Estate OS</h2>
+      <h2 style="font-weight:600">You're invited to HeirReady</h2>
       <p><strong>${inviterName || 'A family member'}</strong> asked you to join
       <strong>${estateName}</strong> as <strong>${role}</strong>.</p>
       <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Accept invite</a></p>

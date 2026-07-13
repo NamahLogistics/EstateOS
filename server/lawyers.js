@@ -217,7 +217,7 @@ export function buildCounselBrief({
   }
   lines.push('');
   lines.push('—— COUNSEL OPERATING RULES ——');
-  lines.push('1. Privileged notes in Estate OS are for matter coordination only.');
+  lines.push('1. Privileged notes in HeirReady are for matter coordination only.');
   lines.push('2. This brief is not a substitute for independent legal advice or court filings.');
   lines.push('3. Originals stay with family unless counsel issues a receipted custody list.');
   lines.push('4. Conflict check must be confirmed before appearing on record.');

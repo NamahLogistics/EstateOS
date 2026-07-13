@@ -51,9 +51,9 @@ export default function InstallBanner() {
   }
 
   return (
-    <div className="install-banner" role="dialog" aria-label="Install Estate OS">
+    <div className="install-banner" role="dialog" aria-label="Install HeirReady">
       <div className="install-banner-copy">
-        <strong>Install Estate OS</strong>
+        <strong>Install HeirReady</strong>
         <span className="small muted">
           {ios && !canInstall
             ? 'On iPhone: Share → Add to Home Screen — open like an app from abroad.'

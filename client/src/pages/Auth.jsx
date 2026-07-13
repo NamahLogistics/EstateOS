@@ -48,7 +48,7 @@ export default function AuthPage() {
           : form;
       const data = mode === 'register' ? await register(payload) : await login(form);
       if (mode === 'register') localStorage.removeItem(REF_KEY);
-      toast('Welcome to Estate OS');
+      toast('Welcome to HeirReady');
       navigate(data.user?.accountType === 'lawyer' ? '/app/counsel' : '/app');
     } catch (err) {
       toast(err.message);

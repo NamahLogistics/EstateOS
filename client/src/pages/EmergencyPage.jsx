@@ -90,7 +90,7 @@ export default function EmergencyPage() {
         This page does <strong>not</strong> show bank passwords or full vault. Managed by {data.ownerName} on Estate
         OS. Not legal advice.
       </p>
-      <Link to="/auth">Sign in to Estate OS</Link>
+      <Link to="/auth">Sign in to HeirReady</Link>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-/* Estate OS service worker — cache app shell; network-first for API */
+/* HeirReady service worker — cache app shell; network-first for API */
 const CACHE = 'estate-os-shell-v1';
 const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 

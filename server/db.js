@@ -106,7 +106,7 @@ export async function initDb() {
       cache = migrate(rows[0].data);
     }
     mode = 'postgres';
-    console.log('Estate OS persistence: Postgres (durable store + files)');
+    console.log('HeirReady persistence: Postgres (durable store + files)');
   } else {
     if (fs.existsSync(storePath)) {
       cache = migrate(JSON.parse(fs.readFileSync(storePath, 'utf8')));
@@ -115,7 +115,7 @@ export async function initDb() {
       fs.writeFileSync(storePath, JSON.stringify(cache, null, 2));
     }
     mode = 'file';
-    console.warn('Estate OS persistence: local file — add DATABASE_URL for production durability');
+    console.warn('HeirReady persistence: local file — add DATABASE_URL for production durability');
   }
   return mode;
 }

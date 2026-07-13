@@ -2,7 +2,7 @@
   "name": "estate-os",
   "version": "1.4.4",
   "private": true,
-  "description": "Estate OS — Death & incapacity operating system for families",
+  "description": "HeirReady — family continuity OS for adult children abroad",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.js",

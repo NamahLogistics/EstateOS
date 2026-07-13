@@ -215,7 +215,7 @@ app.post('/api/auth/register', async (req, res) => {
         years: Number(req.body?.years) || 1,
         retainerBand: 'On request',
         slaHours: 24,
-        bio: req.body?.bio || 'Estate counsel on Estate OS.',
+        bio: req.body?.bio || 'Estate counsel on HeirReady.',
         rating: 5,
         mattersCompleted: 0,
         nriFriendly: true,
@@ -1180,7 +1180,7 @@ app.get('/api/public/business', (_req, res) => {
     ''
   );
   res.json({
-    brand: process.env.BUSINESS_BRAND || 'Estate OS',
+    brand: process.env.BUSINESS_BRAND || 'HeirReady',
     legalName: process.env.BUSINESS_LEGAL_NAME || 'Namah',
     address:
       process.env.BUSINESS_ADDRESS ||
@@ -1222,7 +1222,7 @@ app.post('/api/public/contact', async (req, res) => {
     if (to) {
       await sendEmail({
         to,
-        subject: `Estate OS contact: ${name}`,
+        subject: `HeirReady contact: ${name}`,
         text: `From: ${name} <${email}>\n\n${message}`,
         html: `<p><strong>${name}</strong> &lt;${email}&gt;</p><p>${message.replace(/\n/g, '<br/>')}</p>`,
       });
@@ -1236,12 +1236,12 @@ app.post('/api/public/contact', async (req, res) => {
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    product: 'Estate OS',
+    product: 'HeirReady',
     persistence: persistenceMode(),
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.5.4',
+    version: '1.6.0',
   });
 });
 
@@ -1254,7 +1254,7 @@ app.get('/api/estates/:id/export', authRequired, async (req, res) => {
   const zip = new JSZip();
   zip.file(
     'README.txt',
-    `Estate OS export — ${access.estate.subjectName}\nGenerated ${new Date().toISOString()}\nNot legal advice.\n`
+    `HeirReady export — ${access.estate.subjectName}\nGenerated ${new Date().toISOString()}\nNot legal advice.\n`
   );
   zip.file(
     'life-map.json',
@@ -1471,7 +1471,7 @@ app.get('/api/public/emergency/:token', (req, res) => {
       'Call the unlockers listed here',
       'Call home caregivers (nurse / maid) if listed — confirm keys and overnight cover',
       'Get death certificate / doctor incapacity letter (multiple copies)',
-      'Ask an unlocker to open Estate OS → Unlock tab → upload proof',
+      'Ask an unlocker to open HeirReady → Unlock tab → upload proof',
       'Do not share bank passwords casually — use the Execution checklist after unlock',
     ],
   });
@@ -1502,7 +1502,7 @@ async function boot() {
   });
   await flushPersist();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Estate OS on http://0.0.0.0:${PORT} [${persistenceMode()}]`);
+    console.log(`HeirReady on http://0.0.0.0:${PORT} [${persistenceMode()}]`);
   });
   setInterval(() => {
     runReminderPass().catch((err) => console.error('reminder pass', err));

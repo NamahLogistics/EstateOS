@@ -29,7 +29,7 @@ export async function runReminderPass() {
     try {
       await sendEmail({
         to: user.email,
-        subject: `Renew Estate OS ${user.plan} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+        subject: `Renew HeirReady ${user.plan} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
         text: `Your ${user.plan} plan expires on ${new Date(user.planExpiresAt).toLocaleDateString()}.\n\nRenew here (adds another year from your current end date):\n${app}/pricing\n\nIf it lapses, paid features lock until you renew.`,
         html: `<p>Your <strong>${user.plan}</strong> plan expires on <strong>${new Date(user.planExpiresAt).toLocaleDateString()}</strong> (${daysLeft} days).</p><p><a href="${app}/pricing">Renew on Pricing</a> — renewal stacks another year from your current end date.</p>`,
       });

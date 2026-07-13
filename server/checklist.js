@@ -237,7 +237,7 @@ function buildDiasporaExtraTasks(estate, pack) {
       category: 'crossborder',
       title: 'Coordinate India branch visits while abroad',
       detail:
-        'Appoint a local relative / counsel with power of attorney where banks require in-person. Use Estate OS letters + vault photos; do not courier original deeds casually.',
+        'Appoint a local relative / counsel with power of attorney where banks require in-person. Use HeirReady letters + vault photos; do not courier original deeds casually.',
       documents: ['POA if any', 'Unlocker ID', 'Vault export ZIP'],
       letterKey: null,
     });
@@ -325,7 +325,7 @@ I, ${who}, am writing regarding the account(s) held by ${person} (${estate.subje
 
 Please find enclosed copies of the ${proof} and my identity document. I request you to guide us on the nominee / claim / transmission process and the forms required to proceed.
 
-This letter was prepared using Estate OS as a family coordination aid and does not replace your bank’s official forms or legal advice.
+This letter was prepared using HeirReady as a family coordination aid and does not replace your bank’s official forms or legal advice.
 
 Yours sincerely,
 ${who}
@@ -348,7 +348,7 @@ I, ${who}, hereby intimate a claim in respect of policy ${ref} held by ${person}
 
 Enclosed: copy of ${proof}, policy details on record, and my KYC. Kindly advise the claim form set and documents checklist for settlement to the nominee / legal heir as applicable.
 
-Prepared with Estate OS for family coordination — not a substitute for insurer forms or legal counsel.
+Prepared with HeirReady for family coordination — not a substitute for insurer forms or legal counsel.
 
 Yours sincerely,
 ${who}
@@ -374,5 +374,5 @@ ${who}
 `;
   }
 
-  return `Date: ${today}\n\nRegarding ${person} — ${title}\nPrepared via Estate OS.\n`;
+  return `Date: ${today}\n\nRegarding ${person} — ${title}\nPrepared via HeirReady.\n`;
 }

@@ -171,7 +171,7 @@ async function createCheckout(user, plan) {
     fullAmount,
     currency: order.currency || 'INR',
     keyId: process.env.RAZORPAY_KEY_ID,
-    name: 'Estate OS',
+    name: 'HeirReady',
     description,
     referralDiscount: applyDiscount,
     prefill: {

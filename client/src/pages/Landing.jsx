@@ -5,36 +5,27 @@ export default function Landing() {
   const { user } = useAuth();
   return (
     <>
-      <section className="hero">
-        <div>
-          <p className="hero-kicker">Built for adult children abroad</p>
-          <h1>Estate OS</h1>
-          <p className="hero-lead">
-            You’re in the US, UK, or Gulf. Your parents’ SBI, LIC, flat papers, and SIM still sit in
-            India. Build the Life Map from abroad — so when something happens, family isn’t guessing
-            on WhatsApp.
+      <section className="hero-bleed" aria-label="HeirReady">
+        <div className="hero-bleed-wash" aria-hidden />
+        <div className="hero-bleed-inner">
+          <h1 className="brand-hero">HeirReady</h1>
+          <p className="hero-line">
+            You’re abroad. Their banks, LIC, flat papers, and caregivers still sit in India. Map it
+            once — so family isn’t guessing on WhatsApp when something happens.
           </p>
           <div className="hero-actions">
             <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
               {user ? 'Open your estates' : 'Start free — map one parent'}
             </Link>
             <Link className="btn btn-ghost" to="/pricing">
-              Family & Diaspora plans
+              See plans
             </Link>
           </div>
         </div>
-        <div className="hero-panel">
-          <p className="hero-panel-label">For NRIs & diaspora families</p>
-          <p className="display hero-panel-title">
-            Interview on a call. Snap passbooks. Unlock with proof. Run the India checklist remotely.
-          </p>
-        </div>
       </section>
 
-      <section style={{ padding: '0 0 3.5rem' }}>
-        <h2 className="display" style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>
-          How it works from abroad
-        </h2>
+      <section className="section-how">
+        <h2 className="display section-how-title">How it works from abroad</h2>
         <p className="section-lead">
           Built so the adult child overseas can set it up — the parent only confirms the essentials.
         </p>
