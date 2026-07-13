@@ -291,6 +291,7 @@ export function registerBillingRoutes(app) {
     });
     const user = freshUser(req.user.id);
     const appUrl = (process.env.APP_URL || '').replace(/\/$/, '') || '';
+    const city = String(req.query?.city || '').trim();
     res.json({
       ...planPublicFields(user),
       provider: razorpayConfigured() ? 'razorpay' : 'direct',
@@ -299,8 +300,12 @@ export function registerBillingRoutes(app) {
       referral: {
         ...referralPublicFields(user || {}),
         link: referralInviteLink(appUrl || '', user),
+        linkFamily: referralInviteLink(appUrl || '', user, { city }),
+        linkCare: referralInviteLink(appUrl || '', user, { type: 'care', city }),
+        linkLawyer: referralInviteLink(appUrl || '', user, { type: 'lawyer', city }),
         rule: referralRuleForUser(user),
-        audience: user?.accountType === 'lawyer' ? 'lawyer' : 'family',
+        audience:
+          user?.accountType === 'lawyer' ? 'lawyer' : user?.accountType === 'care' ? 'care' : 'family',
       },
     });
   });
@@ -330,15 +335,21 @@ export function registerBillingRoutes(app) {
     const store = readStore();
     const referred = store.users.filter((u) => u.referredByUserId === req.user.id);
     const appUrl = (process.env.APP_URL || '').replace(/\/$/, '') || '';
-    const originFallback = 'https://estate-os-production.up.railway.app';
+    const originFallback = 'https://heirready.com';
     const base = appUrl || originFallback;
+    const city = String(req.query?.city || '').trim();
     res.json({
       ...referralPublicFields(user || {}),
       link: referralInviteLink(base, user),
-      audience: user?.accountType === 'lawyer' ? 'lawyer' : 'family',
+      linkFamily: referralInviteLink(base, user, { city }),
+      linkCare: referralInviteLink(base, user, { type: 'care', city }),
+      linkLawyer: referralInviteLink(base, user, { type: 'lawyer', city }),
+      audience:
+        user?.accountType === 'lawyer' ? 'lawyer' : user?.accountType === 'care' ? 'care' : 'family',
       referredCount: referred.length,
       paidReferredCount: referred.filter((u) => u.referralRewardGranted).length,
       rule: referralRuleForUser(user),
+      city: city || null,
     });
   });
 

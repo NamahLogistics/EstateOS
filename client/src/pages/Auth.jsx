@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 
 const REF_KEY = 'estate_os_ref';
+const CITY_KEY = 'heirready_invite_city';
 
 function typeFromParam(raw) {
   if (raw === 'lawyer') return 'lawyer';
@@ -23,6 +24,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState(params.get('mode') === 'login' ? 'login' : 'register');
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
   const typeFromUrl = typeFromParam(params.get('type'));
+  const cityFromUrl = (params.get('city') || '').trim();
   const [referralCode, setReferralCode] = useState(() => {
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
@@ -35,7 +37,7 @@ export default function AuthPage() {
     email: '',
     password: '',
     accountType: typeFromUrl || 'family',
-    city: '',
+    city: cityFromUrl || localStorage.getItem(CITY_KEY) || '',
     role: 'maid',
     phone: '',
   });
@@ -49,7 +51,11 @@ export default function AuthPage() {
     if (typeFromUrl) {
       setForm((f) => ({ ...f, accountType: typeFromUrl }));
     }
-  }, [refFromUrl, typeFromUrl]);
+    if (cityFromUrl) {
+      localStorage.setItem(CITY_KEY, cityFromUrl);
+      setForm((f) => ({ ...f, city: cityFromUrl }));
+    }
+  }, [refFromUrl, typeFromUrl, cityFromUrl]);
 
   if (user) return <Navigate to={homeFor(user.accountType)} replace />;
 
@@ -68,7 +74,10 @@ export default function AuthPage() {
             }
           : form;
       const data = mode === 'register' ? await register(payload) : await login(form);
-      if (mode === 'register') localStorage.removeItem(REF_KEY);
+      if (mode === 'register') {
+        localStorage.removeItem(REF_KEY);
+        if (form.city) localStorage.setItem(CITY_KEY, form.city);
+      }
       toast('Welcome to HeirReady');
       navigate(homeFor(data.user?.accountType));
     } catch (err) {
@@ -80,6 +89,7 @@ export default function AuthPage() {
 
   const isLawyer = form.accountType === 'lawyer' || typeFromUrl === 'lawyer';
   const isCare = form.accountType === 'care' || typeFromUrl === 'care';
+  const cityHint = form.city || cityFromUrl;
 
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
@@ -100,6 +110,11 @@ export default function AuthPage() {
               ? 'List your cities and role — families on Family + Care or Diaspora + Care can find you.'
               : 'Families map estates. Counsel and care network when you need them.'}
         </p>
+        {mode === 'register' && cityHint && !isLawyer && (
+          <p className="small" style={{ marginTop: 0 }}>
+            Invite city: <strong>{cityHint}</strong>
+          </p>
+        )}
         {mode === 'register' && referralCode && (
           <p className="small" style={{ marginTop: 0 }}>
             Referral code applied: <strong>{referralCode}</strong>
@@ -159,6 +174,16 @@ export default function AuthPage() {
                     />
                   </div>
                 </>
+              )}
+              {!isCare && !isLawyer && (
+                <div className="field">
+                  <label>Parent’s city (optional)</label>
+                  <input
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    placeholder="Pune"
+                  />
+                </div>
               )}
               <div className="field">
                 <label>Referral code (optional)</label>

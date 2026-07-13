@@ -202,6 +202,7 @@ app.post('/api/auth/register', async (req, res) => {
     passwordHash,
     plan: 'free',
     accountType: type,
+    preferredCity: (req.body?.city || '').trim() || null,
     createdAt: new Date().toISOString(),
   };
   mutate((s) => {
@@ -216,7 +217,7 @@ app.post('/api/auth/register', async (req, res) => {
         slug: normalized.split('@')[0].replace(/[^a-z0-9]+/gi, '-'),
         name: user.name,
         firm: (req.body?.firm || 'Independent counsel').trim(),
-        cities: [req.body?.city || 'India'].flat(),
+        cities: [req.body?.city || 'India'].flat().filter(Boolean),
         specialties: ['succession'],
         languages: ['English', 'Hindi'],
         barId: req.body?.barId || 'Pending verification',
@@ -241,7 +242,7 @@ app.post('/api/auth/register', async (req, res) => {
         role: ['nurse', 'attendant', 'maid', 'cook', 'driver', 'other'].includes(roleRaw)
           ? roleRaw
           : 'maid',
-        cities: [req.body?.city || 'Pune'].flat().filter(Boolean),
+        cities: [req.body?.city || user.preferredCity || 'Pune'].flat().filter(Boolean),
         languages: ['Hindi'],
         years: Number(req.body?.years) || 1,
         rateBand: req.body?.rateBand || '',
@@ -1296,7 +1297,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.9.4',
+    version: '1.9.5',
   });
 });
 

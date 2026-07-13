@@ -98,18 +98,24 @@ export function referralPublicFields(user) {
   };
 }
 
-export function referralInviteLink(baseUrl, user) {
+export function referralInviteLink(baseUrl, user, opts = {}) {
   const base = String(baseUrl || '').replace(/\/$/, '');
   if (!user?.referralCode) return null;
-  const isLawyer = user.accountType === 'lawyer';
-  return isLawyer
-    ? `${base}/auth?mode=register&ref=${user.referralCode}&type=lawyer`
-    : `${base}/auth?mode=register&ref=${user.referralCode}`;
+  const type =
+    opts.type ||
+    (user.accountType === 'lawyer' ? 'lawyer' : user.accountType === 'care' ? 'care' : null);
+  const params = new URLSearchParams({ mode: 'register', ref: user.referralCode });
+  if (type) params.set('type', type);
+  if (opts.city?.trim()) params.set('city', String(opts.city).trim());
+  return `${base}/auth?${params.toString()}`;
 }
 
 export function referralRuleForUser(user) {
   if (user?.accountType === 'lawyer') {
     return 'Share with another advocate. When they sign up with your link and pay Counsel Pro, you get 50% off your next Counsel Pro year.';
   }
-  return 'Share with family or counsel. When they sign up with your link and pay Family, Diaspora, or Counsel Pro, you get 50% off your next checkout.';
+  if (user?.accountType === 'care') {
+    return 'Share with other caregivers. When a family you referred pays Family + Care or Diaspora + Care, you get 50% off your next checkout (if you take a plan).';
+  }
+  return 'Share family or care invite links (pick a city). When they sign up with your code and pay, you get 50% off your next checkout.';
 }

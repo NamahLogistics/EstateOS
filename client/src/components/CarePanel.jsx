@@ -5,7 +5,13 @@ import UpgradeGate, { isPlanLimitError } from './UpgradeGate.jsx';
 
 export default function CarePanel({ estateId, onSaved }) {
   const { api, toast } = useAuth();
-  const [city, setCity] = useState('');
+  const [city, setCity] = useState(() => {
+    try {
+      return localStorage.getItem('heirready_invite_city') || '';
+    } catch {
+      return '';
+    }
+  });
   const [role, setRole] = useState('');
   const [roles, setRoles] = useState([]);
   const [workers, setWorkers] = useState([]);
