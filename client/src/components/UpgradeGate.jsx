@@ -24,7 +24,7 @@ const COPY = {
     plan: 'family',
     title: 'Free vault is full',
     body: 'You’ve used all 5 Life Map items. Family unlocks unlimited vault, sibling invites, and counsel-ready briefs — ₹1,499/year.',
-    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
+    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'City nurses & maids directory'],
     cta: 'Upgrade to Family — ₹1,499/yr',
     href: '/pricing?plan=family',
     note: 'Abroad with India+US / India+UK pathways? Choose Diaspora on Pricing.',
@@ -32,8 +32,8 @@ const COPY = {
   estate: {
     plan: 'family',
     title: 'Free plan: one parent',
-    body: 'Map another parent or relative with Family — unlimited vault items, invites, and counsel retain. ₹1,499/year.',
-    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
+    body: 'Map another parent or relative with Family — unlimited vault items, invites, counsel retain, and city care. ₹1,499/year.',
+    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'City nurses & maids directory'],
     cta: 'Upgrade to Family — ₹1,499/yr',
     href: '/pricing?plan=family',
     note: 'Need India+US or India+UK execution packs? Diaspora is ₹24,998/yr.',
@@ -42,7 +42,7 @@ const COPY = {
     plan: 'family',
     title: 'Almost at the free limit',
     body: 'Free includes 5 vault items. Upgrade to Family before you hit the wall — so banks, LIC, and property all fit in one map.',
-    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
+    features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'City nurses & maids directory'],
     cta: 'Upgrade to Family — ₹1,499/yr',
     href: '/pricing?plan=family',
     note: 'Living abroad? Diaspora adds cross-border pathways.',
@@ -59,29 +59,30 @@ const COPY = {
     ],
     cta: 'Upgrade to Diaspora — ₹24,998/yr',
     href: '/pricing?plan=diaspora',
-    note: 'Family (₹1,499) still works for India-only checklists if you stay on the India pack.',
+    note: 'Family (₹1,499) includes city care for India-only — stay on the India pack if you don’t need US/UK pathways.',
   },
   care: {
-    plan: 'care',
-    title: 'City care unlocks with Care Network',
-    body: 'See nurses, maids, and attendants in your parent’s city — then save them to the Life Map. ₹2,998/year (2× Family). Diaspora includes this.',
+    plan: 'family',
+    title: 'City care needs a paid plan',
+    body: 'Nurses, maids, and attendants in your parent’s city unlock with Family or Diaspora — then save them to the Life Map.',
     features: [
       'Browse caregivers by city & role',
       'Phone numbers unlocked',
       'Save into Care at home vault',
     ],
-    cta: 'Get Care Network — ₹2,998/yr',
-    href: '/pricing?plan=care',
-    note: 'Already on Diaspora? Care Network is included — refresh after login.',
+    cta: 'Get Family — ₹1,499/yr',
+    href: '/pricing?plan=family',
+    note: 'Abroad? Diaspora (₹24,998/yr) includes city care plus India+US / India+UK packs.',
+    secondaryCta: 'See Diaspora — ₹24,998/yr',
+    secondaryHref: '/pricing?plan=diaspora',
   },
   abroad_checkout: {
     plan: 'diaspora',
     title: 'Living outside India?',
-    body: 'Family is India vault + siblings. If you’re abroad and parents’ banks/papers are in India, Diaspora adds India+US / India+UK pathways when something happens.',
+    body: 'Family is India vault + siblings + city care. If you’re abroad and parents’ banks/papers are in India, Diaspora adds India+US / India+UK pathways when something happens.',
     features: [
       'India + US / India + UK execution packs',
-      'Everything in Family included',
-      'Care Network included',
+      'Everything in Family (including city care)',
       'Pay with international card from abroad',
     ],
     cta: 'Choose Diaspora — ₹24,998/yr',
@@ -114,7 +115,7 @@ export default function UpgradeGate({
     >
       <div className="upgrade-gate-panel">
         <p className="small muted" style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
-          {copy.plan === 'diaspora' ? 'Diaspora' : copy.plan === 'care' ? 'Care Network' : 'Upgrade'}
+          {copy.plan === 'diaspora' ? 'Diaspora' : 'Upgrade'}
         </p>
         <h2 id="upgrade-gate-title" className="display" style={{ fontSize: '1.85rem', margin: '0.35rem 0 0.55rem' }}>
           {copy.title}
@@ -152,16 +153,22 @@ export default function UpgradeGate({
             </Link>
           )}
           {copy.secondaryCta ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                onClose?.();
-                onSecondary?.();
-              }}
-            >
-              {copy.secondaryCta}
-            </button>
+            copy.secondaryHref ? (
+              <Link className="btn btn-ghost" to={copy.secondaryHref} onClick={onClose}>
+                {copy.secondaryCta}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  onClose?.();
+                  onSecondary?.();
+                }}
+              >
+                {copy.secondaryCta}
+              </button>
+            )
           ) : (
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Not now

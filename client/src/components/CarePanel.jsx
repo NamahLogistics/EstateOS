@@ -65,19 +65,23 @@ export default function CarePanel({ estateId, onSaved }) {
         Care in their city
       </p>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Nurses, maids, and attendants near your parent — unlocked with Care Network (₹2,998/yr) or
-        Diaspora.
+        Nurses, maids, and attendants near your parent — included with Family or Diaspora.
       </p>
 
       {unlocked === false && (
         <div className="upgrade-limit-banner" style={{ marginTop: '0.75rem' }}>
           <p className="small">
-            <strong>Care Network — ₹2,998/yr</strong> (2× Family). Browse city caregivers and save them
-            to the vault.
+            <strong>Upgrade to browse city care.</strong> Family (₹1,499/yr) or Diaspora (₹24,998/yr)
+            unlocks nurses and maids — then save them to the vault.
           </p>
-          <Link className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=care">
-            Unlock Care Network
-          </Link>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <Link className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=family">
+              Family
+            </Link>
+            <Link className="btn btn-ghost" style={{ padding: '0.45rem 0.95rem' }} to="/pricing?plan=diaspora">
+              Diaspora
+            </Link>
+          </div>
         </div>
       )}
 
@@ -86,11 +90,7 @@ export default function CarePanel({ estateId, onSaved }) {
           <div className="panel-grid" style={{ marginTop: '0.85rem' }}>
             <div className="field" style={{ marginBottom: 0 }}>
               <label>City</label>
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Pune"
-              />
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Pune" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
               <label>Role</label>

@@ -53,7 +53,7 @@ export default function CareDesk() {
       });
       setData((d) => ({ ...d, worker: res.worker }));
       setForm(formFromWorker(res.worker));
-      toast('Profile saved — visible to families with Care Network');
+      toast('Profile saved — visible to families on Family or Diaspora');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -84,7 +84,7 @@ export default function CareDesk() {
           <div>
             <strong>Your care profile</strong>
             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-              Families on Care Network (₹2,998/yr) or Diaspora see you in their city.
+              Families on Family or Diaspora see you in their city.
             </p>
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.85rem' }} disabled={busy}>
@@ -179,7 +179,7 @@ export default function CareDesk() {
 
       <p className="small muted">
         Complete your profile so families in your cities can find you.{' '}
-        <Link to="/pricing">Care Network pricing</Link>
+        <Link to="/pricing">Family & Diaspora</Link>
       </p>
     </section>
   );

@@ -38,15 +38,12 @@ export function userHasCounselPro(user) {
 }
 
 /**
- * City nurses / maids directory — Care Network (2× Family) or Diaspora.
- * Family alone does not unlock care browse.
+ * City nurses / maids directory — included with Family or Diaspora (paid).
+ * Legacy `care` plan still unlocks. Counsel Pro alone does not.
  */
 export function userHasCareNetwork(user) {
-  return Boolean(
-    user &&
-      userHasPaidAccess(user) &&
-      (user.plan === 'care' || user.plan === 'diaspora')
-  );
+  if (!user || !userHasPaidAccess(user)) return false;
+  return user.plan === 'family' || user.plan === 'diaspora' || user.plan === 'care';
 }
 
 export const MAX_OPEN_APPROACHES_PER_LAWYER = 10;

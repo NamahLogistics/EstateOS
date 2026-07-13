@@ -15,10 +15,10 @@ const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || 149900); // �
 const PLAN_AMOUNTS = {
   // paise (INR)
   family: FAMILY_AMOUNT,
-  diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 2499800), // ₹24,998 (2× prior)
+  diaspora: Number(process.env.RAZORPAY_AMOUNT_DIASPORA || 2499800), // ₹24,998
   counsel: Number(process.env.RAZORPAY_AMOUNT_COUNSEL || 149900), // ₹1,499 — counsel lead board
-  /** City nurses/maids — 2× Family */
-  care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT * 2), // ₹2,998
+  /** @deprecated — city care is included with Family/Diaspora; keep for legacy renewals */
+  care: Number(process.env.RAZORPAY_AMOUNT_CARE || FAMILY_AMOUNT),
 };
 
 function planLabel(plan) {
@@ -134,8 +134,8 @@ async function createCheckout(user, plan) {
       : plan === 'counsel'
         ? 'Counsel Pro — 1 year (city leads). Card or UPI.'
         : plan === 'care'
-          ? 'Care Network — 1 year (city nurses & maids, 2× Family). Card or UPI.'
-          : 'Family — 1 year. India vault + siblings. Card or UPI/netbanking.';
+          ? 'Care (legacy) — use Family or Diaspora for city nurses & maids.'
+          : 'Family — 1 year. Unlimited vault + city nurses & maids. Card or UPI.';
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
