@@ -270,7 +270,7 @@ app.post('/api/leads', async (req, res) => {
     if (!s.leads) s.leads = [];
     s.leads.push({
       id: leadId,
-      type: 'waitlist',
+      type: 'human_onboarding',
       email,
       name,
       interest,
@@ -279,17 +279,30 @@ app.post('/api/leads', async (req, res) => {
   });
 
   const to =
+    process.env.ONBOARDING_EMAIL ||
     process.env.BUSINESS_EMAIL ||
     process.env.BUSINESS_GRIEVANCE_EMAIL ||
     'shubhramishra137@gmail.com';
+  const who = name || email;
   try {
     await sendEmail({
       to,
-      subject: `Estate OS onboarding request: ${name || email} (${interest})`,
-      text: `Human onboarding request\n\nName: ${name || '—'}\nEmail: ${email}\nInterest: ${interest}\nLead id: ${leadId}\n\nReply to the requester to schedule setup.`,
-      html: `<p><strong>Human onboarding request</strong></p>
-        <p>Name: ${name || '—'}<br/>Email: <a href="mailto:${email}">${email}</a><br/>Interest: ${interest}</p>
-        <p style="font-size:12px;color:#3a4a42">Lead id: ${leadId}</p>`,
+      replyTo: email,
+      tags: [
+        { name: 'category', value: 'onboarding' },
+        { name: 'interest', value: interest.slice(0, 40) },
+      ],
+      subject: `[ONBOARDING] HeirReady — ${who} (${interest})`,
+      text: `HUMAN ONBOARDING REQUEST — reply to this email to reach the requester.\n\nName: ${name || '—'}\nEmail: ${email}\nInterest: ${interest}\nLead id: ${leadId}\n\nAction: reply and schedule setup.`,
+      html: `<div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+        <p style="display:inline-block;background:#2c4d3c;color:#fff;padding:6px 12px;border-radius:999px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 12px">Human onboarding</p>
+        <h2 style="margin:0 0 8px;font-weight:600">New onboarding request</h2>
+        <p style="margin:0 0 16px;color:#3a4a42">Someone asked for help setting up their first estate. Hit <strong>Reply</strong> to email them directly.</p>
+        <p style="margin:0 0 4px"><strong>Name:</strong> ${name || '—'}</p>
+        <p style="margin:0 0 4px"><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        <p style="margin:0 0 16px"><strong>Interest:</strong> ${interest}</p>
+        <p style="font-size:12px;color:#3a4a42;margin:0">Lead id: ${leadId}</p>
+      </div>`,
     });
   } catch (err) {
     console.error('onboarding lead email failed', err.message);
@@ -1228,7 +1241,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.5.2',
+    version: '1.5.3',
   });
 });
 

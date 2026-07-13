@@ -9,7 +9,7 @@ export function mailConfigured() {
   return Boolean(process.env.RESEND_API_KEY);
 }
 
-export async function sendEmail({ to, subject, html, text }) {
+export async function sendEmail({ to, subject, html, text, replyTo, tags }) {
   const from = process.env.MAIL_FROM || 'Estate OS <onboarding@resend.dev>';
   const payload = {
     id: crypto.randomUUID(),
@@ -18,6 +18,8 @@ export async function sendEmail({ to, subject, html, text }) {
     html,
     text,
     from,
+    replyTo: replyTo || null,
+    tags: tags || null,
     at: new Date().toISOString(),
     status: 'queued',
   };
@@ -33,19 +35,23 @@ export async function sendEmail({ to, subject, html, text }) {
     return { ok: true, mode: 'logged', id: payload.id };
   }
 
+  const body = {
+    from,
+    to: [to],
+    subject,
+    html,
+    text,
+  };
+  if (replyTo) body.reply_to = replyTo;
+  if (tags?.length) body.tags = tags;
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      html,
-      text,
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   payload.status = res.ok ? 'sent' : 'failed';
