@@ -267,14 +267,42 @@ export default function Pricing() {
       <p className="muted" style={{ maxWidth: 560 }}>
         Annual subscriptions via Razorpay. Mid-year upgrades: pay only the difference for days
         left — renewal date stays the same. Downgrades wait until renewal.
-        {hasCredit
-          ? ` You have ${credits} referral credit${credits === 1 ? '' : 's'} (50% off per checkout).`
-          : ''}
       </p>
-      <p className="small muted" style={{ maxWidth: 560, marginTop: '0.35rem' }}>
-        Invites: each person who joins with your link and later pays earns you 1 credit. Credits stack and don’t
-        expire — use one per year when you renew, or on any paid upgrade.
-      </p>
+
+      <div
+        className="card"
+        style={{
+          marginTop: '1rem',
+          maxWidth: 640,
+          padding: '1.1rem 1.2rem',
+          borderColor: hasCredit ? 'rgba(47, 107, 82, 0.4)' : 'rgba(0,0,0,0.08)',
+          background: hasCredit
+            ? 'linear-gradient(165deg, rgba(220, 232, 225, 0.65), var(--card))'
+            : 'var(--card)',
+        }}
+      >
+        <p
+          className="small muted"
+          style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+        >
+          Referral credits
+        </p>
+        <p className="display" style={{ fontSize: '1.3rem', margin: '0.3rem 0 0.4rem' }}>
+          {hasCredit
+            ? `You have ${credits} credit${credits === 1 ? '' : 's'} — each is 50% off`
+            : 'What a credit does'}
+        </p>
+        <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
+          <strong>1 credit = 50% off one payment</strong> at checkout — your Family, Diaspora, or Counsel
+          Pro charge (first year, renew, or mid-year upgrade). Example: Family ₹1,499 → ~₹750 with a
+          credit; Diaspora ₹12,499 → ~₹6,250. One credit is used per checkout; leftovers stay for later
+          years. Credits don’t expire.
+        </p>
+        <p className="small muted" style={{ margin: '0.65rem 0 0', lineHeight: 1.5 }}>
+          Earn credits by inviting: when someone joins with your link and later pays a plan, you get 1
+          credit. Invite many → credits stack. Free joins don’t count.
+        </p>
+      </div>
 
       {careComingSoon ? (
         <div
