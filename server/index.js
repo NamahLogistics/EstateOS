@@ -37,6 +37,8 @@ import {
 } from './lawyers.routes.js';
 import { sendInviteEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
+import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
+import { runReminderPass, ensureEstateDefaults } from './reminders.js';
 
 const uuid = () => crypto.randomUUID();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -273,6 +275,7 @@ app.post('/api/estates', authRequired, (req, res) => {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  ensureEstateDefaults(estate);
   mutate((store) => {
     store.estates.push(estate);
     audit(store, {
@@ -289,6 +292,11 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
+  mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    if (e) ensureEstateDefaults(e);
+  });
+  const estate = readStore().estates.find((e) => e.id === access.estate.id);
   const items = store.items.filter((i) => i.estateId === access.estate.id);
   const members = store.members.filter((m) => m.estateId === access.estate.id);
   const memberViews = members.map((m) => {
@@ -299,23 +307,36 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
       email: u?.email || m.inviteEmail,
     };
   });
-  const owner = store.users.find((u) => u.id === access.estate.ownerId);
-  const unlockRequests = store.unlockRequests.filter(
-    (r) => r.estateId === access.estate.id
-  );
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  const unlockRequests = store.unlockRequests.filter((r) => r.estateId === estate.id);
   const tasks =
-    access.estate.status === 'unlocked'
-      ? store.tasks
-          .filter((t) => t.estateId === access.estate.id)
-          .sort((a, b) => a.priority - b.priority)
+    estate.status === 'unlocked'
+      ? store.tasks.filter((t) => t.estateId === estate.id).sort((a, b) => a.priority - b.priority)
       : [];
   const auditLog = store.audit
-    .filter((a) => a.estateId === access.estate.id)
+    .filter((a) => a.estateId === estate.id)
     .slice(-100)
     .reverse();
 
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const expiringSoon = items.filter((i) => {
+    if (!i.expiresOn) return false;
+    const t = new Date(i.expiresOn).getTime();
+    return t >= now && t <= now + 60 * day;
+  });
+  const expired = items.filter((i) => i.expiresOn && new Date(i.expiresOn).getTime() < now);
+
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '') || '';
+  const emergencyUrl = `${appUrl}/e/${estate.emergencyToken}`;
+
   res.json({
-    estate: publicEstate(access.estate, store, req.user.id),
+    estate: {
+      ...publicEstate(estate, store, req.user.id),
+      nextReviewAt: estate.nextReviewAt,
+      emergencyToken: estate.emergencyToken,
+      emergencyUrl,
+    },
     items,
     members: [
       {
@@ -332,6 +353,9 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     tasks,
     audit: auditLog,
     categories: ITEM_CATEGORIES,
+    interviewQuestions: INTERVIEW_QUESTIONS,
+    expiringSoon,
+    expired,
   });
 });
 
@@ -487,6 +511,7 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
     institution: (institution || '').trim(),
     accountRef: (accountRef || '').trim(),
     notes: (notes || '').trim(),
+    expiresOn: req.body?.expiresOn ? String(req.body.expiresOn).trim() : null,
     files,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -513,9 +538,9 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
       (i) => i.id === req.params.itemId && i.estateId === req.params.id
     );
     if (!row) return null;
-    const fields = ['category', 'title', 'institution', 'accountRef', 'notes'];
+    const fields = ['category', 'title', 'institution', 'accountRef', 'notes', 'expiresOn'];
     for (const f of fields) {
-      if (req.body?.[f] != null) row[f] = String(req.body[f]).trim();
+      if (req.body?.[f] != null) row[f] = String(req.body[f]).trim() || null;
     }
     row.updatedAt = new Date().toISOString();
     audit(s, {
@@ -956,7 +981,7 @@ app.get('/api/health', (_req, res) => {
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
-    version: '1.2.2',
+    version: '1.3.0',
   });
 });
 
@@ -1015,6 +1040,105 @@ app.get('/api/estates/:id/export', authRequired, async (req, res) => {
   res.send(buf);
 });
 
+// ── Interview / emergency / review ────────────────────
+app.post('/api/estates/:id/interview', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (!['owner', 'manager'].includes(access.role)) {
+    return res.status(403).json({ error: 'Only owner/manager can run interview' });
+  }
+  const answers = req.body?.answers || {};
+  const created = answersToItems(answers, access.estate.id, req.user.id);
+  if (!created.length) {
+    return res.status(400).json({ error: 'Add at least one answer' });
+  }
+  mutate((s) => {
+    s.items.push(...created);
+    audit(s, {
+      estateId: access.estate.id,
+      userId: req.user.id,
+      action: 'interview_applied',
+      detail: `Interview added ${created.length} Life Map items`,
+    });
+  });
+  res.status(201).json({ added: created.length, items: created });
+});
+
+app.post('/api/estates/:id/review/complete', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const next = new Date();
+  next.setFullYear(next.getFullYear() + 1);
+  const estate = mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    ensureEstateDefaults(e);
+    e.nextReviewAt = next.toISOString();
+    e.reviewReminderSentAt = null;
+    e.lastReviewedAt = new Date().toISOString();
+    audit(s, {
+      estateId: e.id,
+      userId: req.user.id,
+      action: 'review_completed',
+      detail: `Next review ${e.nextReviewAt}`,
+    });
+    return e;
+  });
+  res.json({ nextReviewAt: estate.nextReviewAt, lastReviewedAt: estate.lastReviewedAt });
+});
+
+app.post('/api/estates/:id/emergency/rotate', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (access.role !== 'owner') return res.status(403).json({ error: 'Owner only' });
+  const token = crypto.randomBytes(16).toString('hex');
+  mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    e.emergencyToken = token;
+    audit(s, {
+      estateId: e.id,
+      userId: req.user.id,
+      action: 'emergency_token_rotated',
+      detail: 'Emergency QR token rotated',
+    });
+  });
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+  res.json({ emergencyToken: token, emergencyUrl: `${appUrl}/e/${token}` });
+});
+
+app.get('/api/public/emergency/:token', (req, res) => {
+  const store = readStore();
+  const estate = store.estates.find((e) => e.emergencyToken === req.params.token);
+  if (!estate) return res.status(404).json({ error: 'Emergency card not found' });
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  const unlockers = (estate.unlockRules?.unlockerUserIds || [])
+    .map((id) => store.users.find((u) => u.id === id))
+    .filter(Boolean)
+    .map((u) => ({ name: u.name, email: u.email }));
+  const contacts = store.items
+    .filter((i) => i.estateId === estate.id && i.category === 'contacts')
+    .slice(0, 5)
+    .map((i) => ({ title: i.title, notes: i.notes }));
+  res.json({
+    subjectName: estate.subjectName,
+    subjectRelation: estate.subjectRelation,
+    status: estate.status,
+    unlockMode: estate.unlockRules?.mode || 'single',
+    requireProof: estate.unlockRules?.requireProof !== false,
+    unlockers,
+    ownerName: owner?.name,
+    contacts,
+    firstSteps: [
+      'Call the unlockers listed here',
+      'Get death certificate / doctor incapacity letter (multiple copies)',
+      'Ask an unlocker to open Estate OS → Unlock tab → upload proof',
+      'Do not share bank passwords casually — use the Execution checklist after unlock',
+    ],
+  });
+});
+
 registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase });
 
 // Production static
@@ -1030,10 +1154,17 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
 async function boot() {
   await initDb();
   await seedLawyersIfNeeded();
+  mutate((s) => {
+    for (const e of s.estates) ensureEstateDefaults(e);
+  });
   await flushPersist();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Estate OS on http://0.0.0.0:${PORT} [${persistenceMode()}]`);
   });
+  setInterval(() => {
+    runReminderPass().catch((err) => console.error('reminder pass', err));
+  }, 60 * 60 * 1000);
+  setTimeout(() => runReminderPass().catch(() => {}), 15_000);
 }
 
 boot().catch((err) => {

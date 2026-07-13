@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
+import { useI18n } from '../i18n.jsx';
 
-const TABS = ['map', 'rules', 'unlock', 'execute', 'counsel', 'family', 'audit'];
+const TABS = ['map', 'interview', 'rules', 'unlock', 'execute', 'counsel', 'family', 'emergency', 'audit'];
 
 function statusBadge(status) {
   if (status === 'unlocked') return <span className="badge badge-unlocked">Unlocked</span>;
@@ -15,6 +16,7 @@ export default function EstatePage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { api, toast, user } = useAuth();
+  const { t, lang } = useI18n();
   const [data, setData] = useState(null);
   const [tab, setTab] = useState(searchParams.get('tab') || 'map');
   const [itemForm, setItemForm] = useState({
@@ -23,12 +25,14 @@ export default function EstatePage() {
     institution: '',
     accountRef: '',
     notes: '',
+    expiresOn: '',
   });
   const [files, setFiles] = useState(null);
   const [invite, setInvite] = useState({ email: '', role: 'manager' });
   const [proofType, setProofType] = useState('death');
   const [proofFile, setProofFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [answers, setAnswers] = useState({});
 
   async function load() {
     const res = await api(`/api/estates/${id}`);
@@ -63,7 +67,7 @@ export default function EstatePage() {
       Object.entries(itemForm).forEach(([k, v]) => fd.append(k, v));
       if (files) [...files].forEach((f) => fd.append('files', f));
       await api(`/api/estates/${id}/items`, { method: 'POST', body: fd });
-      setItemForm({ category: 'bank', title: '', institution: '', accountRef: '', notes: '' });
+      setItemForm({ category: 'bank', title: '', institution: '', accountRef: '', notes: '', expiresOn: '' });
       setFiles(null);
       toast('Item added to Life Map');
       await load();
@@ -79,6 +83,49 @@ export default function EstatePage() {
     try {
       await api(`/api/estates/${id}/seed-sample`, { method: 'POST', body: {} });
       toast('Sample India Life Map loaded');
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitInterview(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api(`/api/estates/${id}/interview`, { method: 'POST', body: { answers } });
+      setAnswers({});
+      toast(`Interview added ${res.added} Life Map items`);
+      setTab('map');
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function completeReview() {
+    setBusy(true);
+    try {
+      const res = await api(`/api/estates/${id}/review/complete`, { method: 'POST', body: {} });
+      toast(`Review done. Next: ${new Date(res.nextReviewAt).toLocaleDateString()}`);
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rotateEmergency() {
+    if (!window.confirm('Rotate emergency QR? Old printed cards stop working.')) return;
+    setBusy(true);
+    try {
+      await api(`/api/estates/${id}/emergency/rotate`, { method: 'POST', body: {} });
+      toast('Emergency token rotated');
       await load();
     } catch (err) {
       toast(err.message);
@@ -235,8 +282,23 @@ export default function EstatePage() {
     return <p className="muted">Loading estate…</p>;
   }
 
-  const { estate, items, members, tasks, audit, unlockRequests } = data;
+  const { estate, items, members, tasks, audit, unlockRequests, interviewQuestions, expiringSoon, expired } = data;
   const done = tasks.filter((t) => t.status === 'done').length;
+  const tabLabel = {
+    map: t('lifeMap'),
+    interview: t('interview'),
+    rules: t('unlockRules'),
+    unlock: t('unlock'),
+    execute: t('execution'),
+    counsel: t('counsel'),
+    family: t('family'),
+    emergency: t('emergency'),
+    audit: t('audit'),
+  };
+  const emergencyUrl =
+    estate.emergencyUrl ||
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/e/${estate.emergencyToken}`;
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(emergencyUrl)}`;
 
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
@@ -250,37 +312,45 @@ export default function EstatePage() {
           </h1>
           <p className="muted" style={{ margin: 0 }}>
             {estate.subjectRelation} · India pack · {items.length} vault items
+            {estate.nextReviewAt
+              ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
+              : ''}
           </p>
         </div>
         {statusBadge(estate.status)}
       </div>
-      <div style={{ marginTop: '0.75rem' }}>
+      {(expired?.length > 0 || expiringSoon?.length > 0) && (
+        <div className="card" style={{ padding: '0.85rem 1.1rem', marginTop: '0.85rem', borderColor: 'var(--terracotta, #b45309)' }}>
+          {expired?.length > 0 && (
+            <p className="small" style={{ margin: '0 0 0.35rem' }}>
+              <strong>Expired:</strong> {expired.map((i) => i.title).join(', ')}
+            </p>
+          )}
+          {expiringSoon?.length > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              <strong>Expiring soon:</strong> {expiringSoon.map((i) => `${i.title} (${i.expiresOn})`).join(', ')}
+            </p>
+          )}
+        </div>
+      )}
+      <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={exportZip}>
           Export ZIP
+        </button>
+        <button type="button" className="btn btn-ghost" style={{ padding: '0.4rem 0.85rem' }} onClick={completeReview} disabled={busy}>
+          Mark {t('review')} done
         </button>
       </div>
 
       <div className="tabs">
-        {TABS.map((t) => (
+        {TABS.map((key) => (
           <button
-            key={t}
+            key={key}
             type="button"
-            className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
+            className={`tab ${tab === key ? 'active' : ''}`}
+            onClick={() => setTab(key)}
           >
-            {t === 'map'
-              ? 'Life Map'
-              : t === 'rules'
-                ? 'Unlock rules'
-                : t === 'unlock'
-                  ? 'Unlock'
-                  : t === 'execute'
-                    ? 'Execution'
-                    : t === 'counsel'
-                      ? 'Counsel'
-                      : t === 'family'
-                        ? 'Family'
-                        : 'Audit'}
+            {tabLabel[key] || key}
           </button>
         ))}
       </div>
@@ -313,6 +383,11 @@ export default function EstatePage() {
                             {[item.institution, item.accountRef].filter(Boolean).join(' · ')}
                           </div>
                           {item.notes && <p className="small" style={{ margin: '0.35rem 0 0' }}>{item.notes}</p>}
+                          {item.expiresOn && (
+                            <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                              {t('expiry')}: {item.expiresOn}
+                            </p>
+                          )}
                           {item.files?.length > 0 && (
                             <div className="small" style={{ marginTop: '0.35rem' }}>
                               {item.files.map((f) => (
@@ -371,6 +446,14 @@ export default function EstatePage() {
                 <textarea rows={3} value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} placeholder="Nominee is spouse; passbook in steel cupboard…" />
               </div>
               <div className="field">
+                <label>{t('expiry')} (optional)</label>
+                <input
+                  type="date"
+                  value={itemForm.expiresOn}
+                  onChange={(e) => setItemForm({ ...itemForm, expiresOn: e.target.value })}
+                />
+              </div>
+              <div className="field">
                 <label>Photos / PDFs</label>
                 <input type="file" multiple onChange={(e) => setFiles(e.target.files)} />
               </div>
@@ -378,6 +461,59 @@ export default function EstatePage() {
                 Save to Life Map
               </button>
             </form>
+          )}
+        </div>
+      )}
+
+      {tab === 'interview' && (
+        <form className="card" style={{ padding: '1.25rem', maxWidth: 640 }} onSubmit={submitInterview}>
+          <p className="display" style={{ fontSize: '1.4rem', marginTop: 0 }}>
+            {t('interview')}
+          </p>
+          <p className="muted">
+            Walk through with a parent. Answers become Life Map vault items automatically.
+          </p>
+          {(interviewQuestions || []).map((q) => (
+            <div className="field" key={q.id}>
+              <label>{lang === 'hi' ? q.hi : q.en}</label>
+              <textarea
+                rows={3}
+                placeholder={q.placeholder}
+                value={answers[q.id] || ''}
+                onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+              />
+            </div>
+          ))}
+          <button className="btn btn-primary" disabled={busy || estate.myRole === 'viewer'}>
+            {busy ? 'Saving…' : 'Build Life Map from answers'}
+          </button>
+        </form>
+      )}
+
+      {tab === 'emergency' && (
+        <div className="card" style={{ padding: '1.25rem', maxWidth: 560 }}>
+          <p className="display" style={{ fontSize: '1.4rem', marginTop: 0 }}>
+            {t('emergency')}
+          </p>
+          <p className="muted">
+            Print this QR for a wallet / fridge. It opens a public card with unlockers and first steps — not bank passwords.
+          </p>
+          {estate.emergencyToken ? (
+            <>
+              <img src={qrSrc} alt="Emergency QR" width={220} height={220} style={{ display: 'block', margin: '0.75rem 0' }} />
+              <p className="small">
+                <a href={emergencyUrl} target="_blank" rel="noreferrer">
+                  {emergencyUrl}
+                </a>
+              </p>
+              {estate.myRole === 'owner' && (
+                <button type="button" className="btn btn-ghost" onClick={rotateEmergency} disabled={busy}>
+                  Rotate QR token
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="muted">Emergency token missing — refresh the page.</p>
           )}
         </div>
       )}

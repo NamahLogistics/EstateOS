@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
+import { useI18n } from './i18n.jsx';
 import Landing from './pages/Landing.jsx';
 import AuthPage from './pages/Auth.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -7,10 +8,12 @@ import EstatePage from './pages/EstatePage.jsx';
 import Pricing from './pages/Pricing.jsx';
 import CounselDesk from './pages/CounselDesk.jsx';
 import InvitePage from './pages/InvitePage.jsx';
+import EmergencyPage from './pages/EmergencyPage.jsx';
 import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
+  const { t, toggle } = useI18n();
   const navigate = useNavigate();
   return (
     <div className="layout-app">
@@ -23,17 +26,20 @@ function Shell({ children }) {
           <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {user && (
               <Link className="btn btn-ghost" to="/app" style={{ padding: '0.45rem 0.85rem' }}>
-                Estates
+                {t('estates')}
               </Link>
             )}
             {user?.accountType === 'lawyer' && (
               <Link className="btn btn-ghost" to="/app/counsel" style={{ padding: '0.45rem 0.85rem' }}>
-                Counsel desk
+                {t('counselDesk')}
               </Link>
             )}
             <Link className="btn btn-ghost" to="/pricing" style={{ padding: '0.45rem 0.85rem' }}>
-              Pricing
+              {t('pricing')}
             </Link>
+            <button type="button" className="btn btn-ghost" style={{ padding: '0.45rem 0.85rem' }} onClick={toggle}>
+              {t('lang')}
+            </button>
             {user ? (
               <>
                 <span className="small muted">
@@ -48,12 +54,12 @@ function Shell({ children }) {
                     navigate('/');
                   }}
                 >
-                  Sign out
+                  {t('signOut')}
                 </button>
               </>
             ) : (
               <Link className="btn btn-primary" to="/auth" style={{ padding: '0.45rem 0.85rem' }}>
-                Sign in
+                {t('signIn')}
               </Link>
             )}
           </div>
@@ -114,6 +120,7 @@ export default function App() {
       <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
       <Route path="/auth" element={<Shell><AuthPage /></Shell>} />
       <Route path="/invite/:token" element={<Shell><InvitePage /></Shell>} />
+      <Route path="/e/:token" element={<Shell><EmergencyPage /></Shell>} />
       <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
       <Route path="/app/counsel" element={<Private><Shell><CounselDesk /></Shell></Private>} />
       <Route path="/app/estates/:id" element={<Private><Shell><EstatePage /></Shell></Private>} />
