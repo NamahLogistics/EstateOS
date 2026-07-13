@@ -84,3 +84,24 @@ export async function sendInviteEmail({ to, estateName, role, link, inviterName 
   `;
   return sendEmail({ to, subject, html, text });
 }
+
+export async function sendPasswordResetEmail({ to, name, link }) {
+  const subject = 'Reset your HeirReady password';
+  const text = `Hi ${name || 'there'},\n\nReset your HeirReady password with this link (expires in 1 hour):\n${link}\n\nIf you didn’t ask for this, you can ignore this email.\n\nHeirReady`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">Reset your password</h2>
+      <p style="margin:0 0 16px">Hi ${name || 'there'}, we received a request to reset your HeirReady password.</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Choose a new password</a></p>
+      <p style="font-size:13px;color:#3a4a42">Or open: ${link}</p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">This link expires in 1 hour. If you didn’t ask for a reset, ignore this email.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'password_reset' }],
+  });
+}

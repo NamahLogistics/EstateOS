@@ -38,7 +38,7 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, mailConfigured } from './mail.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults } from './reminders.js';
@@ -220,14 +220,17 @@ function publicEstate(estate, store, userId) {
 
 // ── Auth ──────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, accountType, referralCode, ref } = req.body || {};
+  const { name, email, password, passwordConfirm, accountType, referralCode, ref } = req.body || {};
   if (!name?.trim() || !email?.trim() || !password || password.length < 6) {
     return res.status(400).json({ error: 'Name, email, and password (6+) required' });
+  }
+  if (passwordConfirm != null && password !== passwordConfirm) {
+    return res.status(400).json({ error: 'Passwords do not match' });
   }
   const normalized = email.trim().toLowerCase();
   const store = readStore();
   if (store.users.some((u) => u.email === normalized)) {
-    return res.status(409).json({ error: 'Email already registered' });
+    return res.status(409).json({ error: 'Email already registered — try Sign in or Forgot password' });
   }
   const passwordHash = await hashPassword(password);
   const type =
@@ -311,6 +314,82 @@ app.post('/api/auth/login', async (req, res) => {
   const refreshed = readStore().users.find((u) => u.id === user.id) || user;
   const token = signToken(refreshed);
   res.json({ token, user: publicUser(refreshed) });
+});
+
+/** Always 200 — don’t reveal whether email exists. */
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const normalized = String(req.body?.email || '')
+    .trim()
+    .toLowerCase();
+  const okMsg = {
+    ok: true,
+    message: 'If that email is registered, you’ll get a reset link shortly. Check spam too.',
+  };
+  if (!normalized.includes('@')) {
+    return res.status(400).json({ error: 'Enter a valid email' });
+  }
+
+  const store = readStore();
+  const user = store.users.find((u) => u.email === normalized);
+  if (!user) return res.json(okMsg);
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.passwordResetTokenHash = tokenHash;
+    u.passwordResetExpiresAt = expiresAt;
+    u.passwordResetRequestedAt = new Date().toISOString();
+  });
+
+  const base = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+  const link = `${base}/auth?mode=reset&token=${rawToken}`;
+
+  try {
+    await sendPasswordResetEmail({ to: user.email, name: user.name, link });
+  } catch (err) {
+    console.error('password reset email failed', err.message);
+  }
+
+  res.json(okMsg);
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password, passwordConfirm } = req.body || {};
+  if (!token || !password || password.length < 6) {
+    return res.status(400).json({ error: 'New password (6+) and reset token required' });
+  }
+  if (passwordConfirm != null && password !== passwordConfirm) {
+    return res.status(400).json({ error: 'Passwords do not match' });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+  const store = readStore();
+  const now = Date.now();
+  const user = store.users.find(
+    (u) =>
+      u.passwordResetTokenHash === tokenHash &&
+      u.passwordResetExpiresAt &&
+      new Date(u.passwordResetExpiresAt).getTime() > now
+  );
+  if (!user) {
+    return res.status(400).json({ error: 'Reset link is invalid or expired. Request a new one.' });
+  }
+
+  const passwordHash = await hashPassword(password);
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.passwordHash = passwordHash;
+    u.passwordResetTokenHash = null;
+    u.passwordResetExpiresAt = null;
+    u.passwordChangedAt = new Date().toISOString();
+  });
+
+  res.json({ ok: true, message: 'Password updated. You can sign in now.' });
 });
 
 app.get('/api/me', authRequired, (req, res) => {
@@ -1330,7 +1409,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.10.6',
+    version: '1.10.7',
   });
 });
 

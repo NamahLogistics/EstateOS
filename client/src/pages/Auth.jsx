@@ -17,11 +17,21 @@ function homeFor(accountType) {
   return '/app';
 }
 
+function modeFromParams(params) {
+  const m = params.get('mode');
+  if (m === 'login' || m === 'forgot' || m === 'reset') return m;
+  return 'register';
+}
+
 export default function AuthPage() {
   const { user, login, register, toast } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState(params.get('mode') === 'login' ? 'login' : 'register');
+  const resetToken = (params.get('token') || '').trim();
+  const [mode, setMode] = useState(() => {
+    if (resetToken) return 'reset';
+    return modeFromParams(params);
+  });
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
   const typeFromUrl = typeFromParam(params.get('type'));
   const cityFromUrl = (params.get('city') || '').trim();
@@ -36,16 +46,18 @@ export default function AuthPage() {
     name: '',
     email: '',
     password: '',
+    passwordConfirm: '',
     accountType: typeFromUrl || 'family',
     city: cityFromUrl || '',
     role: 'maid',
     phone: '',
   });
   const [busy, setBusy] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
     try {
-      localStorage.removeItem('heirready_invite_city'); // drop old Pune default
+      localStorage.removeItem('heirready_invite_city');
     } catch {
       /* ignore */
     }
@@ -63,7 +75,10 @@ export default function AuthPage() {
       const saved = localStorage.getItem(CITY_KEY) || '';
       if (saved) setForm((f) => (f.city ? f : { ...f, city: saved }));
     }
-  }, [refFromUrl, typeFromUrl, cityFromUrl]);
+    if (resetToken) setMode('reset');
+    else if (params.get('mode') === 'forgot') setMode('forgot');
+    else if (params.get('mode') === 'login') setMode('login');
+  }, [refFromUrl, typeFromUrl, cityFromUrl, resetToken, params]);
 
   if (user) return <Navigate to={homeFor(user.accountType)} replace />;
 
@@ -71,21 +86,61 @@ export default function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const payload =
-        mode === 'register'
-          ? {
-              ...form,
-              ref: referralCode || undefined,
-              city: form.city || undefined,
-              role: form.role || undefined,
-              phone: form.phone || undefined,
-            }
-          : form;
-      const data = mode === 'register' ? await register(payload) : await login(form);
+      if (mode === 'forgot') {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not send reset email');
+        setForgotSent(true);
+        toast(data.message || 'Check your email for a reset link');
+        return;
+      }
+
+      if (mode === 'reset') {
+        if (form.password !== form.passwordConfirm) {
+          throw new Error('Passwords do not match');
+        }
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: resetToken,
+            password: form.password,
+            passwordConfirm: form.passwordConfirm,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not reset password');
+        toast(data.message || 'Password updated — sign in');
+        setMode('login');
+        setForm((f) => ({ ...f, password: '', passwordConfirm: '' }));
+        navigate('/auth?mode=login', { replace: true });
+        return;
+      }
+
       if (mode === 'register') {
+        if (form.password !== form.passwordConfirm) {
+          throw new Error('Passwords do not match');
+        }
+        const data = await register({
+          ...form,
+          passwordConfirm: form.passwordConfirm,
+          ref: referralCode || undefined,
+          city: form.city || undefined,
+          role: form.role || undefined,
+          phone: form.phone || undefined,
+        });
         localStorage.removeItem(REF_KEY);
         if (form.city) localStorage.setItem(CITY_KEY, form.city);
+        toast('Welcome to HeirReady');
+        navigate(homeFor(data.user?.accountType));
+        return;
       }
+
+      const data = await login({ email: form.email, password: form.password });
       toast('Welcome to HeirReady');
       navigate(homeFor(data.user?.accountType));
     } catch (err) {
@@ -99,24 +154,40 @@ export default function AuthPage() {
   const isCare = form.accountType === 'care' || typeFromUrl === 'care';
   const cityHint = form.city || cityFromUrl;
 
+  const title =
+    mode === 'forgot'
+      ? 'Forgot password'
+      : mode === 'reset'
+        ? 'Choose a new password'
+        : mode === 'register'
+          ? isLawyer
+            ? 'Join as counsel'
+            : isCare
+              ? 'Join as caregiver'
+              : 'Create account'
+          : 'Sign in';
+
+  const subtitle =
+    mode === 'forgot'
+      ? 'We’ll email you a link to reset it (expires in 1 hour).'
+      : mode === 'reset'
+        ? 'Enter a new password twice so there’s no typo.'
+        : mode === 'register'
+          ? isLawyer
+            ? 'Counsel desk, city leads, and matter briefs — for advocates.'
+            : isCare
+              ? 'List your cities and role free — families will find you when city care launches.'
+              : 'Families map estates. Counsel and care network when you need them.'
+          : 'Welcome back.';
+
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
       <div className="card" style={{ padding: '1.5rem' }}>
         <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
-          {mode === 'register'
-            ? isLawyer
-              ? 'Join as counsel'
-              : isCare
-                ? 'Join as caregiver'
-                : 'Create account'
-            : 'Sign in'}
+          {title}
         </h1>
         <p className="muted" style={{ marginTop: '-0.3rem' }}>
-          {isLawyer
-            ? 'Counsel desk, city leads, and matter briefs — for advocates.'
-            : isCare
-              ? 'List your cities and role free — families will find you when city care launches.'
-              : 'Families map estates. Counsel and care network when you need them.'}
+          {subtitle}
         </p>
         {mode === 'register' && cityHint && !isLawyer && (
           <p className="small" style={{ marginTop: 0 }}>
@@ -128,117 +199,195 @@ export default function AuthPage() {
             Referral code applied: <strong>{referralCode}</strong>
           </p>
         )}
-        <form onSubmit={submit}>
-          {mode === 'register' && (
-            <>
-              <div className="field">
-                <label>I am</label>
-                <select
-                  value={form.accountType}
-                  onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                >
-                  <option value="family">Family / adult child</option>
-                  <option value="lawyer">Lawyer / counsel</option>
-                  <option value="care">Nurse / maid / caregiver</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Your name</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  placeholder={isCare ? 'Sunita' : 'Priya Sharma'}
-                />
-              </div>
-              {isCare && (
-                <>
+
+        {mode === 'forgot' && forgotSent ? (
+          <div>
+            <p style={{ lineHeight: 1.55 }}>
+              If <strong>{form.email}</strong> is registered, a reset link is on its way. Check spam
+              too.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => {
+                setMode('login');
+                setForgotSent(false);
+              }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            {mode === 'register' && (
+              <>
+                <div className="field">
+                  <label>I am</label>
+                  <select
+                    value={form.accountType}
+                    onChange={(e) => setForm({ ...form, accountType: e.target.value })}
+                  >
+                    <option value="family">Family / adult child</option>
+                    <option value="lawyer">Lawyer / counsel</option>
+                    <option value="care">Nurse / maid / caregiver</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Your name</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    placeholder={isCare ? 'Sunita' : 'Priya Sharma'}
+                  />
+                </div>
+                {isCare && (
+                  <>
+                    <div className="field">
+                      <label>Primary city</label>
+                      <input
+                        value={form.city}
+                        onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        required
+                        placeholder="Your city"
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Role</label>
+                      <select
+                        value={form.role}
+                        onChange={(e) => setForm({ ...form, role: e.target.value })}
+                      >
+                        <option value="nurse">Nurse</option>
+                        <option value="attendant">Attendant / ayah</option>
+                        <option value="maid">Maid / domestic help</option>
+                        <option value="cook">Cook</option>
+                        <option value="driver">Driver</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Phone</label>
+                      <input
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        placeholder="+91…"
+                      />
+                    </div>
+                  </>
+                )}
+                {!isCare && !isLawyer && (
                   <div className="field">
-                    <label>Primary city</label>
+                    <label>Parent’s city (optional)</label>
                     <input
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      required
                       placeholder="Your city"
                     />
                   </div>
-                  <div className="field">
-                    <label>Role</label>
-                    <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                      <option value="nurse">Nurse</option>
-                      <option value="attendant">Attendant / ayah</option>
-                      <option value="maid">Maid / domestic help</option>
-                      <option value="cook">Cook</option>
-                      <option value="driver">Driver</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Phone</label>
-                    <input
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="+91…"
-                    />
-                  </div>
-                </>
-              )}
-              {!isCare && !isLawyer && (
+                )}
                 <div className="field">
-                  <label>Parent’s city (optional)</label>
+                  <label>Referral code (optional)</label>
                   <input
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Your city"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.trim().toUpperCase())}
+                    placeholder="From a friend’s link"
                   />
                 </div>
-              )}
+              </>
+            )}
+
+            {(mode === 'register' || mode === 'login' || mode === 'forgot') && (
               <div className="field">
-                <label>Referral code (optional)</label>
+                <label>Email</label>
                 <input
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value.trim().toUpperCase())}
-                  placeholder="From a friend’s link"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                  placeholder="you@email.com"
+                  autoComplete="email"
                 />
               </div>
-            </>
-          )}
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-              placeholder="you@email.com"
-            />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-              minLength={6}
-              placeholder="At least 6 characters"
-            />
-          </div>
-          <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
-            {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Sign in'}
-          </button>
-        </form>
-        <p className="small muted" style={{ marginTop: '1rem', marginBottom: 0 }}>
-          {mode === 'register' ? 'Already have an account?' : 'New here?'}{' '}
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ padding: '0.2rem 0.5rem' }}
-            onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
-          >
-            {mode === 'register' ? 'Sign in' : 'Create account'}
-          </button>
-        </p>
+            )}
+
+            {(mode === 'register' || mode === 'login' || mode === 'reset') && (
+              <div className="field">
+                <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                />
+              </div>
+            )}
+
+            {(mode === 'register' || mode === 'reset') && (
+              <div className="field">
+                <label>Confirm password</label>
+                <input
+                  type="password"
+                  value={form.passwordConfirm}
+                  onChange={(e) => setForm({ ...form, passwordConfirm: e.target.value })}
+                  required
+                  minLength={6}
+                  placeholder="Type it again"
+                  autoComplete="new-password"
+                />
+              </div>
+            )}
+
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
+              {busy
+                ? 'Please wait…'
+                : mode === 'forgot'
+                  ? 'Email reset link'
+                  : mode === 'reset'
+                    ? 'Update password'
+                    : mode === 'register'
+                      ? 'Create account'
+                      : 'Sign in'}
+            </button>
+          </form>
+        )}
+
+        {mode === 'login' && (
+          <p className="small" style={{ marginTop: '0.85rem', marginBottom: 0 }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: '0.2rem 0.5rem' }}
+              onClick={() => {
+                setMode('forgot');
+                setForgotSent(false);
+              }}
+            >
+              Forgot password?
+            </button>
+          </p>
+        )}
+
+        {mode !== 'reset' && (
+          <p className="small muted" style={{ marginTop: '1rem', marginBottom: 0 }}>
+            {mode === 'register' ? 'Already have an account?' : mode === 'forgot' ? 'Remembered it?' : 'New here?'}{' '}
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: '0.2rem 0.5rem' }}
+              onClick={() => {
+                setForgotSent(false);
+                setMode(mode === 'register' ? 'login' : mode === 'forgot' ? 'login' : 'register');
+              }}
+            >
+              {mode === 'register' || mode === 'forgot' ? 'Sign in' : 'Create account'}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
