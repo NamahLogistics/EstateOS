@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import ReferralCard from '../components/ReferralCard.jsx';
 
 const DEFAULT_ROLES = [
   { id: 'nurse', label: 'Nurse' },
@@ -78,6 +79,10 @@ export default function CareDesk() {
         {(worker?.cities || []).join(' / ') || 'Set cities'} · {worker?.roleLabel || worker?.role} ·{' '}
         {worker?.acceptingWork === false ? 'Not accepting work' : 'Accepting work'}
       </p>
+
+      <div style={{ margin: '1.15rem 0', maxWidth: 640 }}>
+        <ReferralCard />
+      </div>
 
       <form className="card" style={{ padding: '1.15rem', margin: '1.25rem 0' }} onSubmit={save}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>

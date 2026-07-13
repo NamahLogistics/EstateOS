@@ -96,6 +96,10 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div style={{ marginTop: '1.15rem', maxWidth: 640 }}>
+        <ReferralCard />
+      </div>
+
       {freeAtEstateCap && (
         <div className="upgrade-limit-banner">
           <p className="small">
@@ -116,11 +120,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ marginTop: '1rem', maxWidth: 640 }}>
-        <ReferralCard compact />
-      </div>
-
-      <div className="split" style={{ marginTop: '1rem' }}>
+      <div className="split" style={{ marginTop: '1.25rem' }}>
         <div className="card">
           {estates.length === 0 ? (
             <div style={{ padding: '1.4rem' }}>

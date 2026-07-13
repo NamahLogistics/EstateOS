@@ -27,9 +27,14 @@ function Shell({ children }) {
           </Link>
           <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {user && (
-              <Link className="btn btn-ghost" to="/app" style={{ padding: '0.45rem 0.85rem' }}>
-                {t('estates')}
-              </Link>
+              <>
+                <Link className="btn btn-ghost" to="/app" style={{ padding: '0.45rem 0.85rem' }}>
+                  {t('estates')}
+                </Link>
+                <Link className="btn btn-ghost" to="/app#grow" style={{ padding: '0.45rem 0.85rem' }}>
+                  Invite
+                </Link>
+              </>
             )}
             {user?.accountType === 'lawyer' && (
               <Link className="btn btn-ghost" to="/app/counsel" style={{ padding: '0.45rem 0.85rem' }}>
