@@ -223,6 +223,135 @@ export default function EstatePage() {
   const categories = data?.categories || [];
   const careRoles = data?.careRoles || [];
   const isCare = itemForm.category === 'care';
+  const addFields = (() => {
+    const c = itemForm.category;
+    if (c === 'care') {
+      return {
+        title: 'Name',
+        titlePh: 'Sunita',
+        institution: 'Role',
+        accountRef: 'Phone',
+        accountRefPh: '+91-98XXXXXXXX',
+        notesPh: 'Has spare keys; call before hospital discharge…',
+        showExpiry: false,
+        blurb: 'Nurse, attendant, maid, cook, driver — people who keep the house running.',
+      };
+    }
+    if (c === 'contacts') {
+      return {
+        title: 'Person’s name',
+        titlePh: 'Dr. Mehta',
+        institution: 'Who they are',
+        institutionPh: 'Family doctor · CA · neighbour · society secretary',
+        accountRef: 'Phone / WhatsApp',
+        accountRefPh: '+91-98XXXXXXXX',
+        notesPh: 'When to call · has spare key · speaks Hindi…',
+        showExpiry: false,
+        blurb: 'People to call first — doctor, neighbour, CA, building secretary. Not bank account numbers.',
+      };
+    }
+    if (c === 'bank') {
+      return {
+        title: 'Account nickname',
+        titlePh: 'SBI joint savings',
+        institution: 'Bank name',
+        institutionPh: 'State Bank of India',
+        accountRef: 'Account / IFSC (last digits ok)',
+        accountRefPh: 'XXXX1234 · SBIN0XXXXX',
+        notesPh: 'Nominee is spouse; passbook in steel cupboard…',
+        showExpiry: true,
+        blurb: 'Where money sits — nickname is fine; full number can wait.',
+      };
+    }
+    if (c === 'insurance') {
+      return {
+        title: 'Policy nickname',
+        titlePh: 'LIC Jeevan Anand',
+        institution: 'Insurer',
+        institutionPh: 'LIC / HDFC Life / …',
+        accountRef: 'Policy number',
+        accountRefPh: 'Policy no. or last 6 digits',
+        notesPh: 'Nominee · agent name/phone · where papers are…',
+        showExpiry: true,
+        blurb: 'LIC and other policies — number + where the papers live.',
+      };
+    }
+    if (c === 'investments') {
+      return {
+        title: 'Holding nickname',
+        titlePh: 'NPS / demat / PPF',
+        institution: 'Broker / fund house',
+        institutionPh: 'Zerodha · SBI Mutual Fund · EPFO',
+        accountRef: 'Folio / demat / PAN-linked ref',
+        accountRefPh: 'Folio or client ID',
+        notesPh: 'Who can access · nominee…',
+        showExpiry: true,
+        blurb: 'Demat, mutual funds, PF, NPS — enough to find the account later.',
+      };
+    }
+    if (c === 'property') {
+      return {
+        title: 'Property / document',
+        titlePh: 'Flat 4B · sale deed',
+        institution: 'Location / registry',
+        institutionPh: 'Mumbai · society name · locker bank',
+        accountRef: 'Survey / doc / locker no. (optional)',
+        accountRefPh: 'Flat no. · locker 12',
+        notesPh: 'Who has keys · lawyer name…',
+        showExpiry: false,
+        blurb: 'Flat, land, locker — papers and who holds the keys.',
+      };
+    }
+    if (c === 'digital') {
+      return {
+        title: 'Device / login',
+        titlePh: 'Papa’s iPhone / Gmail',
+        institution: 'Provider',
+        institutionPh: 'Airtel · Gmail · DigiLocker',
+        accountRef: 'Number / email / username',
+        accountRefPh: '+91… or name@gmail.com',
+        notesPh: 'PIN hint with spouse · recovery contact…',
+        showExpiry: false,
+        blurb: 'Phone, email, DigiLocker — how to reach accounts, not passwords.',
+      };
+    }
+    if (c === 'subscriptions') {
+      return {
+        title: 'Subscription',
+        titlePh: 'Electricity · Netflix · club',
+        institution: 'Company',
+        institutionPh: 'BEST · Tata Power · …',
+        accountRef: 'Customer / CA number',
+        accountRefPh: 'Consumer no.',
+        notesPh: 'Auto-pay card · whose UPI…',
+        showExpiry: true,
+        blurb: 'Bills and memberships that keep charging if nobody knows.',
+      };
+    }
+    if (c === 'wishes') {
+      return {
+        title: 'Topic',
+        titlePh: 'Burial wish · donation · letters',
+        institution: 'Optional context',
+        institutionPh: 'Family only · temple · …',
+        accountRef: null,
+        notesPh: 'Write what they said in their words…',
+        showExpiry: false,
+        blurb: 'Soft notes and wishes — not money or phone numbers.',
+      };
+    }
+    return {
+      title: 'Title',
+      titlePh: '',
+      institution: 'Institution',
+      institutionPh: '',
+      accountRef: 'Reference',
+      accountRefPh: '',
+      notesPh: '',
+      showExpiry: true,
+      blurb: '',
+    };
+  })();
   const itemsByCat = useMemo(() => {
     const map = {};
     for (const c of categories) map[c.id] = [];
@@ -917,7 +1046,21 @@ export default function EstatePage() {
                           <div style={{ minWidth: 0 }}>
                           <strong>{item.title}</strong>
                           <div className="small muted">
-                            {[item.institution, item.accountRef].filter(Boolean).join(' · ')}
+                            {item.category === 'care' || item.category === 'contacts'
+                              ? [
+                                  item.institution,
+                                  item.accountRef ? `Phone ${item.accountRef}` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')
+                              : item.category === 'insurance'
+                                ? [
+                                    item.institution,
+                                    item.accountRef ? `Policy ${item.accountRef}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')
+                                : [item.institution, item.accountRef].filter(Boolean).join(' · ')}
                           </div>
                           {item.category === 'care' && (
                             <div className="small muted" style={{ marginTop: '0.25rem' }}>
@@ -1057,22 +1200,36 @@ export default function EstatePage() {
               </form>
               <form className="card" style={{ padding: '1.2rem' }} onSubmit={addItem}>
               <p className="display" style={{ fontSize: '1.3rem', marginTop: 0 }}>
-                Add item
+                Add to vault
               </p>
+              {addFields.blurb ? (
+                <p className="small muted" style={{ marginTop: '-0.35rem', marginBottom: '0.85rem', lineHeight: 1.45 }}>
+                  {addFields.blurb}
+                </p>
+              ) : null}
               <div className="field">
-                <label>Category</label>
+                <label>What kind?</label>
                 <select
                   value={itemForm.category}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const next = e.target.value;
                     setItemForm({
                       ...itemForm,
-                      category: e.target.value,
+                      category: next,
                       institution:
-                        e.target.value === 'care' && !itemForm.institution
-                          ? 'Nurse'
-                          : itemForm.institution,
-                    })
-                  }
+                        next === 'care'
+                          ? itemForm.institution &&
+                            careRoles.some((r) => r.label === itemForm.institution)
+                            ? itemForm.institution
+                            : 'Attendant / ayah'
+                          : '',
+                      accountRef: '',
+                      shift: '',
+                      paidBy: '',
+                      backupContact: '',
+                      expiresOn: '',
+                    });
+                  }}
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1082,16 +1239,16 @@ export default function EstatePage() {
                 </select>
               </div>
               <div className="field">
-                <label>{isCare ? 'Name' : 'Title'}</label>
+                <label>{addFields.title}</label>
                 <input
                   required
                   value={itemForm.title}
                   onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
-                  placeholder={isCare ? 'Sunita' : 'SBI Savings'}
+                  placeholder={addFields.titlePh}
                 />
               </div>
               <div className="field">
-                <label>{isCare ? 'Role' : 'Institution'}</label>
+                <label>{addFields.institution}</label>
                 {isCare && careRoles.length > 0 ? (
                   <select
                     value={itemForm.institution}
@@ -1107,18 +1264,20 @@ export default function EstatePage() {
                   <input
                     value={itemForm.institution}
                     onChange={(e) => setItemForm({ ...itemForm, institution: e.target.value })}
-                    placeholder="State Bank of India"
+                    placeholder={addFields.institutionPh}
                   />
                 )}
               </div>
+              {addFields.accountRef ? (
               <div className="field">
-                <label>{isCare ? 'Phone' : 'Account / policy ref'}</label>
+                <label>{addFields.accountRef}</label>
                 <input
                   value={itemForm.accountRef}
                   onChange={(e) => setItemForm({ ...itemForm, accountRef: e.target.value })}
-                  placeholder={isCare ? '+91-98XXXXXXXX' : 'XXXX1234'}
+                  placeholder={addFields.accountRefPh}
                 />
               </div>
+              ) : null}
               {isCare && (
                 <>
                   <div className="field">
@@ -1153,14 +1312,10 @@ export default function EstatePage() {
                   rows={3}
                   value={itemForm.notes}
                   onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
-                  placeholder={
-                    isCare
-                      ? 'Has spare keys; call before hospital discharge…'
-                      : 'Nominee is spouse; passbook in steel cupboard…'
-                  }
+                  placeholder={addFields.notesPh}
                 />
               </div>
-              {!isCare && (
+              {addFields.showExpiry && (
               <div className="field">
                 <label>{t('expiry')} (optional)</label>
                 <input
