@@ -129,6 +129,7 @@ export default function EstatePage() {
   const [scanFile, setScanFile] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState('items');
+  const [justAddedId, setJustAddedId] = useState(null);
 
   function openUpgrade(reason = 'items') {
     setUpgradeReason(reason);
@@ -199,6 +200,12 @@ export default function EstatePage() {
   }, [id]);
 
   useEffect(() => {
+    if (!justAddedId) return;
+    const el = document.getElementById('vault-just-added');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [justAddedId, data?.items?.length]);
+
+  useEffect(() => {
     const limits = data?.limits;
     if (!limits || limits.paid) return;
     if (limits.itemCount < limits.freeMaxItems) return;
@@ -226,6 +233,23 @@ export default function EstatePage() {
     return map;
   }, [data, categories]);
 
+  function mergeItemIntoData(item) {
+    if (!item?.id) return;
+    setData((d) => {
+      if (!d) return d;
+      const exists = (d.items || []).some((i) => i.id === item.id);
+      const items = exists
+        ? d.items.map((i) => (i.id === item.id ? item : i))
+        : [...(d.items || []), item];
+      const limits = d.limits
+        ? { ...d.limits, itemCount: items.length }
+        : d.limits;
+      return { ...d, items, limits };
+    });
+    setJustAddedId(item.id);
+    window.setTimeout(() => setJustAddedId((cur) => (cur === item.id ? null : cur)), 2500);
+  }
+
   async function addItem(e) {
     e.preventDefault();
     const lim = data?.limits;
@@ -233,16 +257,18 @@ export default function EstatePage() {
       openUpgrade('items');
       return;
     }
+    const addedCategory = itemForm.category;
     setBusy(true);
     try {
       const fd = new FormData();
       Object.entries(itemForm).forEach(([k, v]) => fd.append(k, v));
       if (files) [...files].forEach((f) => fd.append('files', f));
-      await api(`/api/estates/${id}/items`, { method: 'POST', body: fd });
+      const res = await api(`/api/estates/${id}/items`, { method: 'POST', body: fd });
+      mergeItemIntoData(res.item);
       setItemForm({
-        category: 'bank',
+        category: addedCategory === 'care' ? 'care' : 'bank',
         title: '',
-        institution: '',
+        institution: addedCategory === 'care' ? itemForm.institution || 'Attendant / ayah' : '',
         accountRef: '',
         notes: '',
         expiresOn: '',
@@ -251,8 +277,14 @@ export default function EstatePage() {
         backupContact: '',
       });
       setFiles(null);
-      toast('Item added to Life Map');
-      await load();
+      toast(
+        addedCategory === 'care'
+          ? 'Attendant / care contact added — showing in Care at home'
+          : 'Item added to Life Map'
+      );
+      setTab('map');
+      // Refresh in background; list already updated
+      load().catch(() => {});
     } catch (err) {
       if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
@@ -409,6 +441,7 @@ export default function EstatePage() {
       fd.append('photo', scanFile);
       fd.append('category', scanCategory);
       const res = await api(`/api/estates/${id}/items/scan`, { method: 'POST', body: fd });
+      mergeItemIntoData(res.item);
       setScanFile(null);
       toast(
         res.draftSource === 'openai_vision'
@@ -416,7 +449,7 @@ export default function EstatePage() {
           : 'Photo saved as draft — edit title & details'
       );
       setTab('map');
-      await load();
+      load().catch(() => {});
     } catch (err) {
       if (!handleLimitError(err, 'items')) toast(err.message);
     } finally {
@@ -863,7 +896,19 @@ export default function EstatePage() {
                     itemNo += 1;
                     const n = itemNo;
                     return (
-                    <div key={item.id} className="item-row">
+                    <div
+                      key={item.id}
+                      className="item-row"
+                      id={item.id === justAddedId ? 'vault-just-added' : undefined}
+                      style={
+                        item.id === justAddedId
+                          ? {
+                              background: 'rgba(220, 232, 225, 0.85)',
+                              outline: '2px solid rgba(47, 107, 82, 0.45)',
+                            }
+                          : undefined
+                      }
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
                         <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', minWidth: 0 }}>
                           <span className="vault-item-num" aria-hidden="true">

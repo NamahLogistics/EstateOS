@@ -919,6 +919,7 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
       detail: `Added ${category}: ${item.title}`,
     });
   });
+  await flushPersist();
   res.status(201).json({ item });
 });
 
@@ -974,6 +975,7 @@ app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), as
       detail: `Photo draft: ${item.title} (${draft.source})`,
     });
   });
+  await flushPersist();
   res.status(201).json({ item, draftSource: draft.source });
 });
 
@@ -1839,7 +1841,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.22.2',
+    version: '1.22.3',
     push: pushConfigured(),
   });
 });
