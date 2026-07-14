@@ -49,7 +49,9 @@ function phoneDigits(raw) {
 
 function callHref(raw) {
   const d = phoneDigits(raw);
-  return d ? `tel:+${d.replace(/^\+/, '')}` : '';
+  if (!d) return '';
+  const num = d.length === 10 ? `91${d}` : d.replace(/^\+/, '');
+  return `tel:+${num}`;
 }
 
 function whatsappChatHref(raw, name) {
