@@ -29,7 +29,7 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
         method: 'POST',
         body: { stepId, ...opts },
       });
-      onUpdated?.(res.housewarming);
+      onUpdated?.(res);
       if (opts.completeAll || opts.soloFastTrack) {
         track('housewarming_solo_or_finish', { estateId, solo: Boolean(opts.soloFastTrack) });
       } else if (opts.complete) {

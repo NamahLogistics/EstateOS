@@ -1824,7 +1824,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.18.0',
+    version: '1.18.1',
     push: pushConfigured(),
   });
 });
@@ -1976,7 +1976,10 @@ app.post('/api/estates/:id/housewarming', authRequired, async (req, res) => {
     });
   }
 
-  res.json({ housewarming: result, justCompleted });
+  const after = readStore();
+  const estateAfter = after.estates.find((e) => e.id === access.estate.id);
+  const health = estateAfter ? computeLifeMapHealth(estateAfter, after) : null;
+  res.json({ housewarming: result, justCompleted, health });
 });
 
 app.post('/api/estates/:id/interview', authRequired, (req, res) => {

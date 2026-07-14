@@ -145,6 +145,19 @@ export default function EstatePage() {
     setData(res);
   }
 
+  /** Keep Life Map health in sync when housewarming (fridge QR) progresses. */
+  function applyHousewarming(res) {
+    const hw = res?.housewarming || res;
+    setData((d) => {
+      if (!d) return d;
+      return {
+        ...d,
+        housewarming: hw,
+        estate: res?.health ? { ...d.estate, health: res.health } : d.estate,
+      };
+    });
+  }
+
   useEffect(() => {
     load().catch((e) => toast(e.message));
   }, [id]);
@@ -460,6 +473,24 @@ export default function EstatePage() {
     estate.countryPack ||
     'India';
   const hwDone = Boolean(housewarming?.progress?.completedAt);
+  const lifeMapHealth = (() => {
+    const h = estate.health;
+    if (!h?.checks || !hwDone) return h;
+    if (h.checks.every((c) => c.id !== 'qr' || c.ok)) return h;
+    const checks = h.checks.map((c) => (c.id === 'qr' ? { ...c, ok: true } : c));
+    const doneCount = checks.filter((c) => c.ok).length;
+    const total = checks.length;
+    return {
+      ...h,
+      checks,
+      done: doneCount,
+      total,
+      percent: Math.round((doneCount / total) * 100),
+      scoreLabel: `${doneCount}/${total}`,
+      next: checks.find((c) => !c.ok) || null,
+      ready: doneCount === total,
+    };
+  })();
   const visibleTabs = TABS.filter((key) => {
     if (hwDone) return true;
     return key !== 'findcare' && key !== 'counsel';
@@ -481,15 +512,15 @@ export default function EstatePage() {
               ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
               : ''}
           </p>
-          {estate.health && (
+          {lifeMapHealth && (
             <p className="small" style={{ margin: '0.45rem 0 0', lineHeight: 1.5 }}>
-              <strong>Life Map {estate.health.scoreLabel}</strong>
+              <strong>Life Map {lifeMapHealth.scoreLabel}</strong>
               <span className="muted">
                 {' — '}
-                {estate.health.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
+                {lifeMapHealth.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
               </span>
-              {estate.health.next ? (
-                <span className="muted"> · Next: {estate.health.next.hint}</span>
+              {lifeMapHealth.next ? (
+                <span className="muted"> · Next: {lifeMapHealth.next.hint}</span>
               ) : (
                 <span style={{ color: 'var(--forest, #2f6b52)' }}> · Ready</span>
               )}
@@ -637,11 +668,16 @@ export default function EstatePage() {
           <HousewarmingGuide
             estateId={id}
             guide={housewarming}
-            onUpdated={(hw) => setData({ ...data, housewarming: hw })}
+            onUpdated={applyHousewarming}
             onOpenTab={(next) => setTab(next)}
-            onCompleted={(res) => {
-              setData({ ...data, housewarming: res.housewarming });
+            onCompleted={async (res) => {
+              applyHousewarming(res);
               setTab('housewarming');
+              try {
+                await load();
+              } catch (err) {
+                toast(err.message);
+              }
             }}
           />
           {housewarming?.progress?.dismissed && !housewarming?.progress?.completedAt && (
@@ -654,7 +690,7 @@ export default function EstatePage() {
                     method: 'POST',
                     body: { reopen: true },
                   });
-                  setData({ ...data, housewarming: res.housewarming });
+                  applyHousewarming(res);
                 } catch (err) {
                   toast(err.message);
                 }
@@ -673,7 +709,7 @@ export default function EstatePage() {
                     method: 'POST',
                     body: { reopen: true },
                   });
-                  setData({ ...data, housewarming: res.housewarming });
+                  applyHousewarming(res);
                 } catch (err) {
                   toast(err.message);
                 }
