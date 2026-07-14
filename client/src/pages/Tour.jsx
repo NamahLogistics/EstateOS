@@ -51,52 +51,7 @@ const SCENES = [
   },
 ];
 
-function estimateSpeechMs(scene) {
-  const words = `${scene.title} ${scene.body}`.split(/\s+/).filter(Boolean).length;
-  return Math.min(22000, Math.max(6500, Math.round(words * 430)));
-}
-
-function pickVoice() {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
-  const voices = window.speechSynthesis.getVoices() || [];
-  if (!voices.length) return null;
-  const ranked = voices.filter((v) => /^en/i.test(v.lang));
-  const prefer =
-    ranked.find((v) => /en-IN/i.test(v.lang)) ||
-    ranked.find((v) => /en-GB/i.test(v.lang) && /female|susan|serena|fiona|google/i.test(v.name)) ||
-    ranked.find((v) => /Samantha|Karen|Moira|Google UK|Natural/i.test(v.name)) ||
-    ranked.find((v) => /en-GB|en-US/i.test(v.lang)) ||
-    ranked[0] ||
-    voices[0];
-  return prefer || null;
-}
-
-function speakScene(scene) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    return Promise.resolve();
-  }
-  window.speechSynthesis.cancel();
-  return new Promise((resolve) => {
-    const line = `${scene.kicker}. ${scene.title} ${scene.body}`;
-    const u = new SpeechSynthesisUtterance(line);
-    u.rate = 0.94;
-    u.pitch = 1;
-    u.volume = 1;
-    const voice = pickVoice();
-    if (voice) u.voice = voice;
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      resolve();
-    };
-    u.onend = finish;
-    u.onerror = finish;
-    window.speechSynthesis.speak(u);
-    // Safety if onend never fires (some browsers)
-    window.setTimeout(finish, estimateSpeechMs(scene) + 2500);
-  });
-}
+const DURATIONS = [6200, 5800, 6000, 6200, 5600, 7000];
 
 /** Soft drone pad — no external audio files. */
 function createAmbientPad() {
@@ -140,11 +95,10 @@ function createAmbientPad() {
     async resume() {
       if (ctx.state === 'suspended') await ctx.resume();
     },
-    setLevel(level, duck = false) {
-      const target = duck ? level * 0.35 : level;
+    setLevel(level) {
       const now = ctx.currentTime;
       master.gain.cancelScheduledValues(now);
-      master.gain.linearRampToValueAtTime(Math.max(0, target), now + 0.35);
+      master.gain.linearRampToValueAtTime(Math.max(0, level), now + 0.35);
     },
     async stop() {
       try {
@@ -226,25 +180,16 @@ function SceneArt({ kind }) {
 export default function Tour() {
   const { user } = useAuth();
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [soundOn, setSoundOn] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
-  const [musicOn, setMusicOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(false);
   const ambientRef = useRef(null);
-  const speakGen = useRef(0);
 
   const scene = SCENES[index];
-  const duration = estimateSpeechMs(scene);
+  const duration = DURATIONS[index] || 5000;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return undefined;
-    window.speechSynthesis.getVoices();
-    const onVoices = () => window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener?.('voiceschanged', onVoices);
     return () => {
-      window.speechSynthesis.removeEventListener?.('voiceschanged', onVoices);
-      window.speechSynthesis.cancel();
       ambientRef.current?.stop?.();
       ambientRef.current = null;
     };
@@ -253,80 +198,46 @@ export default function Tour() {
   useEffect(() => {
     const pad = ambientRef.current;
     if (!pad) return;
-    if (soundOn && musicOn && playing) {
-      pad.resume().then(() => pad.setLevel(0.048, voiceOn)).catch(() => {});
+    if (musicOn && playing) {
+      pad.resume().then(() => pad.setLevel(0.048)).catch(() => {});
     } else {
       pad.setLevel(0);
     }
-  }, [soundOn, musicOn, playing, voiceOn]);
+  }, [musicOn, playing]);
 
   useEffect(() => {
-    if (!playing) {
-      if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
-      return undefined;
-    }
-
+    if (!playing) return undefined;
     setProgress(0);
     const started = performance.now();
-    const gen = ++speakGen.current;
-    let cancelled = false;
     let frame;
-
     const tick = (now) => {
-      if (cancelled) return;
       const p = Math.min(1, (now - started) / duration);
       setProgress(p);
+      if (p >= 1) {
+        setIndex((i) => (i + 1) % SCENES.length);
+        return;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [index, playing, duration]);
 
-    (async () => {
-      const pad = ambientRef.current;
-      if (pad && soundOn && musicOn) {
-        try {
-          await pad.resume();
-          pad.setLevel(0.048, soundOn && voiceOn);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (soundOn && voiceOn) {
-        await speakScene(scene);
-      } else {
-        await new Promise((r) => setTimeout(r, duration));
-      }
-
-      if (cancelled || speakGen.current !== gen) return;
-      await new Promise((r) => setTimeout(r, 700));
-      if (cancelled || speakGen.current !== gen) return;
-      setIndex((i) => (i + 1) % SCENES.length);
-    })();
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frame);
-      window.speechSynthesis?.cancel();
-    };
-  }, [index, playing, soundOn, voiceOn, duration, scene]);
-
-  async function enableSoundAndPlay() {
+  async function enableMusic() {
     if (!ambientRef.current) {
       ambientRef.current = createAmbientPad();
     }
     try {
       await ambientRef.current?.resume?.();
-      if (musicOn) ambientRef.current?.setLevel(0.048, voiceOn);
+      ambientRef.current?.setLevel(0.048);
     } catch {
       /* ignore */
     }
-    setSoundOn(true);
+    setMusicOn(true);
     setPlaying(true);
   }
 
   function go(i) {
-    speakGen.current += 1;
-    window.speechSynthesis?.cancel();
     setIndex(i);
     setProgress(0);
   }
@@ -343,29 +254,6 @@ export default function Tour() {
           </Link>
           <p className="tour-top-note">Why this exists · what it does · what you do</p>
         </div>
-
-        {!soundOn && (
-          <div className="tour-sound-gate">
-            <p>
-              <strong>Hear the story</strong> — soft music + voiceover for each scene.
-            </p>
-            <button type="button" className="btn btn-primary" onClick={enableSoundAndPlay}>
-              Enable sound & play
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                setSoundOn(false);
-                setVoiceOn(false);
-                setMusicOn(false);
-                setPlaying(true);
-              }}
-            >
-              Play without sound
-            </button>
-          </div>
-        )}
 
         <div className="tour-frame" key={scene.id}>
           <div className="tour-copy">
@@ -392,21 +280,7 @@ export default function Tour() {
             ))}
           </div>
           <div className="tour-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                if (!playing && !soundOn) {
-                  enableSoundAndPlay();
-                  return;
-                }
-                setPlaying((p) => {
-                  const next = !p;
-                  if (!next) window.speechSynthesis?.cancel();
-                  return next;
-                });
-              }}
-            >
+            <button type="button" className="btn btn-ghost" onClick={() => setPlaying((p) => !p)}>
               {playing ? 'Pause' : 'Play'}
             </button>
             <button
@@ -419,30 +293,22 @@ export default function Tour() {
             <button type="button" className="btn btn-ghost" onClick={() => go((index + 1) % SCENES.length)}>
               Next
             </button>
-            <button
-              type="button"
-              className={`btn btn-ghost${voiceOn && soundOn ? '' : ''}`}
-              disabled={!soundOn}
-              onClick={() => {
-                setVoiceOn((v) => {
-                  const next = !v;
-                  if (!next) window.speechSynthesis?.cancel();
-                  return next;
-                });
-              }}
-              title="Voiceover"
-            >
-              Voice {voiceOn && soundOn ? 'on' : 'off'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={!soundOn}
-              onClick={() => setMusicOn((m) => !m)}
-              title="Background music"
-            >
-              Music {musicOn && soundOn ? 'on' : 'off'}
-            </button>
+            {musicOn ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setMusicOn(false);
+                  ambientRef.current?.setLevel(0);
+                }}
+              >
+                Music off
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ghost" onClick={enableMusic}>
+                Soft music
+              </button>
+            )}
             <Link className="btn btn-primary" to={startHref}>
               {user ? 'Open my estates' : 'Start their Life Map'}
             </Link>
