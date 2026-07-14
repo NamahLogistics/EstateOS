@@ -1232,6 +1232,56 @@ code {
   font-size: 1.25rem;
   font-weight: 600;
 }
+.tour-art-chaos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  padding: 1.5rem 1.25rem;
+  min-height: 200px;
+  align-content: center;
+}
+.tour-art-bubble {
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  background: rgba(247, 250, 248, 0.14);
+  border: 1px solid rgba(238, 245, 241, 0.22);
+  font-size: 0.88rem;
+  font-weight: 700;
+  animation: tour-float 2.8s ease-in-out infinite;
+}
+.tour-art-bubble:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.tour-art-bubble:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.tour-art-bubble:nth-child(4) {
+  animation-delay: 0.55s;
+}
+.tour-art-unlock {
+  width: min(90%, 280px);
+  margin: 1.5rem auto;
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: 16px;
+  background: rgba(247, 250, 248, 0.95);
+  color: var(--ink);
+}
+.tour-art-unlock-badge {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #f4f7f4;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tour-art-unlock > p {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
 .tour-controls {
   margin-top: 1.15rem;
   display: grid;

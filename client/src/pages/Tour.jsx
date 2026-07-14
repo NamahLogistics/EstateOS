@@ -2,133 +2,110 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 
+/**
+ * Core reason HeirReady exists: after a death, siblings aren’t in chaos —
+ * banks, LIC, keys, unlockers, and first steps are already mapped.
+ */
 const SCENES = [
   {
-    id: 'hook',
-    kicker: 'HeirReady',
-    title: 'Mum and Dad’s life admin — shared by siblings who live abroad.',
-    body: 'Banks, LIC, keys, caregivers. One quiet vault. Not an advice forum. Not for inviting parents onto the app.',
+    id: 'why',
+    kicker: 'Why HeirReady exists',
+    title: 'When someone dies, families drown in WhatsApp chaos.',
+    body: 'Which bank? Which LIC? Who has the flat keys? Who’s the unlocker? Nobody wrote it down. Everyone guesses. That’s the chaos this app is built to stop.',
+    visual: 'chaos',
+  },
+  {
+    id: 'promise',
+    kicker: 'The promise',
+    title: 'Map Mum or Dad’s life once — so death doesn’t create a scavenger hunt.',
+    body: 'You’re abroad. Papers stay in India. HeirReady is the sibling vault you fill while they’re alive — so when something happens, you’re not starting from zero.',
     visual: 'abroad',
   },
   {
-    id: 'what',
-    kicker: 'What it is',
-    title: 'A Life Map for one parent — then invite the people who already help.',
-    body: 'You own the vault. Siblings join that map only. Limits follow the owner’s plan. Gift upgrades unlock the shared vault for everyone.',
+    id: 'core',
+    kicker: 'What the app actually is',
+    title: 'One Life Map vault per parent: banks, LIC, property, keys, caregivers.',
+    body: 'Siblings share that one map. Parents don’t need an account. It’s continuity — not a will, not a bank, not an advice forum.',
     visual: 'map',
   },
   {
-    id: 'step1',
-    kicker: 'Step 1',
-    title: 'Start free. Create an account.',
-    body: 'Two minutes. Use any email. You’re the adult child (or sibling) — parents don’t need logins.',
-    visual: 'signup',
+    id: 'unlock',
+    kicker: 'When it matters',
+    title: 'Appointed unlockers open Execution Mode with proof.',
+    body: 'India — or India+US / India+UK — tasks appear in order. Fridge QR shows unlockers + care phones (not bank passwords). Banks still run their own nominee process.',
+    visual: 'unlock',
   },
   {
-    id: 'step2',
-    kicker: 'Step 2',
-    title: 'Open a Life Map for Mum or Dad.',
-    body: 'Name them. Pick India (or a diaspora pack if you’re abroad). That file is Vault 1 on your estates list.',
-    visual: 'create',
-  },
-  {
-    id: 'step3',
-    kicker: 'Step 3',
-    title: 'Finish housewarming — even Solo.',
-    body: 'Banks · care · papers · fridge QR. You can fill details later. Solo still completes the aha so the vault feels real.',
+    id: 'how',
+    kicker: 'What you do now',
+    title: 'Create their map → finish housewarming → WhatsApp one sibling.',
+    body: 'Solo is fine. Fill banks later when they’re free. Your job this week: one parent vault that isn’t empty when the worst day comes.',
     visual: 'warm',
   },
   {
-    id: 'step4',
-    kicker: 'Step 4',
-    title: 'WhatsApp a sibling.',
-    body: 'They tap the link → make an account → Accept. They land inside that vault as manager — add what they know. Same map only.',
-    visual: 'invite',
-  },
-  {
-    id: 'step5',
-    kicker: 'Step 5',
-    title: 'Grow the vault together.',
-    body: 'Add banks, LIC, deeds, caregiver phones. Hit the free limit? Upgrade — or a sibling gifts Family so this vault stays unlocked.',
-    visual: 'vault',
-  },
-  {
     id: 'cta',
-    kicker: 'Ready',
-    title: 'Start with one parent file. Invite one sibling.',
-    body: 'That’s the whole job for week one. Later: your own Life Map for your kids, counsel retain, city care when it’s live.',
+    kicker: 'Start before you need it',
+    title: 'Build the vault while they’re here. Use it when they’re not.',
+    body: 'Free for one parent file. Invite siblings. Upgrade when the vault grows. Not legal advice — practical continuity for adult children abroad.',
     visual: 'ready',
   },
 ];
 
-const DURATIONS = [5200, 5600, 4800, 5200, 5600, 5800, 5600, 7000];
+const DURATIONS = [6200, 5800, 6000, 6200, 5600, 7000];
 
-function SceneArt({ kind, active }) {
+function SceneArt({ kind }) {
   return (
-    <div className={`tour-art tour-art-${kind}${active ? ' is-on' : ''}`} aria-hidden>
+    <div className={`tour-art tour-art-${kind}`} aria-hidden>
+      {kind === 'chaos' && (
+        <div className="tour-art-chaos">
+          {['Which bank?', 'LIC where?', 'Keys??', 'Who unlocks?'].map((t) => (
+            <div key={t} className="tour-art-bubble">
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
       {kind === 'abroad' && (
         <>
           <div className="tour-art-orbit" />
-          <div className="tour-art-card tour-art-card-a">US / UK / Gulf</div>
-          <div className="tour-art-card tour-art-card-b">Parents in India</div>
+          <div className="tour-art-card tour-art-card-a">You’re abroad</div>
+          <div className="tour-art-card tour-art-card-b">Life stays in India</div>
           <div className="tour-art-link" />
         </>
       )}
       {kind === 'map' && (
         <>
           <div className="tour-art-sheet">
-            <span>Vault 1</span>
+            <span>Continuity vault</span>
             <strong>Dad’s Life Map</strong>
             <em>Bank · LIC · Keys · Care</em>
           </div>
-          <div className="tour-art-chip">Siblings only</div>
+          <div className="tour-art-chip">Shared by siblings</div>
         </>
       )}
-      {kind === 'signup' && (
-        <div className="tour-art-form">
-          <div className="tour-art-field" />
-          <div className="tour-art-field" />
-          <div className="tour-art-cta-pill">Start free</div>
-        </div>
-      )}
-      {kind === 'create' && (
-        <div className="tour-art-create">
-          <div className="tour-art-num">1</div>
-          <div>
-            <strong>New parent file</strong>
-            <p>Ramesh Kumar · Father · India</p>
+      {kind === 'unlock' && (
+        <div className="tour-art-unlock">
+          <div className="tour-art-unlock-badge">Execution Mode</div>
+          <p>Proof uploaded · Unlockers notified</p>
+          <div className="tour-art-items" style={{ margin: '0.85rem 0 0', width: '100%' }}>
+            {[
+              ['1', 'Notify bank / nominee'],
+              ['2', 'LIC claim path'],
+              ['3', 'Keys + local contact'],
+            ].map(([n, t]) => (
+              <div key={n} className="tour-art-item">
+                <span>{n}</span>
+                {t}
+              </div>
+            ))}
           </div>
         </div>
       )}
       {kind === 'warm' && (
         <div className="tour-art-checks">
-          {['Banks', 'Care', 'Papers', 'Fridge QR'].map((label, i) => (
-            <div key={label} className={`tour-art-check${i < 2 ? ' ok' : ''}`}>
-              <span>{i < 2 ? '✓' : '○'}</span> {label}
-            </div>
-          ))}
-        </div>
-      )}
-      {kind === 'invite' && (
-        <div className="tour-art-wa">
-          <p>
-            Hi — I’ve finished housewarming for Dad.
-            <br />
-            Join and add what you know:
-          </p>
-          <div className="tour-art-wa-link">heirready.com/invite/…</div>
-        </div>
-      )}
-      {kind === 'vault' && (
-        <div className="tour-art-items">
-          {[
-            ['1', 'HDFC savings'],
-            ['2', 'LIC Jeevan'],
-            ['3', 'Flat keys — Maya'],
-          ].map(([n, t]) => (
-            <div key={n} className="tour-art-item">
-              <span>{n}</span>
-              {t}
+          {['Create map', 'Housewarming', 'Fridge QR', 'Invite sibling'].map((label, i) => (
+            <div key={label} className={`tour-art-check${i < 3 ? ' ok' : ''}`}>
+              <span>{i < 3 ? '✓' : '○'}</span> {label}
             </div>
           ))}
         </div>
@@ -136,7 +113,7 @@ function SceneArt({ kind, active }) {
       {kind === 'ready' && (
         <div className="tour-art-ready">
           <div className="tour-art-ready-ring" />
-          <strong>One vault. One sibling. Done.</strong>
+          <strong>Ready before the worst day.</strong>
         </div>
       )}
     </div>
@@ -185,7 +162,7 @@ export default function Tour() {
           <Link to="/" className="tour-brand">
             HeirReady
           </Link>
-          <p className="tour-top-note">~45 second walkthrough · what it is · what you do</p>
+          <p className="tour-top-note">Why this exists · what it does · what you do</p>
         </div>
 
         <div className="tour-frame" key={scene.id}>
@@ -194,7 +171,7 @@ export default function Tour() {
             <h1 className="tour-title display">{scene.title}</h1>
             <p className="tour-body">{scene.body}</p>
           </div>
-          <SceneArt kind={scene.visual} active />
+          <SceneArt kind={scene.visual} />
         </div>
 
         <div className="tour-controls">
@@ -227,7 +204,7 @@ export default function Tour() {
               Next
             </button>
             <Link className="btn btn-primary" to={startHref}>
-              {user ? 'Open my estates' : 'Start free'}
+              {user ? 'Open my estates' : 'Start their Life Map'}
             </Link>
           </div>
         </div>
