@@ -8,15 +8,19 @@ import {
   CARE_CHIPS,
   COUNSEL_CHIPS,
   FAMILY_CHIPS,
+  GUEST_CHIPS,
   L,
   SLOT_PROMPTS,
   disclaimer,
   legalRefuse,
   looksLikeLegalAdvice,
+  signupUrge,
   welcome,
+  welcomeGuest,
 } from '../guideBot/copy.js';
 
 const SEEN_KEY = 'hr_guide_opened_v1';
+const GUEST_SEEN_KEY = 'hr_guide_guest_v1';
 
 function msg(role, text, chips) {
   return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role, text, chips };
@@ -25,6 +29,13 @@ function msg(role, text, chips) {
 function estateIdFromPath(pathname) {
   const m = pathname.match(/\/app\/estates\/([^/?#]+)/);
   return m?.[1] || null;
+}
+
+function guestAllowed(pathname) {
+  if (pathname.startsWith('/app')) return false;
+  if (pathname.startsWith('/e/')) return false;
+  if (pathname.startsWith('/invite/')) return false;
+  return true;
 }
 
 export default function GuideBot() {
@@ -40,40 +51,74 @@ export default function GuideBot() {
   const [estateCtx, setEstateCtx] = useState(null);
   const bottomRef = useRef(null);
 
+  const isGuest = !user;
   const accountType = user?.accountType || 'family';
   const pathEstateId = estateIdFromPath(location.pathname);
   const chips = useMemo(() => {
+    if (isGuest) return GUEST_CHIPS(lang);
     if (accountType === 'lawyer') return COUNSEL_CHIPS(lang);
     if (accountType === 'care') return CARE_CHIPS(lang);
     return FAMILY_CHIPS(lang);
-  }, [accountType, lang]);
+  }, [isGuest, accountType, lang]);
+
+  const visible =
+    Boolean(user) || (isGuest && guestAllowed(location.pathname));
 
   useEffect(() => {
-    if (!user) return;
-    if (!location.pathname.startsWith('/app')) return;
+    if (!visible) return;
     try {
-      if (!localStorage.getItem(SEEN_KEY)) {
-        localStorage.setItem(SEEN_KEY, '1');
-        setOpen(true);
+      if (user) {
+        if (!location.pathname.startsWith('/app')) return;
+        if (!localStorage.getItem(SEEN_KEY)) {
+          localStorage.setItem(SEEN_KEY, '1');
+          setOpen(true);
+        }
+        return;
       }
+      // Guests: soft-open once on landing / guides / pricing / auth
+      const p = location.pathname;
+      const urgeHere =
+        p === '/' ||
+        p.startsWith('/guides') ||
+        p.startsWith('/pricing') ||
+        p.startsWith('/auth');
+      if (!urgeHere) return;
+      if (localStorage.getItem(GUEST_SEEN_KEY)) return;
+      const t = window.setTimeout(() => {
+        localStorage.setItem(GUEST_SEEN_KEY, '1');
+        setOpen(true);
+        track('guide_bot_open', { accountType: 'guest', source: 'auto' });
+      }, p.startsWith('/auth') ? 600 : 2200);
+      return () => window.clearTimeout(t);
     } catch {
       /* ignore */
     }
-  }, [user?.id, location.pathname]);
+  }, [user?.id, location.pathname, visible]);
+
+  useEffect(() => {
+    // Reset chat when switching guest ↔ signed-in
+    setMessages([]);
+    setPending(null);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!open || messages.length) return;
-    pushBot(welcome(lang, user?.name, accountType), chips);
-    track('guide_bot_open', { accountType });
+    if (isGuest) {
+      pushBot(welcomeGuest(lang, location.pathname), chips);
+      track('guide_bot_open', { accountType: 'guest' });
+    } else {
+      pushBot(welcome(lang, user?.name, accountType), chips);
+      track('guide_bot_open', { accountType });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, isGuest, user?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, open, busy]);
 
   useEffect(() => {
-    if (!open || !pathEstateId || accountType !== 'family') return;
+    if (!open || !pathEstateId || isGuest || accountType !== 'family') return;
     let cancelled = false;
     api(`/api/estates/${pathEstateId}`)
       .then((res) => {
@@ -89,7 +134,7 @@ export default function GuideBot() {
     return () => {
       cancelled = true;
     };
-  }, [open, pathEstateId, accountType, api]);
+  }, [open, pathEstateId, accountType, api, isGuest]);
 
   function pushBot(text, nextChips) {
     setMessages((m) => [...m, msg('bot', text, nextChips)]);
@@ -97,6 +142,12 @@ export default function GuideBot() {
 
   function pushUser(text) {
     setMessages((m) => [...m, msg('user', text)]);
+  }
+
+  function goSignup(extra = '') {
+    const q = extra || 'mode=register';
+    navigate(`/auth?${q}`);
+    track('guide_bot_action', { action: 'start_free', accountType: 'guest' });
   }
 
   async function ensureEstateId() {
@@ -133,7 +184,100 @@ export default function GuideBot() {
     if (next) pushBot(SLOT_PROMPTS[next]?.(lang) || next);
   }
 
+  async function dispatchGuest(id, typed) {
+    if (looksLikeLegalAdvice(typed || id)) {
+      pushBot(legalRefuse(lang), chips);
+      return;
+    }
+    track('guide_bot_action', { action: id, accountType: 'guest' });
+
+    if (id === 'start_free') {
+      pushBot(signupUrge(lang), chips);
+      goSignup('mode=register');
+      return;
+    }
+    if (id === 'why_signup') {
+      pushBot(
+        L(
+          lang,
+          'So siblings stop guessing on WhatsApp when something happens. Free = one parent file, fridge QR, invite link. You map banks when Mum/Dad are free — solo setup is fine.',
+          'ताकि जब कुछ हो तो भाई-बहन WhatsApp पर न अटके। मुफ़्त = एक अभिभावक फ़ाइल, फ्रिज QR, आमंत्रण लिंक। बैंक माँ-पापा खाली हों तब — अकेले सेटअप ठीक है।'
+        ),
+        chips
+      );
+      return;
+    }
+    if (id === 'see_guides') {
+      navigate('/guides');
+      pushBot(
+        L(
+          lang,
+          'Guides help — signup turns them into a live vault. Start free when ready.',
+          'गाइड मदद करते हैं — साइनअप उन्हें जीवंत वॉल्ट बनाता है। तैयार हों तो मुफ़्त शुरू करें।'
+        ),
+        chips
+      );
+      return;
+    }
+    if (id === 'see_pricing') {
+      navigate('/pricing');
+      pushBot(
+        L(
+          lang,
+          'Glance pricing, then start free — you don’t need paid day one.',
+          'कीमत देखें, फिर मुफ़्त शुरू करें — पहले दिन पेड ज़रूरी नहीं।'
+        ),
+        chips
+      );
+      return;
+    }
+    if (id === 'care_signup') {
+      pushBot(
+        L(
+          lang,
+          'Caregivers list free by city. Families unlock browse later when density is ready.',
+          'देखभाल करने वाले शहर अनुसार मुफ़्त जुड़ते हैं। परिवार ब्राउज़ बाद में घनत्व पर खुलेगा।'
+        ),
+        chips
+      );
+      goSignup('mode=register&type=care');
+      return;
+    }
+    if (id === 'counsel_signup') {
+      pushBot(
+        L(
+          lang,
+          'Counsel desk is free to start — Pro unlocks city leads. Soft approaches only.',
+          'वकील डेस्क शुरू में मुफ़्त — Pro से शहर लीड। केवल नरम अप्रोच।'
+        ),
+        chips
+      );
+      goSignup('mode=register&type=lawyer');
+      return;
+    }
+
+    const t = String(typed || '').toLowerCase();
+    if (/sign|register|start|मुफ़्त|साइन|join|free|खाता/.test(t)) {
+      return dispatchGuest('start_free');
+    }
+    if (/price|pricing|कीमत|₹|rupee/.test(t)) return dispatchGuest('see_pricing');
+    if (/guide|checklist|lic|nri|गाइड/.test(t)) return dispatchGuest('see_guides');
+    if (/care|maid|nurse|नौकर|नर्स/.test(t)) return dispatchGuest('care_signup');
+    if (/lawyer|counsel|वकील|advocate/.test(t)) return dispatchGuest('counsel_signup');
+
+    pushBot(
+      L(
+        lang,
+        'Create a free account first — then I can map a parent and invite siblings with you.',
+        'पहले मुफ़्त खाता बनाएँ — फिर मैं अभिभावक मैप और भाई-बहन आमंत्रण करवाऊँगा।'
+      ),
+      chips
+    );
+  }
+
   async function dispatch(id, typed) {
+    if (isGuest) return dispatchGuest(id, typed);
+
     if (looksLikeLegalAdvice(typed || id)) {
       pushBot(legalRefuse(lang), chips);
       return;
@@ -525,7 +669,7 @@ export default function GuideBot() {
     const text = input.trim();
     if (!text || busy) return;
     setInput('');
-    if (pending) {
+    if (pending && !isGuest) {
       await commitPending(text);
       return;
     }
@@ -545,7 +689,7 @@ export default function GuideBot() {
     await runAction(chip.id);
   }
 
-  if (!user || !location.pathname.startsWith('/app')) return null;
+  if (!visible) return null;
 
   return (
     <>
@@ -556,17 +700,30 @@ export default function GuideBot() {
         aria-label={isHi ? 'HeirReady गाइड' : 'HeirReady guide'}
         onClick={() => {
           setOpen((o) => !o);
-          if (!open) track('guide_bot_open', { accountType, source: 'fab' });
+          if (!open) {
+            track('guide_bot_open', {
+              accountType: isGuest ? 'guest' : accountType,
+              source: 'fab',
+            });
+          }
         }}
       >
-        {open ? '×' : isHi ? 'गाइड' : 'Guide'}
+        {open ? '×' : isGuest ? (isHi ? 'शुरू' : 'Start') : isHi ? 'गाइड' : 'Guide'}
       </button>
 
       {open && (
         <div className="guide-bot-panel" role="dialog" aria-label="HeirReady guide">
           <header className="guide-bot-head">
             <div>
-              <strong>{isHi ? 'आपका गाइड' : 'Your guide'}</strong>
+              <strong>
+                {isGuest
+                  ? isHi
+                    ? 'मुफ़्त शुरू करें'
+                    : 'Start free'
+                  : isHi
+                    ? 'आपका गाइड'
+                    : 'Your guide'}
+              </strong>
               <p className="small muted" style={{ margin: 0 }}>
                 {disclaimer(lang)}
               </p>
@@ -615,9 +772,11 @@ export default function GuideBot() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
-                pending
-                  ? L(lang, 'Type your answer…', 'उत्तर लिखें…')
-                  : L(lang, 'Ask or answer…', 'पूछें या उत्तर दें…')
+                isGuest
+                  ? L(lang, 'Ask why sign up…', 'साइनअप क्यों — पूछें…')
+                  : pending
+                    ? L(lang, 'Type your answer…', 'उत्तर लिखें…')
+                    : L(lang, 'Ask or answer…', 'पूछें या उत्तर दें…')
               }
               disabled={busy}
               aria-label="Guide message"

@@ -10,6 +10,52 @@ export function roleLabel(lang, accountType) {
   return L(lang, 'family', 'परिवार');
 }
 
+export function welcomeGuest(lang, path = '/') {
+  if (path.startsWith('/auth')) {
+    return L(
+      lang,
+      'Almost in — create the free account, then I’ll walk you through the parent file, fridge QR, and sibling invite. Takes minutes. No sales call.',
+      'लगभग अंदर — मुफ़्त खाता बनाएँ, फिर मैं माता-पिता की फ़ाइल, फ्रिज QR और भाई-बहन आमंत्रण करवाऊँगा। मिनटों में। कोई सेल्स कॉल नहीं।'
+    );
+  }
+  if (path.startsWith('/guides')) {
+    return L(
+      lang,
+      'Useful checklist — the real fix is a shared vault. Start free, map one parent, get a fridge QR. Want me to take you to signup?',
+      'अच्छी चेकलिस्ट — असल हल साझा तिजोरी है। मुफ़्त शुरू करें, एक अभिभावक मैप करें, फ्रिज QR लें। साइनअप पर ले चलूँ?'
+    );
+  }
+  if (path.startsWith('/pricing')) {
+    return L(
+      lang,
+      'Free covers one parent. Upgrade later when siblings and vault fill up. Start free first — I’ll guide the aha (fridge QR) after signup.',
+      'मुफ़्त में एक अभिभावक। भाई-बहन और वॉल्ट भरने पर बाद में अपग्रेड। पहले मुफ़्त शुरू करें — साइनअप के बाद मैं फ्रिज QR तक ले चलूँगा।'
+    );
+  }
+  return L(
+    lang,
+    'You’re abroad. Their banks, LIC, and caregivers are still in India. Free account → parent map → fridge QR + sibling invite. No sales call. Shall we start?',
+    'आप विदेश में हैं। उनके बैंक, एलआईसी, देखभाल वाले भारत में। मुफ़्त खाता → अभिभावक मैप → फ्रिज QR + भाई-बहन। कोई सेल्स कॉल नहीं। शुरू करें?'
+  );
+}
+
+export function signupUrge(lang) {
+  return L(
+    lang,
+    'Create a free account — one parent vault. I’ll fill forms with you after signup and push you to invite a sibling.',
+    'मुफ़्त खाता बनाएँ — एक अभिभावक वॉल्ट। साइनअप के बाद मैं फ़ॉर्म भरवाऊँगा और भाई-बहन बुलाने को कहूँगा।'
+  );
+}
+
+export const GUEST_CHIPS = (lang) => [
+  { id: 'start_free', label: L(lang, 'Start free — sign up', 'मुफ़्त शुरू — साइनअप') },
+  { id: 'why_signup', label: L(lang, 'Why sign up?', 'साइनअप क्यों?') },
+  { id: 'see_guides', label: L(lang, 'Read a guide', 'गाइड पढ़ें') },
+  { id: 'see_pricing', label: L(lang, 'See pricing', 'कीमत देखें') },
+  { id: 'care_signup', label: L(lang, 'I provide care', 'मैं देखभाल करता/करती हूँ') },
+  { id: 'counsel_signup', label: L(lang, 'I’m counsel', 'मैं वकील हूँ') },
+];
+
 export function welcome(lang, name, accountType) {
   const who = name?.split(' ')[0] || L(lang, 'there', 'आप');
   if (accountType === 'lawyer') {

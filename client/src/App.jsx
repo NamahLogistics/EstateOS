@@ -148,7 +148,7 @@ function Shell({ children }) {
         )}
         {children}
         {user && location.pathname.startsWith('/app') && <EnableAlertsBanner />}
-        {user && <GuideBot />}
+        <GuideBot />
         <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
