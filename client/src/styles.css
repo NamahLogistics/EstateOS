@@ -689,3 +689,123 @@ code {
   flex-wrap: wrap;
   gap: 0.45rem;
 }
+
+/* Personal guide bot */
+.guide-bot-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 70;
+  min-width: 3.4rem;
+  height: 3.4rem;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--forest, #2f6b52);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 10px 28px rgba(26, 51, 40, 0.28);
+  cursor: pointer;
+}
+.guide-bot-fab-open {
+  background: var(--ink, #1a3328);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.guide-bot-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 4.6rem;
+  z-index: 70;
+  width: min(100vw - 1.5rem, 22.5rem);
+  max-height: min(70vh, 32rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--card, #fff);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(15, 31, 26, 0.18);
+  overflow: hidden;
+}
+.guide-bot-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(220, 232, 225, 0.45);
+}
+.guide-bot-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.guide-bot-bubble {
+  max-width: 92%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+.guide-bot-bot {
+  align-self: flex-start;
+  background: rgba(220, 232, 225, 0.7);
+  border: 1px solid rgba(47, 107, 82, 0.22);
+}
+.guide-bot-user {
+  align-self: flex-end;
+  background: var(--forest, #2f6b52);
+  color: #fff;
+}
+.guide-bot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+.guide-bot-chip {
+  border: 1px solid rgba(47, 107, 82, 0.35);
+  background: #fff;
+  color: var(--ink, #1a3328);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.guide-bot-chip:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.guide-bot-compose {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  border-top: 1px solid var(--line);
+  background: var(--mist, #f4f6f4);
+}
+.guide-bot-compose input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  font: inherit;
+}
+@media (max-width: 480px) {
+  .guide-bot-panel {
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    bottom: 4.4rem;
+  }
+  .guide-bot-fab {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+}

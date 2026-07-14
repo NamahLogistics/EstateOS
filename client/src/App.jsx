@@ -16,6 +16,7 @@ import { GuidesIndex, GuideArticle } from './pages/Guides.jsx';
 import InstallBanner from './components/InstallBanner.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
+import GuideBot from './components/GuideBot.jsx';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
@@ -147,6 +148,7 @@ function Shell({ children }) {
         )}
         {children}
         {user && location.pathname.startsWith('/app') && <EnableAlertsBanner />}
+        {user && <GuideBot />}
         <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
