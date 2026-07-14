@@ -71,13 +71,14 @@ export async function sendEmail({ to, subject, html, text, replyTo, tags }) {
 
 export async function sendInviteEmail({ to, estateName, role, link, inviterName }) {
   const subject = `${inviterName || 'A sibling'} invited you to HeirReady — ${estateName}`;
-  const text = `${inviterName || 'A family member'} invited you to join the estate for ${estateName} as ${role}.\n\nThis is for siblings / family sharing Mum/Dad’s life admin — parents don’t need an account.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nHeirReady — not legal advice.`;
+  const text = `${inviterName || 'A family member'} invited you to join the estate for ${estateName} as ${role}.\n\nThis is for siblings / family sharing Mum/Dad’s life admin — parents don’t need an account.\n\nTens of thousands of crores sit unclaimed in Indian banks, insurance & IEPF — often because heirs never knew what existed. Mapping early means your family isn’t starting blind.\n\nAccept here:\n${link}\n\nThis link expires in 14 days.\n\nHeirReady — not legal advice.`;
   const html = `
     <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
       <h2 style="font-weight:600">You’re invited to the family vault</h2>
       <p><strong>${inviterName || 'A sibling'}</strong> asked you to join
       <strong>${estateName}</strong> as <strong>${role}</strong>.</p>
       <p style="color:#3a4a42">For brothers, sisters, and co-managing relatives — parents don’t need to sign up.</p>
+      <p style="color:#3a4a42">Tens of thousands of crores sit unclaimed in Indian banks, insurance &amp; IEPF — often because heirs never knew what existed. Mapping early means your family isn’t starting blind.</p>
       <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Accept invite</a></p>
       <p style="font-size:13px;color:#3a4a42">Or open: ${link}</p>
       <p style="font-size:12px;color:#3a4a42">Not legal advice. Link expires in 14 days.</p>

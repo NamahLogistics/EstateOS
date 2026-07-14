@@ -15,6 +15,13 @@ const SCENES = [
     visual: 'chaos',
   },
   {
+    id: 'scale',
+    kicker: 'The quiet scale',
+    title: 'Tens of thousands of crores sit unclaimed in India.',
+    body: 'Banks, insurance, shares and dividends (IEPF) — often because heirs never knew what existed or where to look. HeirReady won’t reclaim that money for you. It helps siblings map Mum/Dad’s life so you aren’t starting blind when it matters.',
+    visual: 'wealth',
+  },
+  {
     id: 'promise',
     kicker: 'The promise',
     title: 'Map Mum or Dad’s life once — so death doesn’t create a scavenger hunt.',
@@ -51,7 +58,7 @@ const SCENES = [
   },
 ];
 
-const DURATIONS = [6200, 5800, 6000, 6200, 5600, 7000];
+const DURATIONS = [6200, 6800, 5800, 6000, 6200, 5600, 7000];
 
 /** Soft drone pad — no external audio files. */
 function createAmbientPad() {
@@ -120,6 +127,17 @@ function SceneArt({ kind }) {
               {t}
             </div>
           ))}
+        </div>
+      )}
+      {kind === 'wealth' && (
+        <div className="tour-art-wealth">
+          <p className="tour-art-wealth-stat">₹10,000s of crores</p>
+          <p className="tour-art-wealth-sub">Unclaimed across banks · insurance · IEPF</p>
+          <div className="tour-art-wealth-tags">
+            {['Forgotten FDs', 'Unpaid LIC', 'Orphan shares', 'Heirs don’t know'].map((t) => (
+              <span key={t}>{t}</span>
+            ))}
+          </div>
         </div>
       )}
       {kind === 'abroad' && (

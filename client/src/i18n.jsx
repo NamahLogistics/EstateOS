@@ -150,6 +150,9 @@ const dict = {
     whenHappens: 'When something happens',
     whenHappensBody:
       'Appointed unlockers open Execution Mode with proof. India — or India+US / India+UK — tasks appear in order.',
+    unclaimedTitle: 'Why map it before you need it',
+    unclaimedBody:
+      'Tens of thousands of crores sit unclaimed in Indian banks, insurance, and IEPF — often because heirs never knew what existed. HeirReady doesn’t reclaim that money; it helps siblings map Mum/Dad’s life so you’re not starting blind.',
     localCare: 'Local care bench',
     localCareSoon: 'Coming soon — city nurses and maids you can save to the vault. Caregivers can join free today.',
     localCareLive: 'On Family + Care or Diaspora + Care, see nurses and maids in their city, save them to the vault.',
@@ -348,6 +351,9 @@ const dict = {
     whenHappens: 'जब कुछ हो जाए',
     whenHappensBody:
       'नियुक्त लोग प्रमाण के साथ काम की सूची खोलते हैं। भारत — या भारत+अमेरिका / भारत+ब्रिटेन — काम क्रम से आते हैं।',
+    unclaimedTitle: 'ज़रूरत से पहले क्यों मैप करें',
+    unclaimedBody:
+      'भारत में हज़ारों करोड़ रुपये बैंक, बीमा और IEPF में बेदावा पड़े हैं — अक्सर उत्तराधिकारियों को पता ही नहीं होता। HeirReady वह पैसा वापस नहीं दिलाता; भाई-बहन माँ-पापा का जीवन मैप करते हैं ताकि अँधेरे में शुरू न करना पड़े।',
     localCare: 'स्थानीय देखभाल',
     localCareSoon: 'जल्द — शहर की नर्स/आया तिजोरी में सहेज सकेंगे। देखभाल कर्मी आज मुफ़्त जुड़ सकते हैं।',
     localCareLive: 'परिवार + देखभाल या डायस्पोरा + देखभाल पर, अपने शहर की नर्स/आया देखें और तिजोरी में सहेजें।',

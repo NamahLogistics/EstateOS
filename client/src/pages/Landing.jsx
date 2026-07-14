@@ -65,6 +65,16 @@ export default function Landing() {
       </section>
 
       <section className="section-how">
+        <h2 className="display section-how-title">{t('unclaimedTitle')}</h2>
+        <p className="section-lead">{t('unclaimedBody')}</p>
+        <div className="hero-actions">
+          <Link className="btn btn-ghost" to="/tour">
+            Watch how it works
+          </Link>
+        </div>
+      </section>
+
+      <section className="section-how">
         <h2 className="display section-how-title">{t('howFromAbroad')}</h2>
         <p className="section-lead">{t('howLead')}</p>
         <div className="panel-grid">

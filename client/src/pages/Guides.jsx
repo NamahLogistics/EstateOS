@@ -9,8 +9,16 @@ export const GUIDES = [
       'What adult children abroad should map before a hospital scare — banks, LIC, property, keys, caregivers. Free HeirReady vault.',
     updated: '14 July 2026',
     lead:
-      'If your parents are in India and you are abroad, the hard part is not “getting documents someday.” It’s knowing which ones exist, who has the keys, and who to call — before something happens.',
+      'If your parents are in India and you are abroad, the hard part is not “getting documents someday.” It’s knowing which ones exist, who has the keys, and who to call — before something happens. Tens of thousands of crores sit unclaimed in Indian banks, insurance, and IEPF partly because heirs never knew what existed.',
     sections: [
+      {
+        h: 'Unclaimed money is a clue — not your product pitch alone',
+        body: [
+          'RBI / IEPF / insurers hold large pools of unclaimed deposits, shares, and policy proceeds.',
+          'Much of it sits idle because accounts were forgotten, KYC drifted, or heirs never had a map.',
+          'HeirReady does not reclaim that money for you. It helps siblings share a Life Map so you are not guessing which bank, LIC, or key existed.',
+        ],
+      },
       {
         h: 'Start with what can lock the family out',
         body: [

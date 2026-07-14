@@ -9,12 +9,19 @@ function firstName(name) {
   return n.split(/\s+/)[0];
 }
 
+/** Safe unclaimed-money line — context, not “we reclaim crores” */
+const UNCLAIMED_EN =
+  'FYI: tens of thousands of crores sit unclaimed in Indian banks, insurance & IEPF — often because heirs never knew what existed.';
+const UNCLAIMED_HI =
+  'जानें: भारत में हज़ारों करोड़ रुपये बैंक, बीमा और IEPF में बेदावा पड़े हैं — अक्सर उत्तराधिकारियों को पता ही नहीं होता कि क्या है।';
+
 export function shareInviteText({ estateName, link, inviterName, lang = 'en' }) {
   const who = firstName(inviterName);
   if (lang === 'hi') {
     return (
       `${who || 'परिवार'} ने आपको HeirReady पर ${estateName} के लिए बुलाया है।\n\n` +
       `यह भाई-बहन / परिवार के लिए है — माँ-पापा के बैंक, एलआईसी, चाबियों की साझा तिजोरी (माता-पिता को ऐप पर नहीं बुलाते)।\n\n` +
+      `${UNCLAIMED_HI}\n\n` +
       `यहाँ जुड़ें:\n${link}\n\n(कानूनी सलाह नहीं)`
     );
   }
@@ -22,6 +29,7 @@ export function shareInviteText({ estateName, link, inviterName, lang = 'en' }) 
   return (
     `${whoEn} invited you to HeirReady for ${estateName}.\n\n` +
     `This is for siblings / family — shared vault for Mum/Dad’s banks, LIC, keys (not for inviting parents to the app).\n\n` +
+    `${UNCLAIMED_EN}\n\n` +
     `Join here:\n${link}\n\n(Not legal advice)`
   );
 }
@@ -33,12 +41,16 @@ export function shareHousewarmingDoneText({ estateName, link, inviterName, lang 
     return (
       `${who ? `नमस्ते — मैं ${who} हूँ।\n\n` : 'नमस्ते।\n\n'}` +
       `मैंने ${estateName} के लिए HeirReady पर घर का सेटअप कर लिया है (बैंक / देखभाल / कागज़)।\n\n` +
+      `${UNCLAIMED_HI}\n` +
+      `इसलिए हम साथ मैप कर रहे हैं।\n\n` +
       `जुड़ो और जो तुम्हें पता हो जोड़ दो:\n${link}`
     );
   }
   return (
     `Hi${who ? ` — ${who} here` : ''}.\n\n` +
     `I’ve finished the HeirReady housewarming setup for ${estateName} (banks / care / papers).\n\n` +
+    `${UNCLAIMED_EN}\n` +
+    `That’s why we’re mapping together.\n\n` +
     `Join and add what you know:\n${link}`
   );
 }
@@ -75,6 +87,7 @@ export function shareReferralText({ link, inviterName, accountType, lang = 'en' 
     return (
       hiOpen +
       `मैं HeirReady इस्तेमाल कर रहा/रही हूँ ताकि भाई-बहन माता-पिता के कागज़ (बैंक, एलआईसी, चाबियाँ) साथ संभाल सकें।\n\n` +
+      `${UNCLAIMED_HI}\n\n` +
       `मुफ़्त जुड़ें — माता-पिता का खाता ज़रूरी नहीं:\n${link}`
     );
   }
@@ -95,6 +108,7 @@ export function shareReferralText({ link, inviterName, accountType, lang = 'en' 
   return (
     `Hi —${who ? ` ${who} here.` : ''}\n\n` +
     `I’m using HeirReady so siblings can share our parents’ life admin (banks, LIC, keys).\n\n` +
+    `${UNCLAIMED_EN}\n\n` +
     `Join free — parents don’t need an account:\n${link}`
   );
 }
@@ -109,6 +123,7 @@ export function shareFamilyOnboardText({ link, city, inviterName, lang = 'en' })
     return (
       hiOpen +
       `मैं HeirReady सेट कर रहा/रही हूँ ताकि हम भाई-बहन माँ-पापा के कागज़${where} साथ रख सकें — बैंक, एलआईसी, संपत्ति, चाबियाँ, देखभाल वाले।\n\n` +
+      `${UNCLAIMED_HI}\n\n` +
       `माता-पिता का खाता नहीं चाहिए — हम उनके लिए मैप करते हैं।\n\n` +
       `मुफ़्त जुड़ें (२ मिनट) और जो जानते हो जोड़ें:\n${link}`
     );
@@ -117,6 +132,7 @@ export function shareFamilyOnboardText({ link, city, inviterName, lang = 'en' })
   return (
     `Hi${who ? ` — ${who} here` : ''}.\n\n` +
     `I’m setting up HeirReady so we siblings can share Mum/Dad’s life admin${where} — banks, LIC, property, keys, caregivers.\n\n` +
+    `${UNCLAIMED_EN}\n\n` +
     `Parents don’t need an account — we map it for them.\n\n` +
     `Join free (2 mins) and add what you know:\n${link}`
   );

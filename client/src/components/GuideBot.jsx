@@ -200,8 +200,8 @@ export default function GuideBot() {
       pushBot(
         L(
           lang,
-          'So siblings stop guessing on WhatsApp when something happens. Free = one parent file, fridge QR, invite link. You map banks when Mum/Dad are free — solo setup is fine.',
-          'ताकि जब कुछ हो तो भाई-बहन WhatsApp पर न अटके। मुफ़्त = एक अभिभावक फ़ाइल, फ्रिज QR, आमंत्रण लिंक। बैंक माँ-पापा खाली हों तब — अकेले सेटअप ठीक है।'
+          'So siblings stop guessing on WhatsApp when something happens. Tens of thousands of crores sit unclaimed in Indian banks/insurance/IEPF — often because heirs never knew what existed. Free = one parent file, fridge QR, invite link. You map banks when Mum/Dad are free — solo setup is fine.',
+          'ताकि जब कुछ हो तो भाई-बहन WhatsApp पर न अटके। भारत में हज़ारों करोड़ बैंक/बीमा/IEPF में बेदावा पड़े हैं — अक्सर उत्तराधिकारियों को पता नहीं। मुफ़्त = एक अभिभावक फ़ाइल, फ्रिज QR, आमंत्रण लिंक। बैंक माँ-पापा खाली हों तब — अकेले सेटअप ठीक है।'
         ),
         chips
       );
