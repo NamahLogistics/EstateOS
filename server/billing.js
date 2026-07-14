@@ -58,25 +58,144 @@ export function stripeConfigured() {
   return razorpayConfigured();
 }
 
-async function razorpayRequest(path, body) {
+async function razorpayRequest(path, body, method = 'POST') {
   const key = process.env.RAZORPAY_KEY_ID;
   const secret = process.env.RAZORPAY_KEY_SECRET;
   const auth = Buffer.from(`${key}:${secret}`).toString('base64');
-  const res = await fetch(`https://api.razorpay.com/v1${path}`, {
-    method: 'POST',
+  const opts = {
+    method,
     headers: {
       Authorization: `Basic ${auth}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
-  });
+  };
+  if (body != null && method !== 'GET') opts.body = JSON.stringify(body);
+  const res = await fetch(`https://api.razorpay.com/v1${path}`, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error?.description || data.message || `Razorpay HTTP ${res.status}`);
     err.data = data;
+    err.status = res.status;
     throw err;
   }
   return data;
+}
+
+const RAZORPAY_PLAN_ENV = {
+  family: 'RAZORPAY_PLAN_FAMILY',
+  diaspora: 'RAZORPAY_PLAN_DIASPORA',
+  counsel: 'RAZORPAY_PLAN_COUNSEL',
+  family_care: 'RAZORPAY_PLAN_FAMILY_CARE',
+  diaspora_care: 'RAZORPAY_PLAN_DIASPORA_CARE',
+  care: 'RAZORPAY_PLAN_FAMILY_CARE',
+};
+
+/** ~100 yearly cycles — charges until cancelled (Razorpay requires a finite total_count). */
+const SUBSCRIPTION_TOTAL_COUNT = 100;
+
+async function ensureRazorpayPlanId(plan) {
+  const envKey = RAZORPAY_PLAN_ENV[plan];
+  if (envKey && process.env[envKey]) return process.env[envKey];
+
+  const cached = readStore().billingMeta?.razorpayPlans?.[plan];
+  if (cached) return cached;
+
+  const amount = PLAN_AMOUNTS[plan];
+  if (!amount) {
+    const err = new Error('Unknown plan amount');
+    err.status = 400;
+    throw err;
+  }
+
+  const created = await razorpayRequest('/plans', {
+    period: 'yearly',
+    interval: 1,
+    item: {
+      name: `HeirReady ${planLabel(plan)}`,
+      amount,
+      currency: 'INR',
+      description: `${planLabel(plan)} — annual, auto-renews until cancelled`,
+    },
+  });
+
+  mutate((s) => {
+    if (!s.billingMeta) s.billingMeta = {};
+    if (!s.billingMeta.razorpayPlans) s.billingMeta.razorpayPlans = {};
+    s.billingMeta.razorpayPlans[plan] = created.id;
+  });
+  return created.id;
+}
+
+function paymentAlreadyProcessed(paymentId) {
+  if (!paymentId) return false;
+  return (readStore().leads || []).some((l) => l.paymentId === paymentId);
+}
+
+function subscriptionIsLive(user) {
+  const st = user?.subscriptionStatus;
+  return Boolean(
+    user?.razorpaySubscriptionId && (st === 'active' || st === 'authenticated' || st === 'pending')
+  );
+}
+
+async function cancelRazorpaySubscription(subscriptionId, { atCycleEnd = true } = {}) {
+  if (!subscriptionId || !razorpayConfigured()) return null;
+  try {
+    return await razorpayRequest(`/subscriptions/${subscriptionId}/cancel`, {
+      cancel_at_cycle_end: atCycleEnd ? 1 : 0,
+    });
+  } catch (err) {
+    const msg = String(err.message || '').toLowerCase();
+    if (msg.includes('already') || msg.includes('cancelled') || err.status === 400) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+async function clearUserSubscription(userId, { status = 'cancelled', at = null } = {}) {
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === userId);
+    if (!u) return;
+    u.subscriptionStatus = status;
+    u.subscriptionCancelAt = at || new Date().toISOString();
+  });
+}
+
+/**
+ * Stop an existing mandate before a new one (or mid-year upgrade), so we never double-charge.
+ */
+async function stopExistingSubscription(beneficiary, { atCycleEnd = false } = {}) {
+  const subId = beneficiary?.razorpaySubscriptionId;
+  if (!subId) return;
+  await cancelRazorpaySubscription(subId, { atCycleEnd });
+  clearUserSubscription(beneficiary.id, {
+    status: atCycleEnd ? 'cancel_at_period_end' : 'cancelled',
+  });
+}
+
+function shouldUseSubscription(quote, applyDiscount, gift) {
+  if (applyDiscount || gift) return false;
+  return quote.kind === 'new' || quote.kind === 'renew';
+}
+
+function checkoutDisplayConfig() {
+  return {
+    display: {
+      blocks: {
+        cards: {
+          name: 'Card (works from US / UK / Gulf)',
+          instruments: [{ method: 'card' }],
+        },
+        india: {
+          name: 'UPI / Netbanking (India)',
+          instruments: [{ method: 'upi' }, { method: 'netbanking' }],
+        },
+      },
+      sequence: ['block.cards', 'block.india'],
+      preferences: { show_default_blocks: false },
+    },
+  };
 }
 
 function freshUser(userId) {
@@ -95,6 +214,11 @@ function freshUser(userId) {
 }
 
 function activatePlan(userId, plan, paymentMeta = {}) {
+  if (paymentMeta.paymentId && paymentAlreadyProcessed(paymentMeta.paymentId)) {
+    const u = readStore().users.find((x) => x.id === userId);
+    return u?.planExpiresAt || null;
+  }
+
   let expiresAt = null;
   mutate((s) => {
     const u = s.users.find((x) => x.id === userId);
@@ -113,6 +237,12 @@ function activatePlan(userId, plan, paymentMeta = {}) {
       u.previousPlan = null;
       u.razorpayPaymentId = paymentMeta.paymentId || u.razorpayPaymentId;
       u.razorpayOrderId = paymentMeta.orderId || u.razorpayOrderId;
+      if (paymentMeta.subscriptionId) {
+        u.razorpaySubscriptionId = paymentMeta.subscriptionId;
+        u.subscriptionStatus = paymentMeta.subscriptionStatus || 'active';
+        u.subscriptionCancelAt = null;
+        u.subscriptionPlan = plan;
+      }
     }
     if (!s.pendingPayments) s.pendingPayments = [];
     if (!s.leads) s.leads = [];
@@ -122,13 +252,16 @@ function activatePlan(userId, plan, paymentMeta = {}) {
         ? 'plan_gifted'
         : paymentMeta.kind === 'upgrade'
           ? 'plan_upgraded'
-          : 'plan_paid',
+          : paymentMeta.kind === 'renew'
+            ? 'plan_renewed'
+            : 'plan_paid',
       plan,
       userId,
       giftedBy: paymentMeta.giftedBy || null,
       giftEstateId: paymentMeta.giftEstateId || null,
       paymentId: paymentMeta.paymentId || null,
       orderId: paymentMeta.orderId || null,
+      subscriptionId: paymentMeta.subscriptionId || null,
       referralDiscount: Boolean(paymentMeta.referralDiscount),
       kind: paymentMeta.kind || 'new',
       fromPlan: paymentMeta.fromPlan || null,
@@ -188,14 +321,15 @@ function checkoutDescription(plan, quote, applyDiscount, giftMeta) {
   if (applyDiscount) {
     return `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.${giftBit}`;
   }
+  const renewBit = ' Auto-renews yearly until you cancel.';
   if (plan === 'diaspora')
-    return `Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.${giftBit}`;
+    return `Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.${renewBit}${giftBit}`;
   if (plan === 'diaspora_care')
-    return `Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.${giftBit}`;
-  if (plan === 'counsel') return 'Counsel Pro — 1 year (city leads). Card or UPI.';
+    return `Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.${renewBit}${giftBit}`;
+  if (plan === 'counsel') return `Counsel Pro — 1 year (city leads). Card or UPI.${renewBit}`;
   if (plan === 'family_care' || plan === 'care')
-    return `Family + Care — 1 year (2× Family). Vault + city nurses & maids.${giftBit}`;
-  return `Family — 1 year. Unlimited vault + siblings. Card or UPI.${giftBit}`;
+    return `Family + Care — 1 year (2× Family). Vault + city nurses & maids.${renewBit}${giftBit}`;
+  return `Family — 1 year. Unlimited vault + siblings. Card or UPI.${renewBit}${giftBit}`;
 }
 
 async function createCheckout(user, plan, opts = {}) {
@@ -320,6 +454,92 @@ async function createCheckout(user, plan, opts = {}) {
 
   if (applyDiscount) consumeReferralDiscountCredit(user.id);
 
+  // Full-year new/renew → Razorpay Subscription (auto-charge yearly until cancelled).
+  // Mid-year upgrades, gifts, and referral discounts stay one-time orders.
+  if (shouldUseSubscription(quote, applyDiscount, gift)) {
+    if (
+      subscriptionIsLive(beneficiaryUser) &&
+      (beneficiaryUser.subscriptionPlan === plan || beneficiaryUser.plan === plan)
+    ) {
+      const err = new Error(
+        `Auto-renew is already on for ${planLabel(plan)}. Your card is charged yearly until you cancel on Pricing.`
+      );
+      err.status = 409;
+      err.code = 'ALREADY_SUBSCRIBED';
+      throw err;
+    }
+
+    if (beneficiaryUser.razorpaySubscriptionId) {
+      await stopExistingSubscription(beneficiaryUser, { atCycleEnd: false });
+    }
+
+    const rzPlanId = await ensureRazorpayPlanId(plan);
+    const subscription = await razorpayRequest('/subscriptions', {
+      plan_id: rzPlanId,
+      total_count: SUBSCRIPTION_TOTAL_COUNT,
+      quantity: 1,
+      customer_notify: 1,
+      notes: {
+        userId: user.id,
+        beneficiaryUserId: beneficiaryId,
+        plan,
+        kind: quote.kind,
+        fromPlan: quote.fromPlan || '',
+      },
+    });
+
+    mutate((s) => {
+      if (!s.pendingPayments) s.pendingPayments = [];
+      s.pendingPayments.push({
+        id: subscription.id,
+        mode: 'subscription',
+        userId: user.id,
+        beneficiaryUserId: beneficiaryId,
+        giftEstateId: null,
+        plan,
+        amount,
+        fullAmount: quote.fullAmount,
+        kind: quote.kind,
+        fromPlan: quote.fromPlan,
+        keepExpiresAt: null,
+        daysLeft: null,
+        referralDiscount: false,
+        status: 'created',
+        at: new Date().toISOString(),
+      });
+    });
+
+    return {
+      mode: 'razorpay_subscription',
+      plan,
+      subscriptionId: subscription.id,
+      amount,
+      fullAmount: quote.fullAmount,
+      currency: 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID,
+      name: 'HeirReady',
+      description,
+      quote,
+      referralDiscount: false,
+      autoRenew: true,
+      gift: null,
+      prefill: {
+        name: user.name,
+        email: user.email,
+      },
+      checkoutConfig: checkoutDisplayConfig(),
+    };
+  }
+
+  // Mid-year upgrade: stop auto-renew on the old plan so next year isn’t double-billed.
+  if (quote.kind === 'upgrade' && beneficiaryUser.razorpaySubscriptionId) {
+    try {
+      await stopExistingSubscription(beneficiaryUser, { atCycleEnd: false });
+    } catch (err) {
+      console.warn('stop subscription before upgrade', err.message);
+    }
+  }
+
   const order = await razorpayRequest('/orders', {
     amount,
     currency: 'INR',
@@ -340,6 +560,7 @@ async function createCheckout(user, plan, opts = {}) {
     if (!s.pendingPayments) s.pendingPayments = [];
     s.pendingPayments.push({
       id: order.id,
+      mode: 'order',
       userId: user.id,
       beneficiaryUserId: beneficiaryId,
       giftEstateId: gift?.estate?.id || null,
@@ -373,22 +594,7 @@ async function createCheckout(user, plan, opts = {}) {
       name: user.name,
       email: user.email,
     },
-    checkoutConfig: {
-      display: {
-        blocks: {
-          cards: {
-            name: 'Card (works from US / UK / Gulf)',
-            instruments: [{ method: 'card' }],
-          },
-          india: {
-            name: 'UPI / Netbanking (India)',
-            instruments: [{ method: 'upi' }, { method: 'netbanking' }],
-          },
-        },
-        sequence: ['block.cards', 'block.india'],
-        preferences: { show_default_blocks: false },
-      },
-    },
+    checkoutConfig: checkoutDisplayConfig(),
   };
 }
 
@@ -486,26 +692,41 @@ export function registerBillingRoutes(app) {
     }
   });
 
-  app.post('/api/billing/verify', authRequired, (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan: bodyPlan } =
-      req.body || {};
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+  app.post('/api/billing/verify', authRequired, async (req, res) => {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      razorpay_subscription_id,
+      plan: bodyPlan,
+    } = req.body || {};
+
+    if (!razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ error: 'Missing Razorpay payment fields' });
     }
     if (!razorpayConfigured()) {
       return res.status(400).json({ error: 'Razorpay not configured' });
     }
 
+    const isSubscription = Boolean(razorpay_subscription_id);
+    if (!isSubscription && !razorpay_order_id) {
+      return res.status(400).json({ error: 'Missing Razorpay order or subscription id' });
+    }
+
+    const payload = isSubscription
+      ? `${razorpay_payment_id}|${razorpay_subscription_id}`
+      : `${razorpay_order_id}|${razorpay_payment_id}`;
     const expected = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .update(payload)
       .digest('hex');
 
     if (expected !== razorpay_signature) {
       return res.status(400).json({ error: 'Invalid payment signature' });
     }
 
-    const pending = readStore().pendingPayments?.find((p) => p.id === razorpay_order_id);
+    const pendingId = isSubscription ? razorpay_subscription_id : razorpay_order_id;
+    const pending = readStore().pendingPayments?.find((p) => p.id === pendingId);
     if (pending && pending.userId !== req.user.id) {
       return res.status(403).json({ error: 'Order does not belong to this account' });
     }
@@ -523,9 +744,11 @@ export function registerBillingRoutes(app) {
 
     const planExpiresAt = activatePlan(beneficiaryId, plan, {
       paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
+      orderId: isSubscription ? null : razorpay_order_id,
+      subscriptionId: isSubscription ? razorpay_subscription_id : null,
+      subscriptionStatus: isSubscription ? 'active' : undefined,
       referralDiscount: Boolean(pending?.referralDiscount),
-      kind: pending?.kind || 'new',
+      kind: pending?.kind || (isSubscription ? 'new' : 'new'),
       fromPlan: pending?.fromPlan || null,
       keepExpiresAt: pending?.keepExpiresAt || null,
       giftedBy: isGift ? req.user.id : null,
@@ -533,7 +756,7 @@ export function registerBillingRoutes(app) {
     });
 
     mutate((s) => {
-      const row = s.pendingPayments?.find((p) => p.id === razorpay_order_id);
+      const row = s.pendingPayments?.find((p) => p.id === pendingId);
       if (row) {
         row.status = 'paid';
         row.paymentId = razorpay_payment_id;
@@ -562,6 +785,7 @@ export function registerBillingRoutes(app) {
         planExpiresAt,
         kind: pending?.kind || 'new',
         gifted: true,
+        autoRenew: false,
         beneficiaryName: owner?.name || null,
         giftEstateId: pending?.giftEstateId || null,
         referralDiscount: Boolean(pending?.referralDiscount),
@@ -577,9 +801,145 @@ export function registerBillingRoutes(app) {
       planExpiresAt,
       kind: pending?.kind || 'new',
       gifted: false,
+      autoRenew: isSubscription || Boolean(user?.razorpaySubscriptionId && user?.subscriptionStatus === 'active'),
       referralDiscount: Boolean(pending?.referralDiscount),
       ...planPublicFields(user || {}),
       ...referralPublicFields(user || {}),
     });
+  });
+
+  /** Cancel auto-renew. Access continues until planExpiresAt. Anyone on the account can cancel. */
+  app.post('/api/billing/cancel-subscription', authRequired, async (req, res, next) => {
+    try {
+      const user = freshUser(req.user.id);
+      if (!user?.razorpaySubscriptionId) {
+        return res.status(400).json({ error: 'No active auto-renew subscription on this account' });
+      }
+      if (user.subscriptionStatus === 'cancelled' || user.subscriptionStatus === 'completed') {
+        return res.json({
+          ok: true,
+          alreadyCancelled: true,
+          ...planPublicFields(user),
+          message: 'Auto-renew was already cancelled. Access continues until your paid period ends.',
+        });
+      }
+
+      const atCycleEnd = req.body?.immediate === true ? false : true;
+      await cancelRazorpaySubscription(user.razorpaySubscriptionId, { atCycleEnd });
+      clearUserSubscription(user.id, {
+        status: atCycleEnd ? 'cancel_at_period_end' : 'cancelled',
+      });
+
+      mutate((s) => {
+        if (!s.leads) s.leads = [];
+        s.leads.push({
+          id: crypto.randomUUID(),
+          type: 'subscription_cancelled',
+          userId: user.id,
+          subscriptionId: user.razorpaySubscriptionId,
+          atCycleEnd,
+          at: new Date().toISOString(),
+        });
+      });
+
+      const updated = freshUser(req.user.id);
+      res.json({
+        ok: true,
+        ...planPublicFields(updated || {}),
+        message: atCycleEnd
+          ? `Auto-renew cancelled. You keep ${planLabel(updated?.plan || user.plan)} until ${
+              updated?.planExpiresAt
+                ? new Date(updated.planExpiresAt).toLocaleDateString()
+                : 'the end of this period'
+            }.`
+          : 'Subscription cancelled.',
+      });
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
+      next(err);
+    }
+  });
+
+  /**
+   * Razorpay subscription webhooks — renewals (subscription.charged) and cancel/halt.
+   * Configure URL https://heirready.com/api/billing/webhook and set RAZORPAY_WEBHOOK_SECRET.
+   * Events: subscription.charged, subscription.cancelled, subscription.halted, subscription.completed
+   */
+  app.post('/api/billing/webhook', (req, res) => {
+    try {
+      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      if (secret) {
+        const sig = req.headers['x-razorpay-signature'];
+        const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+        const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+        if (sig !== expected) {
+          return res.status(400).json({ error: 'Invalid webhook signature' });
+        }
+      }
+
+      const event = req.body?.event;
+      const sub = req.body?.payload?.subscription?.entity;
+      const payment = req.body?.payload?.payment?.entity;
+      if (!sub?.id) return res.json({ ok: true, ignored: true });
+
+      const notes = sub.notes || {};
+      const store = readStore();
+      let user =
+        store.users.find((u) => u.razorpaySubscriptionId === sub.id) ||
+        store.users.find((u) => u.id === notes.beneficiaryUserId) ||
+        store.users.find((u) => u.id === notes.userId);
+
+      if (event === 'subscription.charged' && user) {
+        const plan = normalizeCheckoutPlan(notes.plan || user.subscriptionPlan || user.plan);
+        activatePlan(user.id, plan, {
+          paymentId: payment?.id || null,
+          subscriptionId: sub.id,
+          subscriptionStatus: 'active',
+          kind: 'renew',
+        });
+        return res.json({ ok: true });
+      }
+
+      if (
+        (event === 'subscription.cancelled' ||
+          event === 'subscription.completed' ||
+          event === 'subscription.halted') &&
+        user
+      ) {
+        const status =
+          event === 'subscription.halted'
+            ? 'halted'
+            : event === 'subscription.completed'
+              ? 'completed'
+              : 'cancelled';
+        clearUserSubscription(user.id, { status });
+        mutate((s) => {
+          const u = s.users.find((x) => x.id === user.id);
+          if (u && !u.razorpaySubscriptionId) u.razorpaySubscriptionId = sub.id;
+        });
+        return res.json({ ok: true });
+      }
+
+      // Activated / authenticated — store id if missing (checkout verify usually handles first year)
+      if (
+        (event === 'subscription.activated' || event === 'subscription.authenticated') &&
+        user
+      ) {
+        mutate((s) => {
+          const u = s.users.find((x) => x.id === user.id);
+          if (!u) return;
+          u.razorpaySubscriptionId = sub.id;
+          if (u.subscriptionStatus !== 'cancel_at_period_end') {
+            u.subscriptionStatus = event === 'subscription.activated' ? 'active' : 'authenticated';
+          }
+          u.subscriptionPlan = normalizeCheckoutPlan(notes.plan || u.plan);
+        });
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('billing webhook', err);
+      res.status(500).json({ error: 'Webhook handler failed' });
+    }
   });
 }

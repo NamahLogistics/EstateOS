@@ -208,6 +208,8 @@ export function planPublicFields(user) {
       planActive: false,
       daysUntilExpiry: null,
       needsRenewal: false,
+      autoRenew: false,
+      subscriptionStatus: null,
     };
   }
   applyPlanExpiryInPlace(user);
@@ -217,14 +219,21 @@ export function planPublicFields(user) {
   if (active && expiresAt) {
     daysUntilExpiry = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
   }
+  const subStatus = user.subscriptionStatus || null;
+  const autoRenew =
+    Boolean(user.razorpaySubscriptionId) &&
+    (subStatus === 'active' || subStatus === 'authenticated' || subStatus === 'pending');
   return {
     plan: user.plan || 'free',
     planExpiresAt: expiresAt,
     planActive: active,
     daysUntilExpiry,
-    needsRenewal: active && daysUntilExpiry != null && daysUntilExpiry <= RENEWAL_WARN_DAYS,
+    needsRenewal: active && daysUntilExpiry != null && daysUntilExpiry <= RENEWAL_WARN_DAYS && !autoRenew,
     previousPlan: user.previousPlan || null,
     planLapsedAt: user.planLapsedAt || null,
+    autoRenew,
+    subscriptionStatus: subStatus,
+    subscriptionCancelAt: user.subscriptionCancelAt || null,
   };
 }
 

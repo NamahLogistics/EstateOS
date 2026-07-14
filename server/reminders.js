@@ -81,6 +81,13 @@ export async function runReminderPass() {
       });
     }
     if (!user.email || !userHasPaidAccess(user) || !user.planExpiresAt) continue;
+    // Auto-renewing card skips “please renew” mail — charge + webhook extends access
+    const autoRenew =
+      user.razorpaySubscriptionId &&
+      (user.subscriptionStatus === 'active' ||
+        user.subscriptionStatus === 'authenticated' ||
+        user.subscriptionStatus === 'pending');
+    if (autoRenew) continue;
     const daysLeft = Math.ceil((new Date(user.planExpiresAt).getTime() - now) / day);
     if (daysLeft < 0 || daysLeft > RENEWAL_WARN_DAYS) continue;
     const key = `plan-renew:${user.id}:${user.planExpiresAt.slice(0, 10)}`;
@@ -89,8 +96,8 @@ export async function runReminderPass() {
       await sendEmail({
         to: user.email,
         subject: `Renew HeirReady ${user.plan} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
-        text: `Your ${user.plan} plan expires on ${new Date(user.planExpiresAt).toLocaleDateString()}.\n\nRenew here (adds another year from your current end date):\n${app}/pricing\n\nIf it lapses, paid features lock until you renew.`,
-        html: `<p>Your <strong>${user.plan}</strong> plan expires on <strong>${new Date(user.planExpiresAt).toLocaleDateString()}</strong> (${daysLeft} days).</p><p><a href="${app}/pricing">Renew on Pricing</a> — renewal stacks another year from your current end date.</p>`,
+        text: `Your ${user.plan} plan expires on ${new Date(user.planExpiresAt).toLocaleDateString()}.\n\nRenew here (adds another year; auto-renew stays on until you cancel):\n${app}/pricing\n\nIf it lapses, paid features lock until you renew.`,
+        html: `<p>Your <strong>${user.plan}</strong> plan expires on <strong>${new Date(user.planExpiresAt).toLocaleDateString()}</strong> (${daysLeft} days).</p><p><a href="${app}/pricing">Renew on Pricing</a> — card auto-charges yearly until you cancel.</p>`,
       });
       mutate((s) => {
         const u = s.users.find((x) => x.id === user.id);

@@ -145,8 +145,17 @@ app.use(
   })
 );
 
-// Razorpay uses JSON verify endpoint — no Stripe raw webhook needed
-app.use(express.json({ limit: '8mb' }));
+// Capture raw body for Razorpay webhook HMAC (must match exact bytes)
+app.use(
+  express.json({
+    limit: '8mb',
+    verify: (req, _res, buf) => {
+      if (req.originalUrl === '/api/billing/webhook' || req.url === '/api/billing/webhook') {
+        req.rawBody = buf;
+      }
+    },
+  })
+);
 app.use(
   '/api/',
   rateLimit({
@@ -210,6 +219,9 @@ function publicUser(user) {
     needsRenewal: plan.needsRenewal,
     previousPlan: plan.previousPlan,
     planLapsedAt: plan.planLapsedAt,
+    autoRenew: plan.autoRenew,
+    subscriptionStatus: plan.subscriptionStatus,
+    subscriptionCancelAt: plan.subscriptionCancelAt,
     accountType: user.accountType || 'family',
     referralCode: user.referralCode || null,
     referralDiscountCredits: user.referralDiscountCredits || 0,
@@ -1827,7 +1839,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.20.0',
+    version: '1.21.0',
     push: pushConfigured(),
   });
 });

@@ -114,16 +114,28 @@ export default function Pricing() {
   const [busy, setBusy] = useState(false);
   const [credits, setCredits] = useState(0);
   const [abroadGateOpen, setAbroadGateOpen] = useState(false);
+  const [billing, setBilling] = useState(null);
   const highlight = searchParams.get('plan') || '';
 
   useEffect(() => {
     if (!user) {
       setCredits(0);
+      setBilling(null);
       return;
     }
     api('/api/billing/referral')
       .then((r) => setCredits(r.referralDiscountCredits || 0))
       .catch(() => setCredits(user.referralDiscountCredits || 0));
+    api('/api/billing/status')
+      .then((s) => setBilling(s))
+      .catch(() =>
+        setBilling({
+          autoRenew: user.autoRenew,
+          subscriptionStatus: user.subscriptionStatus,
+          planExpiresAt: user.planExpiresAt,
+          plan: user.plan,
+        })
+      );
   }, [user?.id]);
 
   useEffect(() => {
@@ -168,15 +180,12 @@ export default function Pricing() {
         method: 'POST',
         body: { plan, ...(giftEstateId ? { giftEstateId } : {}) },
       });
-      if (data.mode === 'razorpay') {
+      if (data.mode === 'razorpay' || data.mode === 'razorpay_subscription') {
         const Razorpay = await loadRazorpay();
-        const rzp = new Razorpay({
+        const options = {
           key: data.keyId,
-          amount: data.amount,
-          currency: data.currency || 'INR',
           name: data.name,
           description: data.description,
-          order_id: data.orderId,
           prefill: data.prefill,
           theme: { color: '#2c4d3c' },
           config: data.checkoutConfig || {
@@ -212,6 +221,8 @@ export default function Pricing() {
                   planActive: verified.planActive,
                   daysUntilExpiry: verified.daysUntilExpiry,
                   needsRenewal: verified.needsRenewal,
+                  autoRenew: verified.autoRenew,
+                  subscriptionStatus: verified.subscriptionStatus,
                   referralDiscountCredits: verified.referralDiscountCredits ?? 0,
                 });
               } else {
@@ -221,14 +232,22 @@ export default function Pricing() {
                 });
               }
               setCredits(verified.referralDiscountCredits ?? 0);
+              setBilling((b) => ({
+                ...(b || {}),
+                ...verified,
+                autoRenew: verified.autoRenew,
+                subscriptionStatus: verified.subscriptionStatus,
+              }));
               toast(
                 verified.gifted
                   ? `Gifted ${verified.plan} to ${verified.beneficiaryName || 'the vault owner'}`
                   : verified.kind === 'upgrade'
                     ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
-                    : verified.referralDiscount
-                      ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-                      : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                    : verified.autoRenew || data.mode === 'razorpay_subscription'
+                      ? `Payment successful — ${verified.plan} auto-renews yearly until you cancel`
+                      : verified.referralDiscount
+                        ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                        : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
               );
               if (verified.gifted && verified.giftEstateId) {
                 window.location.assign(`/app/estates/${verified.giftEstateId}`);
@@ -237,7 +256,15 @@ export default function Pricing() {
               toast(err.message);
             }
           },
-        });
+        };
+        if (data.mode === 'razorpay_subscription') {
+          options.subscription_id = data.subscriptionId;
+        } else {
+          options.amount = data.amount;
+          options.currency = data.currency || 'INR';
+          options.order_id = data.orderId;
+        }
+        const rzp = new Razorpay(options);
         rzp.on('payment.failed', (resp) => {
           toast(resp.error?.description || 'Payment failed');
         });
@@ -256,6 +283,34 @@ export default function Pricing() {
           window.location.assign(`/app/estates/${data.gift.estateId}`);
         }
       }
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelAutoRenew() {
+    if (!user) return;
+    if (
+      !window.confirm(
+        'Stop yearly auto-renew? You keep access until the end of the period already paid.'
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await api('/api/billing/cancel-subscription', { method: 'POST', body: {} });
+      setUser({
+        ...user,
+        autoRenew: data.autoRenew,
+        subscriptionStatus: data.subscriptionStatus,
+        subscriptionCancelAt: data.subscriptionCancelAt,
+        needsRenewal: data.needsRenewal,
+      });
+      setBilling((b) => ({ ...(b || {}), ...data }));
+      toast(data.message || 'Auto-renew cancelled');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -306,9 +361,47 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 560 }}>
-        Annual subscriptions via Razorpay. Mid-year upgrades: pay only the difference for days
-        left — renewal date stays the same. Downgrades wait until renewal.
+        Annual plans via Razorpay — your card is charged every year until you cancel. Mid-year
+        upgrades: pay only the difference for days left. Downgrades wait until renewal.
       </p>
+      {(billing?.autoRenew ||
+        billing?.subscriptionStatus === 'cancel_at_period_end' ||
+        user?.autoRenew) &&
+      user ? (
+        <div
+          className="card"
+          style={{
+            marginTop: '1rem',
+            maxWidth: 640,
+            padding: '1rem 1.15rem',
+            borderColor: 'rgba(47, 107, 82, 0.35)',
+          }}
+        >
+          <strong>
+            {billing?.autoRenew || user?.autoRenew
+              ? 'Auto-renew is on'
+              : 'Auto-renew ending'}
+          </strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0.75rem', lineHeight: 1.5 }}>
+            {billing?.autoRenew || user?.autoRenew
+              ? `We’ll charge yearly for ${billing?.plan || user.plan}. Paid through ${
+                  billing?.planExpiresAt || user.planExpiresAt
+                    ? new Date(billing?.planExpiresAt || user.planExpiresAt).toLocaleDateString()
+                    : 'this period'
+                }.`
+              : `No further charges. Access until ${
+                  billing?.planExpiresAt || user.planExpiresAt
+                    ? new Date(billing?.planExpiresAt || user.planExpiresAt).toLocaleDateString()
+                    : 'period end'
+                }.`}
+          </p>
+          {(billing?.autoRenew || user?.autoRenew) && (
+            <button type="button" className="btn ghost" disabled={busy} onClick={cancelAutoRenew}>
+              Cancel auto-renew
+            </button>
+          )}
+        </div>
+      ) : null}
       {giftEstateId ? (
         <div
           className="card"

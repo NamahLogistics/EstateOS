@@ -123,7 +123,8 @@ export function LegalRefunds() {
         no physical product.
       </p>
       <p>
-        <strong>Cancellation:</strong> You may stop renewal by contacting{' '}
+        <strong>Cancellation:</strong> Annual plans auto-renew on your card until cancelled. Stop
+        renewal anytime from <a href="/pricing">Pricing</a> (Cancel auto-renew) or by emailing{' '}
         <a href={`mailto:${biz.email}`}>{biz.email}</a>. Access continues until the end of the
         already-paid annual period unless a refund is approved.
       </p>
