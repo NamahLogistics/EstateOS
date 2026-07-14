@@ -148,7 +148,6 @@ function Shell({ children }) {
         )}
         {children}
         {user && location.pathname.startsWith('/app') && <EnableAlertsBanner />}
-        <GuideBot />
         <footer className="site-footer">
           <span className="small muted">© {new Date().getFullYear()} HeirReady</span>
           <Link className="small muted" to="/pricing">
@@ -189,25 +188,28 @@ function Private({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Shell><Landing /></Shell>} />
-      <Route path="/pricing" element={<Shell><Pricing /></Shell>} />
-      <Route path="/guides" element={<Shell><GuidesIndex /></Shell>} />
-      <Route path="/guides/:slug" element={<Shell><GuideArticle /></Shell>} />
-      <Route path="/terms" element={<Shell><LegalTerms /></Shell>} />
-      <Route path="/privacy" element={<Shell><LegalPrivacy /></Shell>} />
-      <Route path="/refunds" element={<Shell><LegalRefunds /></Shell>} />
-      <Route path="/shipping" element={<Shell><LegalShipping /></Shell>} />
-      <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
-      <Route path="/grievance" element={<Shell><ContactPage /></Shell>} />
-      <Route path="/auth" element={<Shell><AuthPage /></Shell>} />
-      <Route path="/invite/:token" element={<Shell><InvitePage /></Shell>} />
-      <Route path="/e/:token" element={<Shell><EmergencyPage /></Shell>} />
-      <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
-      <Route path="/app/counsel" element={<Private><Shell><CounselDesk /></Shell></Private>} />
-      <Route path="/app/care" element={<Private><Shell><CareDesk /></Shell></Private>} />
-      <Route path="/app/estates/:id" element={<Private><Shell><EstatePage /></Shell></Private>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Shell><Landing /></Shell>} />
+        <Route path="/pricing" element={<Shell><Pricing /></Shell>} />
+        <Route path="/guides" element={<Shell><GuidesIndex /></Shell>} />
+        <Route path="/guides/:slug" element={<Shell><GuideArticle /></Shell>} />
+        <Route path="/terms" element={<Shell><LegalTerms /></Shell>} />
+        <Route path="/privacy" element={<Shell><LegalPrivacy /></Shell>} />
+        <Route path="/refunds" element={<Shell><LegalRefunds /></Shell>} />
+        <Route path="/shipping" element={<Shell><LegalShipping /></Shell>} />
+        <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
+        <Route path="/grievance" element={<Shell><ContactPage /></Shell>} />
+        <Route path="/auth" element={<Shell><AuthPage /></Shell>} />
+        <Route path="/invite/:token" element={<Shell><InvitePage /></Shell>} />
+        <Route path="/e/:token" element={<Shell><EmergencyPage /></Shell>} />
+        <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
+        <Route path="/app/counsel" element={<Private><Shell><CounselDesk /></Shell></Private>} />
+        <Route path="/app/care" element={<Private><Shell><CareDesk /></Shell></Private>} />
+        <Route path="/app/estates/:id" element={<Private><Shell><EstatePage /></Shell></Private>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <GuideBot />
+    </>
   );
 }
