@@ -37,6 +37,29 @@ function fileAbsoluteUrl(file) {
   return `${window.location.origin}${file.path}`;
 }
 
+/** Digits for tel: / WhatsApp — keeps leading country code if present. */
+function phoneDigits(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const hasPlus = s.startsWith('+');
+  const digits = s.replace(/\D/g, '');
+  if (!digits || digits.length < 8) return '';
+  return hasPlus ? digits : digits;
+}
+
+function callHref(raw) {
+  const d = phoneDigits(raw);
+  return d ? `tel:+${d.replace(/^\+/, '')}` : '';
+}
+
+function whatsappChatHref(raw, name) {
+  const d = phoneDigits(raw);
+  if (!d) return '';
+  const num = d.startsWith('0') && d.length === 11 ? `91${d.slice(1)}` : d.length === 10 ? `91${d}` : d;
+  const text = name ? `Hi ${String(name).split(/\s+/)[0]}` : '';
+  return `https://wa.me/${num}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+}
+
 async function downloadVaultFile(file) {
   const a = document.createElement('a');
   a.href = `${file.path}${file.path.includes('?') ? '&' : '?'}download=1`;
@@ -1024,6 +1047,10 @@ export default function EstatePage() {
                   (itemsByCat[cat.id] || []).map((item) => {
                     itemNo += 1;
                     const n = itemNo;
+                    const isPerson =
+                      item.category === 'care' || item.category === 'contacts';
+                    const callUrl = isPerson ? callHref(item.accountRef) : '';
+                    const waUrl = isPerson ? whatsappChatHref(item.accountRef, item.title) : '';
                     return (
                     <div
                       key={item.id}
@@ -1039,12 +1066,58 @@ export default function EstatePage() {
                       }
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', minWidth: 0, flex: 1 }}>
                           <span className="vault-item-num" aria-hidden="true">
                             {n}
                           </span>
-                          <div style={{ minWidth: 0 }}>
-                          <strong>{item.title}</strong>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              gap: '0.45rem 0.55rem',
+                            }}
+                          >
+                            <strong style={{ marginRight: '0.15rem' }}>{item.title}</strong>
+                            {isPerson && (callUrl || waUrl) ? (
+                              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                {callUrl ? (
+                                  <a
+                                    href={callUrl}
+                                    className="btn btn-ghost"
+                                    style={{
+                                      padding: '0.28rem 0.7rem',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Call
+                                  </a>
+                                ) : null}
+                                {waUrl ? (
+                                  <a
+                                    href={waUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn"
+                                    style={{
+                                      padding: '0.28rem 0.7rem',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 700,
+                                      background: '#128C7E',
+                                      color: '#fff',
+                                      border: 'none',
+                                    }}
+                                  >
+                                    WhatsApp
+                                  </a>
+                                ) : null}
+                              </span>
+                            ) : isPerson && !item.accountRef ? (
+                              <span className="small muted">Add phone to call / WhatsApp</span>
+                            ) : null}
+                          </div>
                           <div className="small muted">
                             {item.category === 'care' || item.category === 'contacts'
                               ? [
