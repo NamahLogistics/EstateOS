@@ -514,6 +514,76 @@ h1, h2, h3, .display {
 }
 .item-row:first-child, .task-row:first-child { border-top: 0; }
 
+.vault-identity {
+  margin-top: 0.85rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 18px;
+  border: 2px solid rgba(47, 107, 82, 0.55);
+  background:
+    linear-gradient(135deg, rgba(220, 232, 225, 0.95), rgba(255, 255, 255, 0.92)),
+    var(--card);
+  box-shadow: 0 10px 28px rgba(15, 31, 26, 0.06);
+}
+.vault-identity-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  height: 2.4rem;
+  padding: 0 0.55rem;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #f4f7f4;
+  font-family: var(--font-display, Georgia, 'Times New Roman', serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.vault-panel {
+  border: 2px solid rgba(47, 107, 82, 0.45);
+  overflow: hidden;
+}
+.vault-panel-head {
+  padding: 1.05rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(220, 232, 225, 0.7), transparent);
+  border-bottom: 1px solid rgba(47, 107, 82, 0.22);
+}
+.vault-item-num {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(47, 107, 82, 0.12);
+  color: var(--sage-deep, #2f6b52);
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin-top: 0.1rem;
+}
+.vault-dash-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0 0.4rem;
+  margin-right: 0.55rem;
+  border-radius: 9px;
+  background: var(--ink);
+  color: #f4f7f4;
+  font-size: 0.85rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
 .layout-app { padding-bottom: 3rem; }
 
 code {

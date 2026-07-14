@@ -141,14 +141,21 @@ export default function Dashboard() {
               <p className="muted">{t('createOneInvite')}</p>
             </div>
           ) : (
-            estates.map((e) => (
+            estates.map((e, idx) => (
               <Link key={e.id} to={`/app/estates/${e.id}`} className="item-row" style={{ display: 'block' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
                   <div>
-                    <strong style={{ fontSize: '1.05rem' }}>{e.subjectName}</strong>
-                    <div className="small muted">
-                      {e.subjectRelation} · {packLabel[e.countryPack || e.country] || e.country} ·{' '}
-                      {e.itemCount} {t('vaultItems')} · {e.myRole}
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.15rem 0' }}>
+                      <span className="vault-dash-num" aria-label={`Vault ${idx + 1}`}>
+                        {idx + 1}
+                      </span>
+                      <strong style={{ fontSize: '1.05rem' }}>{e.subjectName}</strong>
+                    </div>
+                    <div className="small muted" style={{ marginTop: '0.25rem' }}>
+                      {t('vault')} {idx + 1}
+                      {estates.length > 1 ? ` of ${estates.length}` : ''} · {e.subjectRelation} ·{' '}
+                      {packLabel[e.countryPack || e.country] || e.country} · {e.itemCount} {t('vaultItems')} ·{' '}
+                      {e.myRole}
                     </div>
                     {e.health && (
                       <div className="small" style={{ marginTop: '0.35rem', lineHeight: 1.45 }}>

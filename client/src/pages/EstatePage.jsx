@@ -107,6 +107,7 @@ export default function EstatePage() {
   const { api, toast, user } = useAuth();
   const { t, lang } = useI18n();
   const [data, setData] = useState(null);
+  const [vaultMeta, setVaultMeta] = useState({ number: null, total: 0 });
   const [tab, setTab] = useState(searchParams.get('tab') || 'housewarming');
   const [itemForm, setItemForm] = useState({
     category: 'bank',
@@ -143,8 +144,17 @@ export default function EstatePage() {
   }
 
   async function load() {
-    const res = await api(`/api/estates/${id}`);
+    const [res, list] = await Promise.all([
+      api(`/api/estates/${id}`),
+      api('/api/estates').catch(() => ({ estates: [] })),
+    ]);
     setData(res);
+    const estates = list.estates || [];
+    const idx = estates.findIndex((e) => e.id === id);
+    setVaultMeta({
+      number: idx >= 0 ? idx + 1 : null,
+      total: estates.length,
+    });
   }
 
   async function startOwnLifeMap() {
@@ -479,7 +489,7 @@ export default function EstatePage() {
   const done = tasks.filter((t) => t.status === 'done').length;
   const tabLabel = {
     housewarming: t('housewarming'),
-    map: t('lifeMap'),
+    map: `${t('vault')} · ${items.length}`,
     interview: t('interview'),
     findcare: t('findCare'),
     rules: t('unlockRules'),
@@ -527,33 +537,59 @@ export default function EstatePage() {
       <Link to="/app" className="small muted">
         {t('allEstates')}
       </Link>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'start', marginTop: '0.6rem' }}>
-        <div>
-          <h1 className="display" style={{ fontSize: '2.2rem', margin: '0 0 0.35rem' }}>
-            {estate.subjectName}
-          </h1>
-          <p className="muted" style={{ margin: 0 }}>
-            {estate.subjectRelation} · {packLabel} · {items.length} {t('vaultItems')}
-            {estate.nextReviewAt
-              ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
-              : ''}
-          </p>
-          {lifeMapHealth && (
-            <p className="small" style={{ margin: '0.45rem 0 0', lineHeight: 1.5 }}>
-              <strong>Life Map {lifeMapHealth.scoreLabel}</strong>
-              <span className="muted">
-                {' — '}
-                {lifeMapHealth.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
+      <div className="vault-identity">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'start' }}>
+          <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'flex-start', minWidth: 0 }}>
+            {vaultMeta.number != null ? (
+              <span className="vault-identity-num" aria-label={`Vault ${vaultMeta.number}`}>
+                {vaultMeta.number}
               </span>
-              {lifeMapHealth.next ? (
-                <span className="muted"> · Next: {lifeMapHealth.next.hint}</span>
-              ) : (
-                <span style={{ color: 'var(--forest, #2f6b52)' }}> · Ready</span>
+            ) : null}
+            <div style={{ minWidth: 0 }}>
+              <p
+                className="small"
+                style={{
+                  margin: 0,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--sage-deep, #2f6b52)',
+                }}
+              >
+                {t('vault')}
+                {vaultMeta.number != null
+                  ? vaultMeta.total > 1
+                    ? ` ${vaultMeta.number} of ${vaultMeta.total}`
+                    : ` ${vaultMeta.number}`
+                  : ''}
+              </p>
+              <h1 className="display" style={{ fontSize: '2.05rem', margin: '0.2rem 0 0.3rem' }}>
+                {estate.subjectName}
+              </h1>
+              <p className="muted" style={{ margin: 0 }}>
+                {estate.subjectRelation} · {packLabel} · {items.length} {t('vaultItems')}
+                {estate.nextReviewAt
+                  ? ` · ${t('review')}: ${new Date(estate.nextReviewAt).toLocaleDateString()}`
+                  : ''}
+              </p>
+              {lifeMapHealth && (
+                <p className="small" style={{ margin: '0.45rem 0 0', lineHeight: 1.5 }}>
+                  <strong>Life Map {lifeMapHealth.scoreLabel}</strong>
+                  <span className="muted">
+                    {' — '}
+                    {lifeMapHealth.checks.map((c) => `${c.label} ${c.ok ? '✓' : '✗'}`).join(' · ')}
+                  </span>
+                  {lifeMapHealth.next ? (
+                    <span className="muted"> · Next: {lifeMapHealth.next.hint}</span>
+                  ) : (
+                    <span style={{ color: 'var(--forest, #2f6b52)' }}> · Ready</span>
+                  )}
+                </p>
               )}
-            </p>
-          )}
+            </div>
+          </div>
+          {statusBadge(estate.status, t)}
         </div>
-        {statusBadge(estate.status, t)}
       </div>
       {limits && !limits.paid && (
         <div className="upgrade-limit-banner">
@@ -784,16 +820,38 @@ export default function EstatePage() {
 
       {tab === 'map' && (
         <div className="split">
-          <div className="card">
-            <div style={{ padding: '1rem 1.1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <strong>Vault</strong>
+          <div className="card vault-panel">
+            <div className="vault-panel-head">
+              <div>
+                <p
+                  className="small"
+                  style={{
+                    margin: 0,
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--sage-deep, #2f6b52)',
+                  }}
+                >
+                  {vaultMeta.number != null ? `${t('vault')} ${vaultMeta.number}` : t('vault')}
+                </p>
+                <strong style={{ fontSize: '1.2rem' }}>
+                  {estate.subjectName}
+                  <span className="muted" style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                    {' '}
+                    · {items.length} {t('vaultItems')}
+                  </span>
+                </strong>
+              </div>
               {estate.status !== 'unlocked' && (
                 <button type="button" className="btn btn-ghost" style={{ padding: '0.35rem 0.8rem' }} onClick={seedDemo} disabled={busy}>
                   Load sample items
                 </button>
               )}
             </div>
-            {categories.map((cat) => (
+            {(() => {
+              let itemNo = 0;
+              return categories.map((cat) => (
               <div key={cat.id}>
                 <div style={{ padding: '0.65rem 1.1rem', background: 'var(--mist)', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                   {cat.label}
@@ -801,10 +859,17 @@ export default function EstatePage() {
                 {(itemsByCat[cat.id] || []).length === 0 ? (
                   <div className="item-row small muted">Nothing here yet</div>
                 ) : (
-                  (itemsByCat[cat.id] || []).map((item) => (
+                  (itemsByCat[cat.id] || []).map((item) => {
+                    itemNo += 1;
+                    const n = itemNo;
+                    return (
                     <div key={item.id} className="item-row">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-                        <div>
+                        <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'flex-start', minWidth: 0 }}>
+                          <span className="vault-item-num" aria-hidden="true">
+                            {n}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
                           <strong>{item.title}</strong>
                           <div className="small muted">
                             {[item.institution, item.accountRef].filter(Boolean).join(' · ')}
@@ -896,6 +961,7 @@ export default function EstatePage() {
                               ))}
                             </div>
                           )}
+                          </div>
                         </div>
                         {estate.myRole !== 'viewer' && estate.status !== 'unlocked' && (
                           <button type="button" className="btn btn-danger" style={{ padding: '0.3rem 0.7rem' }} onClick={() => deleteItem(item.id)}>
@@ -904,10 +970,12 @@ export default function EstatePage() {
                         )}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
-            ))}
+              ));
+            })()}
           </div>
 
           {estate.status !== 'unlocked' && (

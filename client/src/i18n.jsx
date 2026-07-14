@@ -19,6 +19,7 @@ const dict = {
 
     // Tabs
     lifeMap: 'Life Map',
+    vault: 'Vault',
     interview: 'Interview',
     unlockRules: 'Unlock rules',
     unlock: 'Unlock',
@@ -223,6 +224,7 @@ const dict = {
     langHint: 'भाषा बदलें',
 
     lifeMap: 'जीवन मानचित्र',
+    vault: 'वॉल्ट',
     interview: 'बातचीत',
     unlockRules: 'खोलने के नियम',
     unlock: 'खोलें',
