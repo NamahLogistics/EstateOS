@@ -1323,6 +1323,27 @@ code {
   gap: 0.55rem;
   align-items: center;
 }
+.tour-sound-gate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(47, 107, 82, 0.28);
+  background: rgba(220, 232, 225, 0.55);
+}
+.tour-sound-gate p {
+  margin: 0;
+  flex: 1 1 220px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.tour-sound-gate strong {
+  color: var(--ink);
+}
 @media (min-width: 860px) {
   .tour-frame {
     grid-template-columns: 1.15fr 0.95fr;
