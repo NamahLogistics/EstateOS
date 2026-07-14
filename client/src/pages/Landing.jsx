@@ -41,8 +41,8 @@ export default function Landing() {
                 <Link className="btn btn-primary" to={user ? '/app' : '/auth?mode=register'}>
                   {user ? t('openEstates') : t('startFree')}
                 </Link>
-                <Link className="btn btn-ghost" to="/pricing?plan=diaspora">
-                  {t('seePricing')}
+                <Link className="btn btn-ghost" to="/tour">
+                  Watch how it works
                 </Link>
               </>
             )}

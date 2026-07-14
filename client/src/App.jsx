@@ -13,6 +13,7 @@ import InvitePage from './pages/InvitePage.jsx';
 import EmergencyPage from './pages/EmergencyPage.jsx';
 import { LegalPrivacy, LegalTerms, LegalRefunds, LegalShipping, ContactPage } from './pages/Legal.jsx';
 import { GuidesIndex, GuideArticle } from './pages/Guides.jsx';
+import Tour from './pages/Tour.jsx';
 import InstallBanner from './components/InstallBanner.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
@@ -153,6 +154,9 @@ function Shell({ children }) {
           <Link className="small muted" to="/pricing">
             {t('pricing')}
           </Link>
+          <Link className="small muted" to="/tour">
+            How it works
+          </Link>
           <Link className="small muted" to="/guides">
             Guides
           </Link>
@@ -191,6 +195,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<Shell><Landing /></Shell>} />
+        <Route path="/tour" element={<Shell><Tour /></Shell>} />
         <Route path="/pricing" element={<Shell><Pricing /></Shell>} />
         <Route path="/guides" element={<Shell><GuidesIndex /></Shell>} />
         <Route path="/guides/:slug" element={<Shell><GuideArticle /></Shell>} />
