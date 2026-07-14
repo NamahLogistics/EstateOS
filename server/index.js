@@ -667,6 +667,9 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
       freeMaxEstates: FREE_MAX_ESTATES,
       itemCount: items.length,
       paid: owner ? ownerHasPaidPlan(store, access.estate) : false,
+      ownerId: owner?.id || access.estate.ownerId,
+      ownerName: owner?.name || null,
+      iAmOwner: access.estate.ownerId === req.user.id,
     },
   });
 });
@@ -1824,7 +1827,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.19.2',
+    version: '1.20.0',
     push: pushConfigured(),
   });
 });

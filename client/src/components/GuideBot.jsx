@@ -326,6 +326,10 @@ export default function GuideBot() {
       await doInvite();
       return;
     }
+    if (id === 'own_map') {
+      await doOwnMap();
+      return;
+    }
     if (id === 'care_profile' || id === 'care_city') {
       startSlots('care_profile', ['careCity', 'carePhoneSelf']);
       return;
@@ -662,6 +666,30 @@ export default function GuideBot() {
       ]
     );
     navigate(`/app/estates/${estateId}?tab=housewarming`);
+  }
+
+  async function doOwnMap() {
+    const first = (user?.name || 'My').split(/\s+/)[0];
+    const res = await api('/api/estates', {
+      method: 'POST',
+      body: {
+        subjectName: `${first}'s Life Map`,
+        subjectRelation: 'Self / household',
+        countryPack: 'IN',
+        notes: 'My own Life Map — invite my children. Separate from the family parent vault.',
+      },
+    });
+    const estateId = res.estate?.id || res.id;
+    track('estate_created', { estateId, via: 'guide_own_life_map' });
+    pushBot(
+      L(
+        lang,
+        'Your Life Map is ready — separate from Mum/Dad’s file. Finish Solo fridge QR, then invite your children.',
+        'आपका Life Map तैयार — माँ-पापा की फ़ाइल से अलग। Solo फ्रिज QR, फिर बच्चों को बुलाएँ।'
+      ),
+      chips
+    );
+    if (estateId) navigate(`/app/estates/${estateId}?tab=housewarming`);
   }
 
   async function onSubmit(e) {

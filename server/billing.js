@@ -18,6 +18,7 @@ import {
   CARE_NETWORK_COMING_SOON,
   isCareNetworkPlan,
 } from './plans.js';
+import { notifyUsers } from './notifications.js';
 
 const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || PLAN_LIST_PAISE.family);
 const DIASPORA_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_DIASPORA || PLAN_LIST_PAISE.diaspora);
@@ -117,9 +118,15 @@ function activatePlan(userId, plan, paymentMeta = {}) {
     if (!s.leads) s.leads = [];
     s.leads.push({
       id: crypto.randomUUID(),
-      type: paymentMeta.kind === 'upgrade' ? 'plan_upgraded' : 'plan_paid',
+      type: paymentMeta.giftedBy
+        ? 'plan_gifted'
+        : paymentMeta.kind === 'upgrade'
+          ? 'plan_upgraded'
+          : 'plan_paid',
       plan,
       userId,
+      giftedBy: paymentMeta.giftedBy || null,
+      giftEstateId: paymentMeta.giftEstateId || null,
       paymentId: paymentMeta.paymentId || null,
       orderId: paymentMeta.orderId || null,
       referralDiscount: Boolean(paymentMeta.referralDiscount),
@@ -133,29 +140,65 @@ function activatePlan(userId, plan, paymentMeta = {}) {
   return expiresAt;
 }
 
-function checkoutDescription(plan, quote, applyDiscount) {
+/** Member may gift an upgrade to the estate owner (or pay for own if they are owner). */
+function resolveGiftBeneficiary(store, payerId, giftEstateId) {
+  if (!giftEstateId) return null;
+  const estate = store.estates.find((e) => e.id === giftEstateId);
+  if (!estate) {
+    const err = new Error('Estate not found');
+    err.status = 404;
+    throw err;
+  }
+  const isOwner = estate.ownerId === payerId;
+  const member = (store.members || []).find(
+    (m) => m.estateId === estate.id && m.userId === payerId && m.status === 'active'
+  );
+  if (!isOwner && !member) {
+    const err = new Error('Only people on this Life Map can gift an upgrade to the owner');
+    err.status = 403;
+    throw err;
+  }
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  if (!owner) {
+    const err = new Error('Vault owner not found');
+    err.status = 404;
+    throw err;
+  }
+  return {
+    estate,
+    beneficiaryId: estate.ownerId,
+    beneficiary: owner,
+    selfGift: isOwner,
+  };
+}
+
+function checkoutDescription(plan, quote, applyDiscount, giftMeta) {
+  const giftBit = giftMeta?.ownerName
+    ? ` · gift for ${giftMeta.ownerName}'s vault`
+    : '';
   if (quote.kind === 'upgrade') {
     const rupees = (quote.amount / 100).toLocaleString('en-IN');
     return `${planLabel(plan)} upgrade — ₹${rupees} for ${quote.daysLeft} days left (same renewal date)${
       applyDiscount ? ' · 50% referral' : ''
-    }`;
+    }${giftBit}`;
   }
   if (quote.kind === 'lateral') {
-    return `${planLabel(plan)} — switch (no charge). Same renewal date.`;
+    return `${planLabel(plan)} — switch (no charge). Same renewal date.${giftBit}`;
   }
   if (applyDiscount) {
-    return `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.`;
+    return `${planLabel(plan)} — 1 year (50% referral). Card from abroad or UPI in India.${giftBit}`;
   }
-  if (plan === 'diaspora') return 'Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.';
+  if (plan === 'diaspora')
+    return `Diaspora — 1 year. Cross-border packs. Card from abroad or UPI in India.${giftBit}`;
   if (plan === 'diaspora_care')
-    return 'Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.';
+    return `Diaspora + Care — 1 year (2× Diaspora). Cross-border + city nurses & maids.${giftBit}`;
   if (plan === 'counsel') return 'Counsel Pro — 1 year (city leads). Card or UPI.';
   if (plan === 'family_care' || plan === 'care')
-    return 'Family + Care — 1 year (2× Family). Vault + city nurses & maids.';
-  return 'Family — 1 year. Unlimited vault + siblings. Card or UPI.';
+    return `Family + Care — 1 year (2× Family). Vault + city nurses & maids.${giftBit}`;
+  return `Family — 1 year. Unlimited vault + siblings. Card or UPI.${giftBit}`;
 }
 
-async function createCheckout(user, plan) {
+async function createCheckout(user, plan, opts = {}) {
   if (CARE_NETWORK_COMING_SOON && isCareNetworkPlan(plan)) {
     const err = new Error(
       'City care network is coming soon — Family + Care and Diaspora + Care aren’t available to purchase yet. Caregivers can still join free.'
@@ -165,28 +208,64 @@ async function createCheckout(user, plan) {
     throw err;
   }
 
-  const storeUser = freshUser(user.id) || user;
-  ensureUserReferralFields(storeUser, readStore());
+  if (plan === 'counsel' && opts.giftEstateId) {
+    const err = new Error('Counsel Pro can’t be gifted to a family vault — pick Family or Diaspora');
+    err.status = 400;
+    throw err;
+  }
+
+  const store = readStore();
+  const gift = opts.giftEstateId
+    ? resolveGiftBeneficiary(store, user.id, opts.giftEstateId)
+    : null;
+  const beneficiaryId = gift?.beneficiaryId || user.id;
+  const beneficiaryUser = freshUser(beneficiaryId) || (gift ? gift.beneficiary : user);
+  ensureUserReferralFields(beneficiaryUser, store);
+  // Payer's referral credits still apply when gifting
+  const payerUser = freshUser(user.id) || user;
+  ensureUserReferralFields(payerUser, store);
   mutate((s) => {
     const u = s.users.find((x) => x.id === user.id);
     if (u) ensureUserReferralFields(u, s);
+    const b = s.users.find((x) => x.id === beneficiaryId);
+    if (b) ensureUserReferralFields(b, s);
   });
 
-  const quote = quotePlanChange(storeUser, plan, PLAN_AMOUNTS);
-  const credits = storeUser.referralDiscountCredits || 0;
+  const quote = quotePlanChange(beneficiaryUser, plan, PLAN_AMOUNTS);
+  const credits = payerUser.referralDiscountCredits || 0;
   const applyDiscount = credits > 0 && quote.amount > 0;
   const amount = applyDiscount ? Math.max(100, Math.round(quote.amount / 2)) : quote.amount;
-  const description = checkoutDescription(plan, quote, applyDiscount);
+  const giftMeta = gift
+    ? {
+        ownerName: gift.beneficiary?.name || 'owner',
+        estateId: gift.estate.id,
+        estateName: gift.estate.subjectName,
+        selfGift: gift.selfGift,
+      }
+    : null;
+  const description = checkoutDescription(plan, quote, applyDiscount, giftMeta);
   const activateMeta = {
     kind: quote.kind,
     fromPlan: quote.fromPlan,
     keepExpiresAt: quote.keepExpiresAt || null,
     referralDiscount: applyDiscount,
+    giftedBy: gift && !gift.selfGift ? user.id : null,
+    giftEstateId: gift?.estate?.id || null,
   };
 
   // Free lateral switch or zero-rupee upgrade edge case
   if (amount <= 0) {
-    const planExpiresAt = activatePlan(user.id, plan, activateMeta);
+    const planExpiresAt = activatePlan(beneficiaryId, plan, activateMeta);
+    if (gift && !gift.selfGift) {
+      notifyUsers({
+        userIds: [beneficiaryId],
+        title: 'Sibling gifted a plan upgrade',
+        body: `${user.name || 'A family member'} upgraded ${gift.estate.subjectName}'s vault.`,
+        url: `/app/estates/${gift.estate.id}`,
+        type: 'plan_gifted',
+        estateId: gift.estate.id,
+      });
+    }
     return {
       mode: 'direct',
       plan,
@@ -195,8 +274,10 @@ async function createCheckout(user, plan) {
       fullAmount: quote.fullAmount,
       quote,
       referralDiscount: false,
-      message:
-        quote.kind === 'lateral'
+      gift: giftMeta,
+      message: gift && !gift.selfGift
+        ? `Gifted ${planLabel(plan)} to ${giftMeta.ownerName} — renews ${new Date(planExpiresAt).toLocaleDateString()}`
+        : quote.kind === 'lateral'
           ? `Switched to ${planLabel(plan)} — renews ${new Date(planExpiresAt).toLocaleDateString()}`
           : `Plan set to ${planLabel(plan)} until ${new Date(planExpiresAt).toLocaleDateString()}`,
     };
@@ -204,10 +285,20 @@ async function createCheckout(user, plan) {
 
   if (!razorpayConfigured()) {
     if (applyDiscount) consumeReferralDiscountCredit(user.id);
-    const planExpiresAt = activatePlan(user.id, plan, {
+    const planExpiresAt = activatePlan(beneficiaryId, plan, {
       ...activateMeta,
       referralDiscount: applyDiscount,
     });
+    if (gift && !gift.selfGift) {
+      notifyUsers({
+        userIds: [beneficiaryId],
+        title: 'Sibling gifted a plan upgrade',
+        body: `${user.name || 'A family member'} upgraded ${gift.estate.subjectName}'s vault.`,
+        url: `/app/estates/${gift.estate.id}`,
+        type: 'plan_gifted',
+        estateId: gift.estate.id,
+      });
+    }
     return {
       mode: 'direct',
       plan,
@@ -216,8 +307,10 @@ async function createCheckout(user, plan) {
       fullAmount: quote.fullAmount,
       quote,
       referralDiscount: applyDiscount,
-      message:
-        quote.kind === 'upgrade'
+      gift: giftMeta,
+      message: gift && !gift.selfGift
+        ? `Gifted ${planLabel(plan)} to ${giftMeta.ownerName}'s vault`
+        : quote.kind === 'upgrade'
           ? `Upgraded to ${planLabel(plan)} — paid difference for ${quote.daysLeft} days left. Renews ${new Date(planExpiresAt).toLocaleDateString()}.`
           : applyDiscount
             ? `Plan set to ${plan} until ${new Date(planExpiresAt).toLocaleDateString()} (50% referral).`
@@ -233,6 +326,8 @@ async function createCheckout(user, plan) {
     receipt: `eos_${plan}_${user.id.slice(0, 8)}_${Date.now()}`.slice(0, 40),
     notes: {
       userId: user.id,
+      beneficiaryUserId: beneficiaryId,
+      giftEstateId: gift?.estate?.id || '',
       plan,
       kind: quote.kind,
       fromPlan: quote.fromPlan || '',
@@ -246,6 +341,8 @@ async function createCheckout(user, plan) {
     s.pendingPayments.push({
       id: order.id,
       userId: user.id,
+      beneficiaryUserId: beneficiaryId,
+      giftEstateId: gift?.estate?.id || null,
       plan,
       amount,
       fullAmount: quote.fullAmount,
@@ -271,6 +368,7 @@ async function createCheckout(user, plan) {
     description,
     quote,
     referralDiscount: applyDiscount,
+    gift: giftMeta,
     prefill: {
       name: user.name,
       email: user.email,
@@ -367,7 +465,8 @@ export function registerBillingRoutes(app) {
   app.post('/api/billing/checkout', authRequired, async (req, res, next) => {
     try {
       const plan = normalizeCheckoutPlan(req.body?.plan);
-      const payload = await createCheckout(req.user, plan);
+      const giftEstateId = String(req.body?.giftEstateId || '').trim() || null;
+      const payload = await createCheckout(req.user, plan, { giftEstateId });
       res.json(payload);
     } catch (err) {
       if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
@@ -378,7 +477,8 @@ export function registerBillingRoutes(app) {
   app.post('/api/billing/upgrade', authRequired, async (req, res, next) => {
     try {
       const plan = normalizeCheckoutPlan(req.body?.plan);
-      const payload = await createCheckout(req.user, plan);
+      const giftEstateId = String(req.body?.giftEstateId || '').trim() || null;
+      const payload = await createCheckout(req.user, plan, { giftEstateId });
       res.json(payload);
     } catch (err) {
       if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
@@ -411,6 +511,8 @@ export function registerBillingRoutes(app) {
     }
 
     const plan = pending?.plan || normalizeCheckoutPlan(bodyPlan);
+    const beneficiaryId = pending?.beneficiaryUserId || req.user.id;
+    const isGift = Boolean(pending?.beneficiaryUserId && pending.beneficiaryUserId !== req.user.id);
 
     if (CARE_NETWORK_COMING_SOON && isCareNetworkPlan(plan)) {
       return res.status(403).json({
@@ -419,13 +521,15 @@ export function registerBillingRoutes(app) {
       });
     }
 
-    const planExpiresAt = activatePlan(req.user.id, plan, {
+    const planExpiresAt = activatePlan(beneficiaryId, plan, {
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
       referralDiscount: Boolean(pending?.referralDiscount),
       kind: pending?.kind || 'new',
       fromPlan: pending?.fromPlan || null,
       keepExpiresAt: pending?.keepExpiresAt || null,
+      giftedBy: isGift ? req.user.id : null,
+      giftEstateId: pending?.giftEstateId || null,
     });
 
     mutate((s) => {
@@ -437,12 +541,42 @@ export function registerBillingRoutes(app) {
       }
     });
 
+    if (isGift) {
+      const store = readStore();
+      const owner = store.users.find((u) => u.id === beneficiaryId);
+      const estate = pending?.giftEstateId
+        ? store.estates.find((e) => e.id === pending.giftEstateId)
+        : null;
+      notifyUsers({
+        userIds: [beneficiaryId],
+        title: 'Sibling gifted Family / plan upgrade',
+        body: `${req.user.name || 'A family member'} paid so ${estate?.subjectName || 'your vault'} stays unlimited.`,
+        url: estate ? `/app/estates/${estate.id}` : '/pricing',
+        type: 'plan_gifted',
+        estateId: estate?.id || null,
+      });
+      const payer = freshUser(req.user.id);
+      return res.json({
+        ok: true,
+        plan,
+        planExpiresAt,
+        kind: pending?.kind || 'new',
+        gifted: true,
+        beneficiaryName: owner?.name || null,
+        giftEstateId: pending?.giftEstateId || null,
+        referralDiscount: Boolean(pending?.referralDiscount),
+        ...planPublicFields(payer || {}),
+        ...referralPublicFields(payer || {}),
+      });
+    }
+
     const user = freshUser(req.user.id);
     res.json({
       ok: true,
       plan,
       planExpiresAt,
       kind: pending?.kind || 'new',
+      gifted: false,
       referralDiscount: Boolean(pending?.referralDiscount),
       ...planPublicFields(user || {}),
       ...referralPublicFields(user || {}),

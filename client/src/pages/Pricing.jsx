@@ -160,10 +160,14 @@ export default function Pricing() {
       window.location.assign(`/auth?mode=register&plan=${encodeURIComponent(plan)}&checkout=1`);
       return;
     }
-    track('checkout_start', { plan });
+    const giftEstateId = searchParams.get('giftEstate') || undefined;
+    track('checkout_start', { plan, gift: Boolean(giftEstateId) });
     setBusy(true);
     try {
-      const data = await api('/api/billing/checkout', { method: 'POST', body: { plan } });
+      const data = await api('/api/billing/checkout', {
+        method: 'POST',
+        body: { plan, ...(giftEstateId ? { giftEstateId } : {}) },
+      });
       if (data.mode === 'razorpay') {
         const Razorpay = await loadRazorpay();
         const rzp = new Razorpay({
@@ -200,23 +204,35 @@ export default function Pricing() {
                   plan: data.plan,
                 },
               });
-              setUser({
-                ...user,
-                plan: verified.plan,
-                planExpiresAt: verified.planExpiresAt,
-                planActive: verified.planActive,
-                daysUntilExpiry: verified.daysUntilExpiry,
-                needsRenewal: verified.needsRenewal,
-                referralDiscountCredits: verified.referralDiscountCredits ?? 0,
-              });
+              if (!verified.gifted) {
+                setUser({
+                  ...user,
+                  plan: verified.plan,
+                  planExpiresAt: verified.planExpiresAt,
+                  planActive: verified.planActive,
+                  daysUntilExpiry: verified.daysUntilExpiry,
+                  needsRenewal: verified.needsRenewal,
+                  referralDiscountCredits: verified.referralDiscountCredits ?? 0,
+                });
+              } else {
+                setUser({
+                  ...user,
+                  referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+                });
+              }
               setCredits(verified.referralDiscountCredits ?? 0);
               toast(
-                verified.kind === 'upgrade'
-                  ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
-                  : verified.referralDiscount
-                    ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-                    : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                verified.gifted
+                  ? `Gifted ${verified.plan} to ${verified.beneficiaryName || 'the vault owner'}`
+                  : verified.kind === 'upgrade'
+                    ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
+                    : verified.referralDiscount
+                      ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                      : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
               );
+              if (verified.gifted && verified.giftEstateId) {
+                window.location.assign(`/app/estates/${verified.giftEstateId}`);
+              }
             } catch (err) {
               toast(err.message);
             }
@@ -226,16 +242,20 @@ export default function Pricing() {
           toast(resp.error?.description || 'Payment failed');
         });
         rzp.open();
-        return;
+      } else {
+        if (!data.gift) {
+          setUser({
+            ...user,
+            plan: data.plan,
+            planExpiresAt: data.planExpiresAt,
+            planActive: true,
+          });
+        }
+        toast(data.message || 'Plan updated');
+        if (data.gift?.estateId) {
+          window.location.assign(`/app/estates/${data.gift.estateId}`);
+        }
       }
-      setUser({
-        ...user,
-        plan: data.plan,
-        planExpiresAt: data.planExpiresAt,
-        planActive: data.planActive ?? true,
-        needsRenewal: false,
-      });
-      toast(data.message || `Plan set to ${data.plan}`);
     } catch (err) {
       toast(err.message);
     } finally {
@@ -270,6 +290,7 @@ export default function Pricing() {
   }
 
   const hasCredit = credits > 0;
+  const giftEstateId = searchParams.get('giftEstate');
 
   return (
     <section style={{ padding: '1.5rem 0 3rem' }}>
@@ -288,6 +309,24 @@ export default function Pricing() {
         Annual subscriptions via Razorpay. Mid-year upgrades: pay only the difference for days
         left — renewal date stays the same. Downgrades wait until renewal.
       </p>
+      {giftEstateId ? (
+        <div
+          className="card"
+          style={{
+            marginTop: '1rem',
+            maxWidth: 640,
+            padding: '1rem 1.15rem',
+            borderColor: 'rgba(47, 107, 82, 0.4)',
+            background: 'rgba(220, 232, 225, 0.5)',
+          }}
+        >
+          <strong>Gifting this upgrade</strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0', lineHeight: 1.5 }}>
+            You pay — the vault <em>owner’s</em> plan upgrades so the shared Life Map unlocks for
+            everyone on it. Your personal account plan stays separate unless you’re the owner.
+          </p>
+        </div>
+      ) : null}
 
       <div
         className="card"

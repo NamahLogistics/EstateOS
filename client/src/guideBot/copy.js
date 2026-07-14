@@ -97,6 +97,7 @@ export const FAMILY_CHIPS = (lang) => [
   { id: 'add_care', label: L(lang, 'Add maid/nurse phone', 'नौकरानी/नर्स फ़ोन') },
   { id: 'solo_qr', label: L(lang, 'Solo — fridge QR', 'अकेले — फ्रिज QR') },
   { id: 'invite', label: L(lang, 'Invite sibling', 'भाई-बहन बुलाएँ') },
+  { id: 'own_map', label: L(lang, 'Start my Life Map', 'मेरा Life Map') },
   { id: 'where_am_i', label: L(lang, 'What should I do next?', 'अब क्या करें?') },
 ];
 

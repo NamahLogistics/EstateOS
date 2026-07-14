@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import CounselPanel from '../components/CounselPanel.jsx';
 import CarePanel from '../components/CarePanel.jsx';
@@ -8,6 +8,7 @@ import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import HousewarmingDone, { SiblingInviteCard } from '../components/HousewarmingDone.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
+import { track } from '../analytics.js';
 import { shareEmergencyText, shareLightReviewText, whatsappShareUrl } from '../whatsapp.js';
 
 const TABS = [
@@ -102,6 +103,7 @@ async function shareVaultFile(file) {
 export default function EstatePage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { api, toast, user } = useAuth();
   const { t, lang } = useI18n();
   const [data, setData] = useState(null);
@@ -143,6 +145,30 @@ export default function EstatePage() {
   async function load() {
     const res = await api(`/api/estates/${id}`);
     setData(res);
+  }
+
+  async function startOwnLifeMap() {
+    setBusy(true);
+    try {
+      const first = (user?.name || 'My').split(/\s+/)[0];
+      const res = await api('/api/estates', {
+        method: 'POST',
+        body: {
+          subjectName: `${first}'s Life Map`,
+          subjectRelation: 'Self / household',
+          countryPack: 'IN',
+          notes: 'My own Life Map — invite my children here. Separate from the family parent vault.',
+        },
+      });
+      const estateId = res.estate?.id || res.id;
+      track('estate_created', { estateId, via: 'own_life_map' });
+      toast('Your Life Map is ready — invite your children after Solo fridge QR');
+      if (estateId) navigate(`/app/estates/${estateId}?tab=housewarming`);
+    } catch (err) {
+      if (!handleLimitError(err, 'estate')) toast(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   /** Keep Life Map health in sync when housewarming (fridge QR) progresses. */
@@ -535,7 +561,9 @@ export default function EstatePage() {
             {limits.itemCount >= limits.freeMaxItems ? (
               <>
                 <strong>Vault full</strong> — free plan uses {limits.itemCount}/{limits.freeMaxItems} items.
-                Upgrade to keep mapping banks, LIC, and property.
+                {!limits.iAmOwner && limits.ownerName
+                  ? ` Gift Family to ${limits.ownerName}, or start your own Life Map.`
+                  : ' Upgrade to keep mapping banks, LIC, and property.'}
               </>
             ) : (
               <>
@@ -543,15 +571,48 @@ export default function EstatePage() {
                 {limits.itemCount >= limits.freeMaxItems - 1
                   ? ' — one slot left before upgrade.'
                   : '.'}
+                {!limits.iAmOwner && limits.ownerName ? ` (owner: ${limits.ownerName})` : ''}
               </>
             )}
           </p>
           <button type="button" className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }} onClick={() => openUpgrade(limits.itemCount >= limits.freeMaxItems ? 'items' : 'near')}>
-            Upgrade
+            {limits.iAmOwner ? 'Upgrade' : 'Gift / upgrade'}
           </button>
         </div>
       )}
-      <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
+      <UpgradeGate
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+        gift={{
+          estateId: id,
+          estateName: estate.subjectName,
+          ownerName: limits?.ownerName || 'the owner',
+          iAmOwner: Boolean(limits?.iAmOwner),
+        }}
+        onStartOwnMap={startOwnLifeMap}
+      />
+      {(!limits?.iAmOwner || Boolean(housewarming?.progress?.completedAt)) && (
+        <div
+          className="card"
+          style={{
+            padding: '1rem 1.15rem',
+            marginTop: '0.85rem',
+            borderColor: 'rgba(47, 107, 82, 0.35)',
+            background: 'rgba(220, 232, 225, 0.4)',
+          }}
+        >
+          <strong>{limits?.iAmOwner ? 'Also map yourself / your kids' : 'Start your own Life Map'}</strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0.75rem', lineHeight: 1.5 }}>
+            {limits?.iAmOwner
+              ? `Separate from ${estate.subjectName}. Create a Life Map you own and invite your children. Free covers one owned file — upgrade if you already used it.`
+              : `Separate from ${estate.subjectName}. Invite your children. You own it — you can upgrade it yourself. Mum/Dad’s vault stays as-is.`}
+          </p>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={startOwnLifeMap}>
+            {busy ? 'Creating…' : limits?.iAmOwner ? 'Create another Life Map' : 'Create my Life Map'}
+          </button>
+        </div>
+      )}
       {(() => {
         const lightDue = estate.nextLightReviewAt && new Date(estate.nextLightReviewAt).getTime() <= Date.now() + 14 * 24 * 60 * 60 * 1000;
         const showLight =
