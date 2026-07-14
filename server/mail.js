@@ -137,6 +137,52 @@ export async function sendEstateThreadNotify({
   });
 }
 
+export async function sendVaultChangeEmail({
+  to,
+  recipientName,
+  estateName,
+  actorName,
+  actionLabel,
+  itemTitle,
+  categoryLabel,
+  link,
+}) {
+  const subject = `${estateName}: ${actorName || 'A sibling'} ${actionLabel}`;
+  const detail = [itemTitle, categoryLabel].filter(Boolean).join(' · ');
+  const text =
+    `Hi ${recipientName || 'there'},\n\n` +
+    `${actorName || 'A family member'} ${actionLabel} on ${estateName}` +
+    (detail ? `: ${detail}` : '') +
+    `.\n\nOpen the vault:\n${link}\n\n` +
+    `You’re getting this because you’re on this Life Map. HeirReady — not legal advice.`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <p style="display:inline-block;background:#2c4d3c;color:#fff;padding:6px 12px;border-radius:999px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 12px">Vault update</p>
+      <h2 style="margin:0 0 8px;font-weight:600">${estateName}</h2>
+      <p style="margin:0 0 12px"><strong>${actorName || 'A family member'}</strong> ${actionLabel}${
+        detail ? ':' : '.'
+      }</p>
+      ${
+        detail
+          ? `<p style="margin:0 0 16px;padding:12px 14px;background:#eef2ef;border-radius:12px">${detail.replace(
+              /</g,
+              '&lt;'
+            )}</p>`
+          : ''
+      }
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Open vault</a></p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">You’re on this Life Map. Not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'vault_change' }],
+  });
+}
+
 export async function sendHousewarmingCompleteEmail({ to, name, estateName, link }) {
   const subject = `${estateName}: housewarming done — invite a sibling`;
   const text =

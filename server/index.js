@@ -38,7 +38,7 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, sendVaultChangeEmail, mailConfigured } from './mail.js';
 import {
   ensureVapidKeys,
   getVapidPublicKey,
@@ -204,6 +204,81 @@ function canAccessEstateBase(store, userId, estateId) {
 }
 
 const canAccessEstate = attachLawyerAccess(canAccessEstateBase);
+
+function categoryLabel(categoryId) {
+  return ITEM_CATEGORIES.find((c) => c.id === categoryId)?.label || categoryId || '';
+}
+
+/** Owner + active members except the actor — for sibling vault emails. */
+function estateFamilyRecipients(store, estate, exceptUserId) {
+  if (!estate) return [];
+  const out = [];
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  if (owner?.email && owner.id !== exceptUserId) {
+    out.push({ id: owner.id, email: owner.email, name: owner.name });
+  }
+  for (const m of (store.members || []).filter(
+    (x) => x.estateId === estate.id && x.status === 'active'
+  )) {
+    if (m.userId === exceptUserId) continue;
+    const u = store.users.find((x) => x.id === m.userId);
+    if (u?.email) out.push({ id: u.id, email: u.email, name: u.name });
+  }
+  const seen = new Set();
+  return out.filter((r) => {
+    const key = r.email.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function notifyVaultChange({
+  estate,
+  actor,
+  actionLabel,
+  itemTitle,
+  category,
+  type = 'vault_change',
+}) {
+  if (!estate || !actor) return;
+  const store = readStore();
+  const recipients = estateFamilyRecipients(store, estate, actor.id);
+  if (!recipients.length) return;
+
+  const base = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+  const link = `${base}/app/estates/${estate.id}?tab=map`;
+  const cat = categoryLabel(category);
+
+  notifyUsers({
+    userIds: recipients.map((r) => r.id),
+    title: `${estate.subjectName}: vault update`,
+    body: `${actor.name || 'A sibling'} ${actionLabel}${itemTitle ? ` — ${itemTitle}` : ''}`,
+    url: `/app/estates/${estate.id}?tab=map`,
+    type,
+    estateId: estate.id,
+  });
+
+  if (!mailConfigured()) return;
+  await Promise.all(
+    recipients.map(async (r) => {
+      try {
+        await sendVaultChangeEmail({
+          to: r.email,
+          recipientName: r.name,
+          estateName: estate.subjectName,
+          actorName: actor.name,
+          actionLabel,
+          itemTitle,
+          categoryLabel: cat,
+          link,
+        });
+      } catch (err) {
+        console.error('vault change email failed', r.email, err.message);
+      }
+    })
+  );
+}
 
 function publicUser(user) {
   applyPlanExpiryInPlace(user);
@@ -920,6 +995,14 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
     });
   });
   await flushPersist();
+  notifyVaultChange({
+    estate: access.estate,
+    actor: req.user,
+    actionLabel: 'added to the vault',
+    itemTitle: item.title,
+    category: item.category,
+    type: 'item_added',
+  }).catch((err) => console.error('vault notify', err.message));
   res.status(201).json({ item });
 });
 
@@ -976,10 +1059,18 @@ app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), as
     });
   });
   await flushPersist();
+  notifyVaultChange({
+    estate: access.estate,
+    actor: req.user,
+    actionLabel: 'added a photo draft',
+    itemTitle: item.title,
+    category: item.category,
+    type: 'item_added',
+  }).catch((err) => console.error('vault notify', err.message));
   res.status(201).json({ item, draftSource: draft.source });
 });
 
-app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
+app.patch('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
@@ -1012,22 +1103,34 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
     return row;
   });
   if (!item) return res.status(404).json({ error: 'Item not found' });
+  notifyVaultChange({
+    estate: access.estate,
+    actor: req.user,
+    actionLabel: 'updated',
+    itemTitle: item.title,
+    category: item.category,
+    type: 'item_updated',
+  }).catch((err) => console.error('vault notify', err.message));
   res.json({ item });
 });
 
-app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
+app.delete('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
   const store = readStore();
   const access = canAccessEstate(store, req.user.id, req.params.id);
   if (!access.ok) return res.status(access.status).json({ error: access.error });
   if (access.role === 'viewer') {
     return res.status(403).json({ error: 'Viewers cannot delete' });
   }
+  let removedTitle = '';
+  let removedCategory = '';
   mutate((s) => {
     const idx = s.items.findIndex(
       (i) => i.id === req.params.itemId && i.estateId === req.params.id
     );
     if (idx >= 0) {
       const [removed] = s.items.splice(idx, 1);
+      removedTitle = removed.title;
+      removedCategory = removed.category;
       audit(s, {
         estateId: access.estate.id,
         userId: req.user.id,
@@ -1036,6 +1139,16 @@ app.delete('/api/estates/:id/items/:itemId', authRequired, (req, res) => {
       });
     }
   });
+  if (removedTitle) {
+    notifyVaultChange({
+      estate: access.estate,
+      actor: req.user,
+      actionLabel: 'removed from the vault',
+      itemTitle: removedTitle,
+      category: removedCategory,
+      type: 'item_deleted',
+    }).catch((err) => console.error('vault notify', err.message));
+  }
   res.json({ ok: true });
 });
 
@@ -1841,7 +1954,7 @@ app.get('/api/health', (_req, res) => {
     billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.22.5',
+    version: '1.22.6',
     push: pushConfigured(),
   });
 });
