@@ -145,7 +145,7 @@ app.use(
   })
 );
 
-// Capture raw body for Paddle webhook HMAC (must match exact bytes)
+// Capture raw body for Razorpay webhook HMAC (must match exact bytes)
 app.use(
   express.json({
     limit: '8mb',
