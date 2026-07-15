@@ -133,8 +133,9 @@ ${payUrl}
 
 Tips if your card failed from abroad:
 1. Retry the link with another Visa/Mastercard
-2. Ask family in India to open the same link and pay with UPI
-3. Reply to this email if you’re stuck — we’ll help
+2. Ask family in India to open the same link and pay with UPI (they don’t need your password)
+3. When the link is paid, your HeirReady plan unlocks automatically — sign in and open the app
+4. Reply to this email if you’re stuck — we’ll help
 
 HeirReady`;
   const html = `
@@ -146,7 +147,8 @@ HeirReady`;
       <p style="margin:0 0 8px;font-weight:600">If your card failed from abroad</p>
       <ol style="margin:0 0 16px;padding-left:1.2rem;color:#3a4a42">
         <li>Retry the link with another Visa / Mastercard</li>
-        <li>Ask family in India to open the same link and pay with <strong>UPI</strong></li>
+        <li>Ask family in India to open the same link and pay with <strong>UPI</strong> (they don’t need your password)</li>
+        <li>When paid, your plan unlocks automatically — sign in and open the app</li>
         <li>Reply to this email if you’re stuck — we’ll help</li>
       </ol>
       <p style="font-size:13px;color:#3a4a42">Or open: ${payUrl}</p>

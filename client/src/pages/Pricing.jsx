@@ -5,7 +5,7 @@ import { useCareNetwork } from '../careNetwork.js';
 import { track } from '../analytics.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate from '../components/UpgradeGate.jsx';
-import PaymentRecoveryGate from '../components/PaymentRecoveryGate.jsx';
+import PaymentCheckoutGate from '../components/PaymentCheckoutGate.jsx';
 
 function planDisplayName(planId) {
   if (planId === 'diaspora') return 'Diaspora';
@@ -22,6 +22,16 @@ function amountLabelForPlan(planId) {
   if (planId === 'family_care' || planId === 'care') return '₹2,998';
   if (planId === 'counsel' || planId === 'family') return '₹1,499';
   return null;
+}
+
+function softFailReason(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return null;
+  if (/timed?\s*out|timeout/i.test(t)) return 'the payment timed out';
+  if (/server error|gateway|technical/i.test(t)) return 'the payment gateway hit a temporary error';
+  if (/declined|insufficient|do not honour|not sufficient/i.test(t)) return 'the card was declined';
+  if (/cancel/i.test(t)) return 'the payment was cancelled';
+  return t.length > 120 ? `${t.slice(0, 117)}…` : t;
 }
 
 const plans = [
@@ -135,6 +145,7 @@ export default function Pricing() {
   const [billing, setBilling] = useState(null);
   const [recovery, setRecovery] = useState(null);
   const [recoverBusy, setRecoverBusy] = useState(false);
+  const [pendingVerify, setPendingVerify] = useState(null);
   const paidHandled = useRef(false);
   const highlight = searchParams.get('plan') || '';
 
@@ -167,13 +178,32 @@ export default function Pricing() {
 
   /** Return from Razorpay Payment Link callback — activate plan if paid. */
   useEffect(() => {
-    if (!user) return;
     if (searchParams.get('recovery') !== 'paid') return;
     if (paidHandled.current) return;
     const paymentLinkId = searchParams.get('razorpay_payment_link_id');
     const paymentId = searchParams.get('razorpay_payment_id');
+    const planHint = searchParams.get('plan') || '';
+    if (!paymentLinkId && !searchParams.get('razorpay_payment_link_status')) {
+      /* wait for full callback params */
+    }
+    if (!user) {
+      paidHandled.current = true;
+      setRecovery({
+        mode: 'success',
+        plan: planHint,
+        planLabel: planDisplayName(planHint),
+        needsSignIn: true,
+      });
+      window.history.replaceState({}, '', '/pricing');
+      return;
+    }
     if (!paymentLinkId) return;
     paidHandled.current = true;
+    setRecovery({
+      mode: 'confirming',
+      plan: planHint,
+      planLabel: planDisplayName(planHint),
+    });
     (async () => {
       try {
         const verified = await api('/api/billing/verify-link', {
@@ -183,26 +213,27 @@ export default function Pricing() {
             razorpay_payment_id: paymentId,
           },
         });
-        setUser({
-          ...user,
+        applyVerifiedPlan(verified);
+        setRecovery({
+          mode: 'success',
           plan: verified.plan,
-          planExpiresAt: verified.planExpiresAt,
-          planActive: verified.planActive,
-          daysUntilExpiry: verified.daysUntilExpiry,
-          needsRenewal: verified.needsRenewal,
-          referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+          planLabel: planDisplayName(verified.plan),
+          expiresAt: verified.planExpiresAt,
+          autoRenew: Boolean(verified.autoRenew),
+          gifted: Boolean(verified.gifted),
+          giftEstateId: verified.giftEstateId || null,
         });
-        setBilling((b) => ({ ...(b || {}), ...verified }));
-        setCredits(verified.referralDiscountCredits ?? credits);
-        toast(
-          verified.gifted
-            ? 'Gift payment received — vault upgraded'
-            : `Payment received — ${verified.plan} is active`
-        );
         track('checkout_recovery_paid', { plan: verified.plan });
         window.history.replaceState({}, '', '/pricing');
       } catch (err) {
-        toast(err.message || 'Could not confirm payment yet — refresh in a minute');
+        setRecovery({
+          mode: 'activate_pending',
+          plan: planHint,
+          planLabel: planDisplayName(planHint),
+          activateError: err.message,
+          linkVerify: { paymentLinkId, paymentId },
+        });
+        toast(err.message || 'Could not confirm payment yet — use Activate below');
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,6 +253,34 @@ export default function Pricing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  function applyVerifiedPlan(verified) {
+    if (!verified.gifted) {
+      setUser({
+        ...user,
+        plan: verified.plan,
+        planExpiresAt: verified.planExpiresAt,
+        planActive: verified.planActive,
+        daysUntilExpiry: verified.daysUntilExpiry,
+        needsRenewal: verified.needsRenewal,
+        autoRenew: verified.autoRenew,
+        subscriptionStatus: verified.subscriptionStatus,
+        referralDiscountCredits: verified.referralDiscountCredits ?? 0,
+      });
+    } else {
+      setUser({
+        ...user,
+        referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+      });
+    }
+    setCredits(verified.referralDiscountCredits ?? 0);
+    setBilling((b) => ({
+      ...(b || {}),
+      ...verified,
+      autoRenew: verified.autoRenew,
+      subscriptionStatus: verified.subscriptionStatus,
+    }));
+  }
+
   async function startRecovery(plan, { failReason, forceEmail = false, source = 'checkout' } = {}) {
     const giftEstateId = searchParams.get('giftEstate') || undefined;
     setRecoverBusy(true);
@@ -238,6 +297,7 @@ export default function Pricing() {
         },
       });
       setRecovery((prev) => ({
+        mode: 'failed',
         ...(prev || {}),
         plan,
         planLabel: data.label || planDisplayName(plan),
@@ -250,9 +310,6 @@ export default function Pricing() {
         emailed: Boolean(data.emailed) || Boolean(prev?.emailed),
         email: data.email || user?.email,
       }));
-      if (data.emailed) {
-        toast(data.message || `Payment link emailed to ${data.email || user?.email}`);
-      }
       track('checkout_recovery_link', {
         plan,
         reused: data.reused,
@@ -268,20 +325,84 @@ export default function Pricing() {
   }
 
   async function handleCheckoutFailed(plan, failReason) {
+    const soft = softFailReason(failReason);
     track('checkout_failed', { plan, reason: failReason || null });
     setRecovery({
+      mode: 'failed',
       plan,
       planLabel: planDisplayName(plan),
       amountLabel: amountLabelForPlan(plan),
-      failReason: failReason || null,
+      failReason: soft,
       shortUrl: null,
       emailed: false,
       email: user?.email,
     });
+    toast('Payment didn’t finish — we’ll help you complete it');
     try {
-      await startRecovery(plan, { failReason, source: 'payment_failed' });
+      await startRecovery(plan, { failReason: soft || failReason, source: 'payment_failed' });
     } catch {
-      /* panel still open — user can retry / request email */
+      /* panel still open */
+    }
+  }
+
+  async function retryActivateFromCheckout() {
+    if (!pendingVerify) return;
+    setRecovery((r) => ({ ...(r || {}), mode: 'confirming' }));
+    try {
+      const verified = await api('/api/billing/verify', {
+        method: 'POST',
+        body: pendingVerify.body,
+      });
+      applyVerifiedPlan(verified);
+      setPendingVerify(null);
+      setRecovery({
+        mode: 'success',
+        plan: verified.plan,
+        planLabel: planDisplayName(verified.plan),
+        expiresAt: verified.planExpiresAt,
+        autoRenew: Boolean(verified.autoRenew),
+        gifted: Boolean(verified.gifted),
+        giftEstateId: verified.giftEstateId || null,
+      });
+    } catch (err) {
+      setRecovery((r) => ({
+        ...(r || {}),
+        mode: 'activate_pending',
+        activateError: err.message,
+      }));
+      toast(err.message);
+    }
+  }
+
+  async function retryActivateFromLink() {
+    const link = recovery?.linkVerify;
+    if (!link?.paymentLinkId) return;
+    setRecovery((r) => ({ ...(r || {}), mode: 'confirming' }));
+    try {
+      const verified = await api('/api/billing/verify-link', {
+        method: 'POST',
+        body: {
+          razorpay_payment_link_id: link.paymentLinkId,
+          razorpay_payment_id: link.paymentId,
+        },
+      });
+      applyVerifiedPlan(verified);
+      setRecovery({
+        mode: 'success',
+        plan: verified.plan,
+        planLabel: planDisplayName(verified.plan),
+        expiresAt: verified.planExpiresAt,
+        autoRenew: Boolean(verified.autoRenew),
+        gifted: Boolean(verified.gifted),
+        giftEstateId: verified.giftEstateId || null,
+      });
+    } catch (err) {
+      setRecovery((r) => ({
+        ...(r || {}),
+        mode: 'activate_pending',
+        activateError: err.message,
+      }));
+      toast(err.message);
     }
   }
 
@@ -332,55 +453,41 @@ export default function Pricing() {
             },
           },
           handler: async (response) => {
+            const verifyBody = { ...response, plan: data.plan };
+            setPendingVerify({ body: verifyBody, plan: data.plan });
+            setRecovery({
+              mode: 'confirming',
+              plan: data.plan,
+              planLabel: planDisplayName(data.plan),
+            });
             try {
               const verified = await api('/api/billing/verify', {
                 method: 'POST',
-                body: {
-                  ...response,
-                  plan: data.plan,
-                },
+                body: verifyBody,
               });
-              if (!verified.gifted) {
-                setUser({
-                  ...user,
-                  plan: verified.plan,
-                  planExpiresAt: verified.planExpiresAt,
-                  planActive: verified.planActive,
-                  daysUntilExpiry: verified.daysUntilExpiry,
-                  needsRenewal: verified.needsRenewal,
-                  autoRenew: verified.autoRenew,
-                  subscriptionStatus: verified.subscriptionStatus,
-                  referralDiscountCredits: verified.referralDiscountCredits ?? 0,
-                });
-              } else {
-                setUser({
-                  ...user,
-                  referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
-                });
-              }
-              setCredits(verified.referralDiscountCredits ?? 0);
-              setBilling((b) => ({
-                ...(b || {}),
-                ...verified,
-                autoRenew: verified.autoRenew,
-                subscriptionStatus: verified.subscriptionStatus,
-              }));
-              toast(
-                verified.gifted
-                  ? `Gifted ${verified.plan} to ${verified.beneficiaryName || 'the vault owner'}`
-                  : verified.kind === 'upgrade'
-                    ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
-                    : verified.autoRenew || data.mode === 'razorpay_subscription'
-                      ? `Payment successful — ${verified.plan} auto-renews yearly until you cancel`
-                      : verified.referralDiscount
-                        ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-                        : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-              );
+              applyVerifiedPlan(verified);
+              setPendingVerify(null);
+              setRecovery({
+                mode: 'success',
+                plan: verified.plan,
+                planLabel: planDisplayName(verified.plan),
+                expiresAt: verified.planExpiresAt,
+                autoRenew: Boolean(verified.autoRenew) || data.mode === 'razorpay_subscription',
+                gifted: Boolean(verified.gifted),
+                giftEstateId: verified.giftEstateId || null,
+              });
+              track('checkout_paid', { plan: verified.plan, kind: verified.kind });
               if (verified.gifted && verified.giftEstateId) {
                 window.location.assign(`/app/estates/${verified.giftEstateId}`);
               }
             } catch (err) {
-              toast(err.message);
+              setRecovery({
+                mode: 'activate_pending',
+                plan: data.plan,
+                planLabel: planDisplayName(data.plan),
+                activateError: err.message,
+              });
+              toast('Payment went through — tap Activate if your plan isn’t on yet');
             }
           },
         };
@@ -395,7 +502,6 @@ export default function Pricing() {
         const origHandler = options.handler;
         options.handler = async (response) => {
           checkoutSucceeded = true;
-          setRecovery(null);
           await origHandler(response);
         };
         options.modal = {
@@ -412,7 +518,6 @@ export default function Pricing() {
             resp.error?.reason ||
             resp.error?.code ||
             'Payment failed';
-          toast(reason);
           handleCheckoutFailed(plan, reason);
         });
         rzp.open();
@@ -504,8 +609,9 @@ export default function Pricing() {
         onSecondary={() => checkout('family')}
       />
 
-      <PaymentRecoveryGate
+      <PaymentCheckoutGate
         open={Boolean(recovery)}
+        mode={recovery?.mode || 'failed'}
         onClose={() => setRecovery(null)}
         planLabel={recovery?.planLabel}
         amountLabel={recovery?.amountLabel}
@@ -515,10 +621,15 @@ export default function Pricing() {
         emailed={recovery?.emailed}
         emailBusy={recoverBusy}
         recoverBusy={recoverBusy}
+        expiresAt={recovery?.expiresAt}
+        autoRenew={recovery?.autoRenew}
+        gifted={recovery?.gifted}
+        activateError={recovery?.activateError}
+        needsSignIn={recovery?.needsSignIn}
         onRetry={() => {
-          const plan = recovery?.plan;
+          const p = recovery?.plan;
           setRecovery(null);
-          if (plan) checkout(plan);
+          if (p) checkout(p);
         }}
         onOpenLink={() => {
           if (recovery?.shortUrl) {
@@ -535,8 +646,18 @@ export default function Pricing() {
               source: 'resend',
             });
           } catch {
-            /* toasted in startRecovery */
+            /* toasted */
           }
+        }}
+        onContinue={() => {
+          const estateId = recovery?.giftEstateId;
+          setRecovery(null);
+          if (estateId) window.location.assign(`/app/estates/${estateId}`);
+          else window.location.assign('/app');
+        }}
+        onRetryActivate={() => {
+          if (recovery?.linkVerify) retryActivateFromLink();
+          else retryActivateFromCheckout();
         }}
       />
 
