@@ -1,10 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useCareNetwork } from '../careNetwork.js';
 import { track } from '../analytics.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate from '../components/UpgradeGate.jsx';
+import PaymentRecoveryGate from '../components/PaymentRecoveryGate.jsx';
+
+function planDisplayName(planId) {
+  if (planId === 'diaspora') return 'Diaspora';
+  if (planId === 'diaspora_care') return 'Diaspora + Care';
+  if (planId === 'family_care' || planId === 'care') return 'Family + Care';
+  if (planId === 'counsel') return 'Counsel Pro';
+  if (planId === 'family') return 'Family';
+  return 'your plan';
+}
+
+function amountLabelForPlan(planId) {
+  if (planId === 'diaspora') return '₹12,499';
+  if (planId === 'diaspora_care') return '₹24,998';
+  if (planId === 'family_care' || planId === 'care') return '₹2,998';
+  if (planId === 'counsel' || planId === 'family') return '₹1,499';
+  return null;
+}
 
 const plans = [
   {
@@ -115,6 +133,9 @@ export default function Pricing() {
   const [credits, setCredits] = useState(0);
   const [abroadGateOpen, setAbroadGateOpen] = useState(false);
   const [billing, setBilling] = useState(null);
+  const [recovery, setRecovery] = useState(null);
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const paidHandled = useRef(false);
   const highlight = searchParams.get('plan') || '';
 
   useEffect(() => {
@@ -144,6 +165,49 @@ export default function Pricing() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlight]);
 
+  /** Return from Razorpay Payment Link callback — activate plan if paid. */
+  useEffect(() => {
+    if (!user) return;
+    if (searchParams.get('recovery') !== 'paid') return;
+    if (paidHandled.current) return;
+    const paymentLinkId = searchParams.get('razorpay_payment_link_id');
+    const paymentId = searchParams.get('razorpay_payment_id');
+    if (!paymentLinkId) return;
+    paidHandled.current = true;
+    (async () => {
+      try {
+        const verified = await api('/api/billing/verify-link', {
+          method: 'POST',
+          body: {
+            razorpay_payment_link_id: paymentLinkId,
+            razorpay_payment_id: paymentId,
+          },
+        });
+        setUser({
+          ...user,
+          plan: verified.plan,
+          planExpiresAt: verified.planExpiresAt,
+          planActive: verified.planActive,
+          daysUntilExpiry: verified.daysUntilExpiry,
+          needsRenewal: verified.needsRenewal,
+          referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+        });
+        setBilling((b) => ({ ...(b || {}), ...verified }));
+        setCredits(verified.referralDiscountCredits ?? credits);
+        toast(
+          verified.gifted
+            ? 'Gift payment received — vault upgraded'
+            : `Payment received — ${verified.plan} is active`
+        );
+        track('checkout_recovery_paid', { plan: verified.plan });
+        window.history.replaceState({}, '', '/pricing');
+      } catch (err) {
+        toast(err.message || 'Could not confirm payment yet — refresh in a minute');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, searchParams]);
+
   useEffect(() => {
     if (!user) return;
     if (searchParams.get('checkout') !== '1') return;
@@ -157,6 +221,69 @@ export default function Pricing() {
     else checkout(plan);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  async function startRecovery(plan, { failReason, forceEmail = false, source = 'checkout' } = {}) {
+    const giftEstateId = searchParams.get('giftEstate') || undefined;
+    setRecoverBusy(true);
+    try {
+      const data = await api('/api/billing/recover', {
+        method: 'POST',
+        body: {
+          plan,
+          ...(giftEstateId ? { giftEstateId } : {}),
+          failReason: failReason || undefined,
+          forceEmail,
+          source,
+          email: true,
+        },
+      });
+      setRecovery((prev) => ({
+        ...(prev || {}),
+        plan,
+        planLabel: data.label || planDisplayName(plan),
+        amountLabel:
+          data.amountRupees != null
+            ? `₹${Number(data.amountRupees).toLocaleString('en-IN')}`
+            : amountLabelForPlan(plan),
+        failReason: failReason || prev?.failReason || null,
+        shortUrl: data.shortUrl,
+        emailed: Boolean(data.emailed) || Boolean(prev?.emailed),
+        email: data.email || user?.email,
+      }));
+      if (data.emailed) {
+        toast(data.message || `Payment link emailed to ${data.email || user?.email}`);
+      }
+      track('checkout_recovery_link', {
+        plan,
+        reused: data.reused,
+        emailed: data.emailed,
+      });
+      return data;
+    } catch (err) {
+      toast(err.message || 'Could not create recovery link');
+      throw err;
+    } finally {
+      setRecoverBusy(false);
+    }
+  }
+
+  async function handleCheckoutFailed(plan, failReason) {
+    track('checkout_failed', { plan, reason: failReason || null });
+    setRecovery({
+      plan,
+      planLabel: planDisplayName(plan),
+      amountLabel: amountLabelForPlan(plan),
+      failReason: failReason || null,
+      shortUrl: null,
+      emailed: false,
+      email: user?.email,
+    });
+    try {
+      await startRecovery(plan, { failReason, source: 'payment_failed' });
+    } catch {
+      /* panel still open — user can retry / request email */
+    }
+  }
 
   async function checkout(plan) {
     if (plan === 'free') {
@@ -264,9 +391,29 @@ export default function Pricing() {
           options.currency = data.currency || 'INR';
           options.order_id = data.orderId;
         }
+        let checkoutSucceeded = false;
+        const origHandler = options.handler;
+        options.handler = async (response) => {
+          checkoutSucceeded = true;
+          setRecovery(null);
+          await origHandler(response);
+        };
+        options.modal = {
+          ondismiss: () => {
+            if (!checkoutSucceeded) {
+              track('checkout_dismissed', { plan });
+            }
+          },
+        };
         const rzp = new Razorpay(options);
         rzp.on('payment.failed', (resp) => {
-          toast(resp.error?.description || 'Payment failed');
+          const reason =
+            resp.error?.description ||
+            resp.error?.reason ||
+            resp.error?.code ||
+            'Payment failed';
+          toast(reason);
+          handleCheckoutFailed(plan, reason);
         });
         rzp.open();
       } else {
@@ -355,6 +502,42 @@ export default function Pricing() {
         reason="abroad_checkout"
         onPrimary={() => checkout('diaspora')}
         onSecondary={() => checkout('family')}
+      />
+
+      <PaymentRecoveryGate
+        open={Boolean(recovery)}
+        onClose={() => setRecovery(null)}
+        planLabel={recovery?.planLabel}
+        amountLabel={recovery?.amountLabel}
+        failReason={recovery?.failReason}
+        userEmail={recovery?.email || user?.email}
+        shortUrl={recovery?.shortUrl}
+        emailed={recovery?.emailed}
+        emailBusy={recoverBusy}
+        recoverBusy={recoverBusy}
+        onRetry={() => {
+          const plan = recovery?.plan;
+          setRecovery(null);
+          if (plan) checkout(plan);
+        }}
+        onOpenLink={() => {
+          if (recovery?.shortUrl) {
+            track('checkout_recovery_open_link', { plan: recovery.plan });
+            window.open(recovery.shortUrl, '_blank', 'noopener,noreferrer');
+          }
+        }}
+        onResendEmail={async () => {
+          if (!recovery?.plan) return;
+          try {
+            await startRecovery(recovery.plan, {
+              failReason: recovery.failReason,
+              forceEmail: true,
+              source: 'resend',
+            });
+          } catch {
+            /* toasted in startRecovery */
+          }
+        }}
       />
 
       <h1 className="display" style={{ fontSize: '2.4rem', marginBottom: '0.4rem' }}>

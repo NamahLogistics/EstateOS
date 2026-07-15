@@ -19,6 +19,9 @@ import {
   isCareNetworkPlan,
 } from './plans.js';
 import { notifyUsers } from './notifications.js';
+import { sendPaymentRecoveryEmail } from './mail.js';
+
+const RECOVERY_REUSE_MS = 30 * 60 * 1000;
 
 const FAMILY_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_FAMILY || PLAN_LIST_PAISE.family);
 const DIASPORA_AMOUNT = Number(process.env.RAZORPAY_AMOUNT_DIASPORA || PLAN_LIST_PAISE.diaspora);
@@ -598,6 +601,268 @@ async function createCheckout(user, plan, opts = {}) {
   };
 }
 
+function appBaseUrl() {
+  return (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+}
+
+function formatRupees(paise) {
+  return (Number(paise || 0) / 100).toLocaleString('en-IN');
+}
+
+/**
+ * One-time Razorpay Payment Link after a failed Checkout modal attempt.
+ * Reuses an open link for the same plan within RECOVERY_REUSE_MS to avoid spam.
+ */
+async function createOrReuseRecoveryLink(user, plan, opts = {}) {
+  if (!razorpayConfigured()) {
+    const err = new Error('Razorpay not configured');
+    err.status = 400;
+    throw err;
+  }
+  if (CARE_NETWORK_COMING_SOON && isCareNetworkPlan(plan)) {
+    const err = new Error('City care network is coming soon — this plan isn’t available yet.');
+    err.status = 403;
+    err.code = 'CARE_COMING_SOON';
+    throw err;
+  }
+
+  const store = readStore();
+  const gift = opts.giftEstateId
+    ? resolveGiftBeneficiary(store, user.id, opts.giftEstateId)
+    : null;
+  const beneficiaryId = gift?.beneficiaryId || user.id;
+  const beneficiaryUser = freshUser(beneficiaryId) || (gift ? gift.beneficiary : user);
+  const payerUser = freshUser(user.id) || user;
+  const quote = quotePlanChange(beneficiaryUser, plan, PLAN_AMOUNTS);
+  const credits = payerUser.referralDiscountCredits || 0;
+  const applyDiscount = credits > 0 && quote.amount > 0;
+  const amount = applyDiscount ? Math.max(100, Math.round(quote.amount / 2)) : quote.amount;
+
+  if (amount <= 0) {
+    const err = new Error('Nothing to charge for this plan change — try checkout again.');
+    err.status = 400;
+    throw err;
+  }
+
+  const now = Date.now();
+  const existing = (store.pendingPayments || []).find(
+    (p) =>
+      p.mode === 'payment_link' &&
+      p.userId === user.id &&
+      p.plan === plan &&
+      p.status === 'created' &&
+      p.shortUrl &&
+      p.amount === amount &&
+      p.giftEstateId === (gift?.estate?.id || null) &&
+      now - new Date(p.at).getTime() < RECOVERY_REUSE_MS
+  );
+
+  if (existing) {
+    return {
+      reused: true,
+      paymentLinkId: existing.id,
+      shortUrl: existing.shortUrl,
+      amount: existing.amount,
+      plan,
+      label: planLabel(plan),
+      amountRupees: existing.amount / 100,
+      quote,
+      referralDiscount: Boolean(existing.referralDiscount),
+      email: user.email,
+    };
+  }
+
+  const giftMeta = gift
+    ? {
+        ownerName: gift.beneficiary?.name || 'owner',
+        estateId: gift.estate.id,
+        estateName: gift.estate.subjectName,
+        selfGift: gift.selfGift,
+      }
+    : null;
+  const description = `HeirReady ${planLabel(plan)} — finish checkout (${formatRupees(amount)})`;
+  const callbackUrl = `${appBaseUrl()}/pricing?recovery=paid&plan=${encodeURIComponent(plan)}`;
+
+  const link = await razorpayRequest('/payment_links', {
+    amount,
+    currency: 'INR',
+    accept_partial: false,
+    description,
+    customer: {
+      name: user.name || 'HeirReady customer',
+      email: user.email,
+    },
+    notify: { sms: false, email: false },
+    reminder_enable: true,
+    callback_url: callbackUrl,
+    callback_method: 'get',
+    notes: {
+      userId: user.id,
+      beneficiaryUserId: beneficiaryId,
+      giftEstateId: gift?.estate?.id || '',
+      plan,
+      kind: quote.kind,
+      fromPlan: quote.fromPlan || '',
+      keepExpiresAt: quote.keepExpiresAt || '',
+      referralDiscount: applyDiscount ? '50' : '0',
+      recovery: '1',
+    },
+  });
+
+  mutate((s) => {
+    if (!s.pendingPayments) s.pendingPayments = [];
+    s.pendingPayments.push({
+      id: link.id,
+      mode: 'payment_link',
+      userId: user.id,
+      beneficiaryUserId: beneficiaryId,
+      giftEstateId: gift?.estate?.id || null,
+      plan,
+      amount,
+      fullAmount: quote.fullAmount,
+      kind: quote.kind,
+      fromPlan: quote.fromPlan,
+      keepExpiresAt: quote.keepExpiresAt,
+      daysLeft: quote.daysLeft,
+      referralDiscount: applyDiscount,
+      status: 'created',
+      shortUrl: link.short_url,
+      at: new Date().toISOString(),
+    });
+    if (!s.leads) s.leads = [];
+    s.leads.push({
+      id: crypto.randomUUID(),
+      type: 'payment_recovery_link',
+      userId: user.id,
+      plan,
+      paymentLinkId: link.id,
+      amount,
+      failReason: String(opts.failReason || '').slice(0, 240) || null,
+      at: new Date().toISOString(),
+    });
+  });
+
+  return {
+    reused: false,
+    paymentLinkId: link.id,
+    shortUrl: link.short_url,
+    amount,
+    plan,
+    label: planLabel(plan),
+    amountRupees: amount / 100,
+    quote,
+    referralDiscount: applyDiscount,
+    email: user.email,
+    gift: giftMeta,
+  };
+}
+
+async function emailRecoveryLink(user, recovery, failReason) {
+  const sent = await sendPaymentRecoveryEmail({
+    to: user.email,
+    name: user.name,
+    planLabel: recovery.label || planLabel(recovery.plan),
+    amountRupees: recovery.amountRupees,
+    payUrl: recovery.shortUrl,
+    failReason: failReason || null,
+  });
+  mutate((s) => {
+    const row = s.pendingPayments?.find((p) => p.id === recovery.paymentLinkId);
+    if (row) {
+      row.emailedAt = new Date().toISOString();
+      row.emailCount = (row.emailCount || 0) + 1;
+    }
+  });
+  return sent;
+}
+
+async function fulfillPaidPaymentLink(linkId, paymentId) {
+  const pending = readStore().pendingPayments?.find((p) => p.id === linkId);
+  if (!pending) {
+    const err = new Error('Unknown payment link');
+    err.status = 404;
+    throw err;
+  }
+  if (pending.status === 'paid') {
+    const u = freshUser(pending.beneficiaryUserId || pending.userId);
+    return {
+      ok: true,
+      alreadyPaid: true,
+      plan: pending.plan,
+      planExpiresAt: u?.planExpiresAt || null,
+      ...planPublicFields(u || {}),
+    };
+  }
+
+  let remote = null;
+  try {
+    remote = await razorpayRequest(`/payment_links/${linkId}`, null, 'GET');
+  } catch (err) {
+    console.warn('payment link fetch', err.message);
+  }
+  if (remote && remote.status !== 'paid') {
+    const err = new Error('Payment link is not paid yet');
+    err.status = 400;
+    throw err;
+  }
+
+  if (pending.referralDiscount) {
+    try {
+      consumeReferralDiscountCredit(pending.userId);
+    } catch (err) {
+      console.warn('recovery discount consume', err.message);
+    }
+  }
+
+  const beneficiaryId = pending.beneficiaryUserId || pending.userId;
+  const isGift = Boolean(pending.beneficiaryUserId && pending.beneficiaryUserId !== pending.userId);
+  const planExpiresAt = activatePlan(beneficiaryId, pending.plan, {
+    paymentId: paymentId || remote?.payments?.[0]?.payment_id || null,
+    orderId: linkId,
+    referralDiscount: Boolean(pending.referralDiscount),
+    kind: pending.kind || 'new',
+    fromPlan: pending.fromPlan || null,
+    keepExpiresAt: pending.keepExpiresAt || null,
+    giftedBy: isGift ? pending.userId : null,
+    giftEstateId: pending.giftEstateId || null,
+  });
+
+  mutate((s) => {
+    const row = s.pendingPayments?.find((p) => p.id === linkId);
+    if (row) {
+      row.status = 'paid';
+      row.paymentId = paymentId || row.paymentId;
+      row.paidAt = new Date().toISOString();
+    }
+  });
+
+  if (isGift) {
+    const store = readStore();
+    const estate = pending.giftEstateId
+      ? store.estates.find((e) => e.id === pending.giftEstateId)
+      : null;
+    notifyUsers({
+      userIds: [beneficiaryId],
+      title: 'Sibling gifted Family / plan upgrade',
+      body: `A family member finished payment so ${estate?.subjectName || 'your vault'} stays unlimited.`,
+      url: estate ? `/app/estates/${estate.id}` : '/pricing',
+      type: 'plan_gifted',
+      estateId: estate?.id || null,
+    });
+  }
+
+  const payer = freshUser(pending.userId);
+  return {
+    ok: true,
+    plan: pending.plan,
+    planExpiresAt,
+    gifted: isGift,
+    giftEstateId: pending.giftEstateId || null,
+    ...planPublicFields(payer || {}),
+    ...referralPublicFields(payer || {}),
+  };
+}
+
 export function registerBillingRoutes(app) {
   app.get('/api/billing/status', authRequired, (req, res) => {
     mutate((s) => {
@@ -861,9 +1126,92 @@ export function registerBillingRoutes(app) {
   });
 
   /**
-   * Razorpay subscription webhooks — renewals (subscription.charged) and cancel/halt.
+   * After checkout fails: create/reuse a Razorpay Payment Link and email it.
+   * Client calls this from payment.failed so the customer isn’t stuck with only a toast.
+   */
+  app.post('/api/billing/recover', authRequired, async (req, res, next) => {
+    try {
+      const plan = normalizeCheckoutPlan(req.body?.plan);
+      const giftEstateId = String(req.body?.giftEstateId || '').trim() || null;
+      const failReason = String(req.body?.failReason || req.body?.reason || '').slice(0, 240);
+      const sendEmailFlag = req.body?.email !== false;
+      const user = freshUser(req.user.id) || req.user;
+
+      mutate((s) => {
+        if (!s.leads) s.leads = [];
+        s.leads.push({
+          id: crypto.randomUUID(),
+          type: 'payment_failed',
+          userId: user.id,
+          plan,
+          failReason: failReason || null,
+          source: String(req.body?.source || 'checkout').slice(0, 40),
+          at: new Date().toISOString(),
+        });
+      });
+
+      const recovery = await createOrReuseRecoveryLink(user, plan, { giftEstateId, failReason });
+      let emailed = false;
+      let emailMode = null;
+
+      if (sendEmailFlag && user.email) {
+        const row = readStore().pendingPayments?.find((p) => p.id === recovery.paymentLinkId);
+        const emailedRecently =
+          row?.emailedAt && Date.now() - new Date(row.emailedAt).getTime() < 10 * 60 * 1000;
+        const force = Boolean(req.body?.forceEmail);
+        if (!emailedRecently || force) {
+          const sent = await emailRecoveryLink(user, recovery, failReason);
+          emailed = true;
+          emailMode = sent?.mode || 'sent';
+        }
+      }
+
+      res.json({
+        ok: true,
+        ...recovery,
+        emailed,
+        emailMode,
+        message: emailed
+          ? `We emailed a payment link to ${user.email}. You can also open it now or ask family in India to pay with UPI.`
+          : `Payment link ready — open it now, or ask family in India to pay with UPI.`,
+      });
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
+      next(err);
+    }
+  });
+
+  /** Confirm a payment-link checkout (callback from Razorpay or client poll). */
+  app.post('/api/billing/verify-link', authRequired, async (req, res, next) => {
+    try {
+      const paymentLinkId = String(
+        req.body?.razorpay_payment_link_id || req.body?.paymentLinkId || ''
+      ).trim();
+      const paymentId = String(req.body?.razorpay_payment_id || req.body?.paymentId || '').trim();
+      if (!paymentLinkId) {
+        return res.status(400).json({ error: 'Missing payment link id' });
+      }
+
+      const pending = readStore().pendingPayments?.find((p) => p.id === paymentLinkId);
+      if (!pending) {
+        return res.status(404).json({ error: 'Unknown payment link' });
+      }
+      if (pending.userId !== req.user.id) {
+        return res.status(403).json({ error: 'Payment link does not belong to this account' });
+      }
+
+      const result = await fulfillPaidPaymentLink(paymentLinkId, paymentId || null);
+      res.json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
+      next(err);
+    }
+  });
+
+  /**
+   * Razorpay subscription + payment-link webhooks.
    * Configure URL https://heirready.com/api/billing/webhook and set RAZORPAY_WEBHOOK_SECRET.
-   * Events: subscription.charged, subscription.cancelled, subscription.halted, subscription.completed
+   * Events: subscription.*, payment_link.paid
    */
   app.post('/api/billing/webhook', (req, res) => {
     try {
@@ -878,8 +1226,24 @@ export function registerBillingRoutes(app) {
       }
 
       const event = req.body?.event;
-      const sub = req.body?.payload?.subscription?.entity;
+      const paymentLink = req.body?.payload?.payment_link?.entity;
       const payment = req.body?.payload?.payment?.entity;
+
+      if (event === 'payment_link.paid' && paymentLink?.id) {
+        const pending = readStore().pendingPayments?.find((p) => p.id === paymentLink.id);
+        if (!pending) return res.json({ ok: true, ignored: true });
+        fulfillPaidPaymentLink(paymentLink.id, payment?.id || null)
+          .then(() => res.json({ ok: true }))
+          .catch((err) => {
+            console.error('payment_link.paid fulfill', err.message);
+            res.status(err.status && err.status < 500 ? err.status : 500).json({
+              error: err.message || 'Fulfill failed',
+            });
+          });
+        return;
+      }
+
+      const sub = req.body?.payload?.subscription?.entity;
       if (!sub?.id) return res.json({ ok: true, ignored: true });
 
       const notes = sub.notes || {};

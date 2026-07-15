@@ -108,6 +108,60 @@ export async function sendPasswordResetEmail({ to, name, link }) {
   });
 }
 
+/** Checkout failed — give the customer a durable pay link + alternate ways to finish. */
+export async function sendPaymentRecoveryEmail({
+  to,
+  name,
+  planLabel,
+  amountRupees,
+  payUrl,
+  failReason,
+}) {
+  const first = String(name || 'there').split(/\s+/)[0] || 'there';
+  const amount =
+    amountRupees != null
+      ? `₹${Number(amountRupees).toLocaleString('en-IN')}`
+      : 'your plan';
+  const subject = `Finish your HeirReady ${planLabel || 'plan'} payment`;
+  const reasonBit = failReason ? `\n\nWhat we saw: ${failReason}` : '';
+  const text = `Hi ${first},
+
+Your checkout for HeirReady ${planLabel || 'plan'} (${amount}) didn’t finish — international cards sometimes time out or get blocked by the bank.${reasonBit}
+
+Finish anytime with this secure link (UPI in India works best if a relative can help):
+${payUrl}
+
+Tips if your card failed from abroad:
+1. Retry the link with another Visa/Mastercard
+2. Ask family in India to open the same link and pay with UPI
+3. Reply to this email if you’re stuck — we’ll help
+
+HeirReady`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">Finish your ${planLabel || 'plan'} payment</h2>
+      <p style="margin:0 0 12px">Hi ${first}, your checkout for <strong>${planLabel || 'HeirReady'}</strong> (${amount}) didn’t complete — foreign cards sometimes time out or get blocked mid-way.</p>
+      ${failReason ? `<p style="margin:0 0 12px;font-size:13px;color:#3a4a42">What we saw: ${String(failReason).slice(0, 180)}</p>` : ''}
+      <p style="margin:0 0 16px"><a href="${payUrl}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Pay ${amount} securely</a></p>
+      <p style="margin:0 0 8px;font-weight:600">If your card failed from abroad</p>
+      <ol style="margin:0 0 16px;padding-left:1.2rem;color:#3a4a42">
+        <li>Retry the link with another Visa / Mastercard</li>
+        <li>Ask family in India to open the same link and pay with <strong>UPI</strong></li>
+        <li>Reply to this email if you’re stuck — we’ll help</li>
+      </ol>
+      <p style="font-size:13px;color:#3a4a42">Or open: ${payUrl}</p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">HeirReady — not legal advice.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'payment_recovery' }],
+  });
+}
+
 export async function sendEstateThreadNotify({
   to,
   recipientName,
