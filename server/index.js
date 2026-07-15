@@ -60,6 +60,7 @@ import {
   destinationWithClickAttribution,
   attachEmailClickOnRegister,
   createWhatsAppTrackedLink,
+  scrubPreviewBotClicks,
 } from './clickTrack.js';
 import { recordActivity, listActivity, isClientActivityType } from './activity.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
@@ -2482,6 +2483,10 @@ app.get('/r/:code', (req, res) => {
   if (!hit?.destination || !hit?.link?.code) {
     return res.redirect(302, '/');
   }
+  // Preview bots: redirect only — no cookie / attribution side effects.
+  if (hit.previewOnly) {
+    return res.redirect(302, hit.destination);
+  }
   const dest = destinationWithClickAttribution(hit.destination, hit.link.code);
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader(
@@ -2510,6 +2515,12 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
 async function boot() {
   await initDb();
   seedLawyersIfNeeded();
+  try {
+    const n = scrubPreviewBotClicks();
+    if (n) console.log(`[clicks] scrubbed ${n} preview-bot hit(s)`);
+  } catch (err) {
+    console.warn('[clicks] scrub failed', err.message);
+  }
   mutate((s) => {
     for (const e of s.estates) ensureEstateDefaults(e);
     // Persist app-admin flag for allowlisted emails

@@ -143,10 +143,31 @@ function linkChannel(row) {
   return row?.channel || row?.meta?.channel || (row?.email ? 'email' : 'whatsapp');
 }
 
-/** Resolve /r/:code — log click, return destination or null */
+/**
+ * WhatsApp / iMessage / Slack unfurlers fetch the URL for a preview when you compose
+ * a message — that must not count as a human click.
+ */
+export function isLinkPreviewBot(userAgent) {
+  const ua = String(userAgent || '').toLowerCase();
+  if (!ua) return false;
+  return /whatsapp|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|skypeuripreview|applebot|bingpreview|googlebot|yandex|duckduckbot|baiduspider|embedly|quora link preview|pinterest\/0\.|bitlybot|tumblr|vkshare|redditbot|semrushbot|ahrefsbot|preview/i.test(
+    ua
+  );
+}
+
+/** Resolve /r/:code — log click (humans only), return destination or null */
 export function consumeClick(code, { ip, userAgent } = {}) {
   const token = String(code || '').trim();
   if (!token) return null;
+
+  const store = readStore();
+  const existing = (store.clickLinks || []).find((c) => c.code === token);
+  if (!existing) return null;
+
+  // Preview bots still get redirected (so unfurl works) but never inflate counts.
+  if (isLinkPreviewBot(userAgent)) {
+    return { destination: existing.destination, link: { ...existing }, previewOnly: true };
+  }
 
   let destination = null;
   let record = null;
@@ -208,6 +229,87 @@ export function consumeClick(code, { ip, userAgent } = {}) {
   return record && destination
     ? { destination, link: record }
     : null;
+}
+
+/**
+ * One-shot: drop preview-bot "clicks" that already polluted WhatsApp / email stats.
+ * Also treats near-instant whatsapp_click (compose-time unfurl) as non-human when UA missing.
+ */
+export function scrubPreviewBotClicks() {
+  let scrubbed = 0;
+  mutate((s) => {
+    if (!s.leads) s.leads = [];
+    if (!s.clickLinks) s.clickLinks = [];
+    if (!s.activityEvents) s.activityEvents = [];
+
+    const linksByCode = new Map(s.clickLinks.map((c) => [c.code, c]));
+    const botLeadCodes = new Set();
+    const keptLeads = [];
+    for (const lead of s.leads) {
+      if (lead.type !== 'whatsapp_click' && lead.type !== 'email_click') {
+        keptLeads.push(lead);
+        continue;
+      }
+      const isBotUa = isLinkPreviewBot(lead.userAgent);
+      const link = lead.code ? linksByCode.get(lead.code) : null;
+      const instantUnfurl =
+        link &&
+        lead.type === 'whatsapp_click' &&
+        link.createdAt &&
+        lead.at &&
+        Math.abs(new Date(lead.at).getTime() - new Date(link.createdAt).getTime()) < 45_000;
+      if (isBotUa || instantUnfurl) {
+        if (lead.code) botLeadCodes.add(lead.code);
+        scrubbed += 1;
+        continue;
+      }
+      keptLeads.push(lead);
+    }
+    s.leads = keptLeads;
+
+    s.activityEvents = (s.activityEvents || []).filter((e) => {
+      if (e.type !== 'whatsapp_click' && e.type !== 'email_click') return true;
+      if (isLinkPreviewBot(e.userAgent)) {
+        scrubbed += 1;
+        if (e.meta?.code) botLeadCodes.add(e.meta.code);
+        return false;
+      }
+      const link = e.meta?.code ? linksByCode.get(e.meta.code) : null;
+      if (
+        e.type === 'whatsapp_click' &&
+        link?.createdAt &&
+        e.at &&
+        Math.abs(new Date(e.at).getTime() - new Date(link.createdAt).getTime()) < 45_000
+      ) {
+        scrubbed += 1;
+        if (e.meta?.code) botLeadCodes.add(e.meta.code);
+        return false;
+      }
+      return true;
+    });
+
+    for (const row of s.clickLinks) {
+      const humanLeads = keptLeads.filter(
+        (l) =>
+          l.code === row.code &&
+          (l.type === 'whatsapp_click' || l.type === 'email_click')
+      );
+      if (humanLeads.length === 0) {
+        if ((row.clickCount || 0) > 0 && !row.convertedAt) {
+          row.clickCount = 0;
+          row.lastClickAt = null;
+          scrubbed += 1;
+        }
+      } else {
+        row.clickCount = humanLeads.length;
+        row.lastClickAt = humanLeads
+          .map((l) => l.at)
+          .sort()
+          .at(-1);
+      }
+    }
+  });
+  return scrubbed;
 }
 
 /**
