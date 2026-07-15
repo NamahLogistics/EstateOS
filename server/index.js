@@ -528,6 +528,56 @@ app.post('/api/notifications/read', authRequired, (req, res) => {
   res.json({ ok: true, marked, unread: unreadCountFor(req.user.id) });
 });
 
+/**
+ * Admin: create in-app alerts (+ web push) via the live process store.
+ * Header: X-Admin-Key: ADMIN_API_KEY
+ * Body: { emails?: string[], userIds?: string[], title, body?, url?, type?, estateId? }
+ */
+app.post('/api/admin/notify', (req, res) => {
+  const key = process.env.ADMIN_API_KEY;
+  if (!key || req.get('X-Admin-Key') !== key) {
+    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
+  }
+  const title = String(req.body?.title || '').trim();
+  const body = String(req.body?.body || '').trim();
+  if (!title) return res.status(400).json({ error: 'title required' });
+
+  const store = readStore();
+  const emailList = Array.isArray(req.body?.emails)
+    ? req.body.emails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  let userIds = Array.isArray(req.body?.userIds)
+    ? req.body.userIds.map(String).filter(Boolean)
+    : [];
+  if (emailList.length) {
+    const fromEmail = store.users
+      .filter((u) => emailList.includes(String(u.email || '').toLowerCase()))
+      .map((u) => u.id);
+    userIds = [...new Set([...userIds, ...fromEmail])];
+  }
+  if (!userIds.length) {
+    return res.status(400).json({ error: 'No matching users for emails/userIds' });
+  }
+
+  const created = notifyUsers({
+    userIds,
+    title,
+    body,
+    url: String(req.body?.url || '/app').slice(0, 400),
+    type: String(req.body?.type || 'admin').slice(0, 60),
+    estateId: req.body?.estateId ? String(req.body.estateId) : null,
+  });
+
+  res.json({
+    ok: true,
+    count: created.length,
+    recipients: created.map((n) => {
+      const u = store.users.find((x) => x.id === n.userId);
+      return { userId: n.userId, email: u?.email || null, notificationId: n.id };
+    }),
+  });
+});
+
 app.get('/api/push/vapid-public-key', (req, res) => {
   try {
     res.json({ publicKey: getVapidPublicKey(), configured: true });
