@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import { requestSoftPushPrompt } from '../push.js';
 
 export default function InvitePage() {
   const { token } = useParams();
@@ -38,6 +39,7 @@ export default function InvitePage() {
     try {
       const res = await api(`/api/invites/${token}/accept`, { method: 'POST', body: {} });
       toast(res.message || 'Invite accepted');
+      requestSoftPushPrompt('invite');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);
@@ -55,6 +57,7 @@ export default function InvitePage() {
       const session = await register({ ...form, email, accountType: 'family' });
       const res = await acceptWithToken(session.token);
       toast(res.message || 'Welcome — invite accepted');
+      requestSoftPushPrompt('invite');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);
@@ -71,6 +74,7 @@ export default function InvitePage() {
       const session = await login({ email, password: form.password });
       const res = await acceptWithToken(session.token);
       toast(res.message || 'Invite accepted');
+      requestSoftPushPrompt('invite');
       navigate(`/app/estates/${res.estateId}`);
     } catch (err) {
       toast(err.message);

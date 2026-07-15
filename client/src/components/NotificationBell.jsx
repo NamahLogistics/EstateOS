@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
-import { enableWebPush, pushSupported, syncAppBadge } from '../push.js';
+import {
+  enableWebPush,
+  ensurePushSubscribed,
+  pushSupported,
+  syncAppBadge,
+  notificationPermission,
+  isPushEnabledLocally,
+  requestSoftPushPrompt,
+} from '../push.js';
 
 export default function NotificationBell() {
   const { user, api, toast, token } = useAuth();
@@ -10,6 +18,7 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [perm, setPerm] = useState(() => notificationPermission());
   const panelRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -19,6 +28,10 @@ export default function NotificationBell() {
       setItems(res.notifications || []);
       setUnread(res.unread || 0);
       syncAppBadge(res.unread || 0);
+      setPerm(notificationPermission());
+      if (notificationPermission() === 'granted') {
+        ensurePushSubscribed(api).catch(() => {});
+      }
     } catch {
       /* ignore */
     }
@@ -73,15 +86,35 @@ export default function NotificationBell() {
     setBusy(true);
     try {
       const res = await enableWebPush(api);
+      setPerm(notificationPermission());
       if (res.ok) toast('Alerts on — you’ll get a badge when family updates');
-      else if (res.reason === 'denied') toast('Notifications blocked in browser settings');
-      else toast('Could not enable alerts on this device');
+      else if (res.reason === 'denied') {
+        toast('Blocked — allow notifications in browser / site settings');
+      } else toast('Could not enable alerts on this device');
     } catch (err) {
       toast(err.message);
     } finally {
       setBusy(false);
     }
   }
+
+  function openPanel() {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      load()
+        .then((/* unread refreshed in state async */) => {})
+        .catch(() => {});
+      // High-intent: opening Alerts with unread → soft banner (native dialog only on Enable)
+      if (notificationPermission() === 'default' && unread > 0) {
+        requestSoftPushPrompt('unread');
+      }
+    }
+  }
+
+  const showEnable =
+    pushSupported() && perm === 'default' && !isPushEnabledLocally();
+  const showDeniedHint = pushSupported() && perm === 'denied';
 
   return (
     <div className="notif-bell-wrap" ref={panelRef}>
@@ -90,10 +123,7 @@ export default function NotificationBell() {
         className="nav-link nav-link-btn notif-bell-btn"
         aria-label={unread ? `${unread} unread notifications` : 'Notifications'}
         aria-expanded={open}
-        onClick={() => {
-          setOpen((o) => !o);
-          if (!open) load().catch(() => {});
-        }}
+        onClick={openPanel}
       >
         <span className="notif-bell-icon" aria-hidden />
         <span className="notif-bell-label">Alerts</span>
@@ -110,7 +140,7 @@ export default function NotificationBell() {
               </button>
             )}
           </div>
-          {pushSupported() && localStorage.getItem('heirready_push_enabled') !== '1' && (
+          {showEnable && (
             <button
               type="button"
               className="btn btn-primary"
@@ -120,6 +150,11 @@ export default function NotificationBell() {
             >
               Turn on lock-screen alerts
             </button>
+          )}
+          {showDeniedHint && (
+            <p className="small muted" style={{ margin: '0 0 0.65rem', lineHeight: 1.45 }}>
+              Alerts are blocked in this browser. Allow HeirReady in site settings, then reload.
+            </p>
           )}
           <div className="notif-list">
             {items.length === 0 ? (

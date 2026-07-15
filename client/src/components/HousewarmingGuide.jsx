@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 import { track } from '../analytics.js';
+import { requestSoftPushPrompt } from '../push.js';
 
 export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTab, onCompleted }) {
   const { api, toast } = useAuth();
@@ -37,6 +38,7 @@ export default function HousewarmingGuide({ estateId, guide, onUpdated, onOpenTa
       }
       if (res.justCompleted || res.housewarming?.progress?.completedAt) {
         toast('Housewarming complete — invite a sibling next');
+        requestSoftPushPrompt('housewarming');
         onCompleted?.(res);
       } else {
         toast(opts.completeAll || opts.soloFastTrack ? 'Housewarming complete' : 'Step saved');

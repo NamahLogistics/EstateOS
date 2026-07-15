@@ -1,40 +1,62 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
-import { isStandaloneDisplay } from '../pwa.js';
-import { enableWebPush, pushSupported } from '../push.js';
+import {
+  enableWebPush,
+  ensurePushSubscribed,
+  pushSupported,
+  notificationPermission,
+  softPushDismissedThisSession,
+  dismissSoftPushThisSession,
+  deniedHelpDismissedThisSession,
+  dismissDeniedHelpThisSession,
+  consumeSoftPushReason,
+} from '../push.js';
 
-const DISMISS_KEY = 'heirready_push_prompt_dismissed';
-
-/** Ask installed / returning users to enable lock-screen alerts + badge */
+/**
+ * Soft alerts prompt — never auto-calls the browser permission dialog.
+ * Soft UI appears on high-intent events (not on every page load).
+ * Native Allow/Block only runs when the user taps Enable.
+ */
 export default function EnableAlertsBanner() {
   const { user, api, toast } = useAuth();
-  const [show, setShow] = useState(false);
+  const [mode, setMode] = useState(null); // 'soft' | 'denied' | null
+  const [reason, setReason] = useState('general');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    if (!pushSupported()) return;
-    if (localStorage.getItem('heirready_push_enabled') === '1') return;
-    if (localStorage.getItem(DISMISS_KEY) === '1') return;
-    const installed =
-      isStandaloneDisplay() || localStorage.getItem('estate_os_pwa_installed') === '1';
-    // Show for installed PWA immediately; otherwise after a short delay on /app
-    const delay = installed ? 800 : 4000;
-    const t = window.setTimeout(() => setShow(true), delay);
-    return () => window.clearTimeout(t);
-  }, [user]);
+    if (!user || !pushSupported()) return undefined;
 
-  if (!show || !user) return null;
+    const perm = notificationPermission();
+    if (perm === 'granted') {
+      ensurePushSubscribed(api).catch(() => {});
+      return undefined;
+    }
+    if (perm === 'denied' && !deniedHelpDismissedThisSession()) {
+      setMode('denied');
+    }
+
+    function onSoft(e) {
+      if (notificationPermission() !== 'default') return;
+      if (softPushDismissedThisSession()) return;
+      setReason(e?.detail?.reason || consumeSoftPushReason() || 'general');
+      setMode('soft');
+    }
+    window.addEventListener('heirready:soft-push', onSoft);
+    return () => window.removeEventListener('heirready:soft-push', onSoft);
+  }, [user?.id, api]);
+
+  if (!mode || !user) return null;
 
   async function enable() {
     setBusy(true);
     try {
       const res = await enableWebPush(api);
       if (res.ok) {
-        toast('Alerts on — icon badge when something needs you');
-        setShow(false);
+        toast('Alerts on — you’ll get a badge when family updates');
+        setMode(null);
       } else if (res.reason === 'denied') {
-        toast('Blocked — allow notifications in browser settings');
+        toast('Blocked — allow HeirReady in browser settings');
+        setMode('denied');
       } else {
         toast('Alerts not available on this device yet');
       }
@@ -45,24 +67,57 @@ export default function EnableAlertsBanner() {
     }
   }
 
-  function dismiss() {
-    localStorage.setItem(DISMISS_KEY, '1');
-    setShow(false);
+  function dismissSoft() {
+    dismissSoftPushThisSession();
+    setMode(null);
+  }
+
+  function dismissDenied() {
+    dismissDeniedHelpThisSession();
+    setMode(null);
+  }
+
+  const softCopy =
+    reason === 'unread'
+      ? 'You have family alerts waiting. Turn on lock-screen alerts so you don’t miss the next one.'
+      : reason === 'invite'
+        ? 'Sibling invites land better with lock-screen alerts — know when they join or add to the vault.'
+        : reason === 'housewarming'
+          ? 'Housewarming done. Enable alerts so sibling notes and unlock requests ping you.'
+          : 'Turn on alerts so sibling notes and unlock requests show as 1 · 2 · 3 on the app icon.';
+
+  if (mode === 'denied') {
+    return (
+      <div className="alerts-banner">
+        <div>
+          <strong>Alerts are blocked</strong>
+          <p className="small muted" style={{ margin: '0.2rem 0 0' }}>
+            The browser won’t ask again. Allow notifications for heirready.com in site settings, then
+            reload and use Alerts → Enable.
+          </p>
+        </div>
+        <div className="alerts-banner-actions">
+          <button type="button" className="btn btn-ghost" onClick={dismissDenied}>
+            Got it
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="alerts-banner">
       <div>
-        <strong>Get the badge</strong>
+        <strong>Get lock-screen alerts</strong>
         <p className="small muted" style={{ margin: '0.2rem 0 0' }}>
-          Turn on alerts so sibling notes and unlock requests show as 1 · 2 · 3 on the app icon.
+          {softCopy}
         </p>
       </div>
       <div className="alerts-banner-actions">
         <button type="button" className="btn btn-primary" disabled={busy} onClick={enable}>
           Enable alerts
         </button>
-        <button type="button" className="btn btn-ghost" onClick={dismiss}>
+        <button type="button" className="btn btn-ghost" onClick={dismissSoft}>
           Not now
         </button>
       </div>
