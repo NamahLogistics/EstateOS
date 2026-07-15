@@ -10,7 +10,7 @@ import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../compon
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
 import { shareEmergencyText, shareLightReviewText, whatsappShareUrl } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { logWhatsAppShare, openTrackedWhatsAppShare } from '../activity.js';
 
 const TABS = [
   'housewarming',
@@ -847,14 +847,6 @@ export default function EstatePage() {
           (lightDue || searchParams.get('review') === '1');
         if (!showLight) return null;
         const mapLink = `${window.location.origin}/app/estates/${id}?tab=map`;
-        const wa = whatsappShareUrl(
-          shareLightReviewText({
-            estateName: estate.subjectName,
-            link: mapLink,
-            inviterName: user?.name,
-            lang,
-          })
-        );
         return (
           <div
             className="card"
@@ -873,29 +865,36 @@ export default function EstatePage() {
                 : ''}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <a
+              <button
+                type="button"
                 className="btn"
                 style={{
                   background: '#128C7E',
                   color: '#fff',
                   border: 'none',
                   fontWeight: 700,
-                  textDecoration: 'none',
                   padding: '0.55rem 0.95rem',
                   borderRadius: 12,
                 }}
-                href={wa}
-                target="_blank"
-                rel="noreferrer"
                 onClick={() =>
-                  logWhatsAppShare('light_review', {
-                    estateId: id,
-                    estateName: estate.subjectName,
-                  }, api)
+                  openTrackedWhatsAppShare({
+                    api,
+                    destination: mapLink,
+                    kind: 'light_review',
+                    meta: { estateId: id, estateName: estate.subjectName },
+                    buildText: (tracked) =>
+                      shareLightReviewText({
+                        estateName: estate.subjectName,
+                        link: tracked,
+                        inviterName: user?.name,
+                        lang,
+                      }),
+                    toast,
+                  })
                 }
               >
                 WhatsApp siblings
-              </a>
+              </button>
               <button type="button" className="btn btn-ghost" onClick={() => setTab('map')}>
                 Open Life Map
               </button>
@@ -1472,22 +1471,27 @@ export default function EstatePage() {
                 </a>
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-                <a
+                <button
+                  type="button"
                   className="btn btn-primary"
-                  href={whatsappShareUrl(
-                    shareEmergencyText({ subjectName: estate.subjectName, url: emergencyUrl, lang })
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
                   onClick={() =>
-                    logWhatsAppShare('emergency_qr', {
-                      estateId: id,
-                      estateName: estate.subjectName,
-                    }, api)
+                    openTrackedWhatsAppShare({
+                      api,
+                      destination: emergencyUrl,
+                      kind: 'emergency_qr',
+                      meta: { estateId: id, estateName: estate.subjectName },
+                      buildText: (tracked) =>
+                        shareEmergencyText({
+                          subjectName: estate.subjectName,
+                          url: tracked,
+                          lang,
+                        }),
+                      toast,
+                    })
                   }
                 >
                   Share on WhatsApp
-                </a>
+                </button>
                 {estate.myRole === 'owner' && (
                   <button type="button" className="btn btn-ghost" onClick={rotateEmergency} disabled={busy}>
                     Rotate QR token

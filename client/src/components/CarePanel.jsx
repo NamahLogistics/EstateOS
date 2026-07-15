@@ -5,15 +5,14 @@ import { useCareNetwork } from '../careNetwork.js';
 import {
   buildInviteUrl,
   shareCareOnboardText,
-  whatsappShareUrl,
 } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { openTrackedWhatsAppShare } from '../activity.js';
 import UpgradeGate, { isPlanLimitError } from './UpgradeGate.jsx';
 
 const CITY_KEY = 'heirready_invite_city_v2';
 const SUGGESTED = ['Lucknow', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Hyderabad', 'Jaipur'];
 
-function ComingSoonCard({ city, onCity, stats, careWa, user, onWaShare }) {
+function ComingSoonCard({ city, onCity, stats, careDestination, user, onShareCare }) {
   const listed = stats?.listed ?? 0;
   const goal = stats?.goal ?? 12;
   const pct = Math.round(Math.min(1, listed / goal) * 100);
@@ -102,16 +101,10 @@ function ComingSoonCard({ city, onCity, stats, careWa, user, onWaShare }) {
         Know a good caregiver? Invite them free. They can list now; families browse when we launch.
       </p>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-        {careWa ? (
-          <a
-            className="btn btn-primary"
-            href={careWa}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => onWaShare?.()}
-          >
+        {careDestination ? (
+          <button type="button" className="btn btn-primary" onClick={onShareCare}>
             WhatsApp invite caregivers
-          </a>
+          </button>
         ) : (
           <Link className="btn btn-primary" to="/app#grow">
             WhatsApp invite caregivers
@@ -176,21 +169,32 @@ export default function CarePanel({ estateId, onSaved }) {
     };
   }, [city]);
 
-  const careWa =
+  const careDestination =
     user?.referralCode && city.trim()
-      ? whatsappShareUrl(
-          shareCareOnboardText({
-            link: buildInviteUrl({
-              origin: window.location.origin,
-              ref: user.referralCode,
-              type: 'care',
-              city: city.trim(),
-            }),
-            city: city.trim(),
-            inviterName: user.name,
-          })
-        )
+      ? buildInviteUrl({
+          origin: window.location.origin,
+          ref: user.referralCode,
+          type: 'care',
+          city: city.trim(),
+        })
       : null;
+
+  async function shareCareOnWhatsApp() {
+    if (!careDestination) return;
+    await openTrackedWhatsAppShare({
+      api,
+      destination: careDestination,
+      kind: 'referral_care',
+      meta: { city: city.trim() || null },
+      buildText: (tracked) =>
+        shareCareOnboardText({
+          link: tracked,
+          city: city.trim(),
+          inviterName: user.name,
+        }),
+      toast,
+    });
+  }
 
   async function load(nextCity = city, nextRole = role) {
     setBusy(true);
@@ -246,11 +250,9 @@ export default function CarePanel({ estateId, onSaved }) {
         city={city}
         onCity={setCity}
         stats={stats}
-        careWa={careWa}
+        careDestination={careDestination}
         user={user}
-        onWaShare={() =>
-          logWhatsAppShare('referral_care', { city: city.trim() || null }, api)
-        }
+        onShareCare={shareCareOnWhatsApp}
       />
     );
   }

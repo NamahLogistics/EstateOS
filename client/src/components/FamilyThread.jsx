@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
-import { shareFamilyNoteText, whatsappShareUrl } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { shareFamilyNoteText } from '../whatsapp.js';
+import { openTrackedWhatsAppShare } from '../activity.js';
 
 const waMini = {
   padding: '0.35rem 0.7rem',
@@ -41,17 +41,23 @@ export default function FamilyThread({ estateId, estateName }) {
     load().catch(() => {});
   }, [estateId]);
 
-  function noteWaHref(post) {
+  async function shareNoteOnWhatsApp(post) {
     const link = `${window.location.origin}/app/estates/${estateId}?tab=family`;
-    return whatsappShareUrl(
-      shareFamilyNoteText({
-        estateName: estateName || 'Family file',
-        authorName: post.authorName || user?.name,
-        body: post.body,
-        link,
-        lang,
-      })
-    );
+    await openTrackedWhatsAppShare({
+      api,
+      destination: link,
+      kind: 'family_note',
+      meta: { estateId, estateName },
+      buildText: (tracked) =>
+        shareFamilyNoteText({
+          estateName: estateName || 'Family file',
+          authorName: post.authorName || user?.name,
+          body: post.body,
+          link: tracked,
+          lang,
+        }),
+      toast,
+    });
   }
 
   async function submit(e) {
@@ -136,18 +142,14 @@ export default function FamilyThread({ estateId, estateName }) {
                 <p style={{ margin: '0.3rem 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
                   {p.body}
                 </p>
-                <a
+                <button
+                  type="button"
                   className="btn"
                   style={{ ...waMini, marginTop: '0.45rem' }}
-                  href={noteWaHref(p)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() =>
-                    logWhatsAppShare('family_note', { estateId, estateName }, api)
-                  }
+                  onClick={() => shareNoteOnWhatsApp(p)}
                 >
                   WhatsApp
-                </a>
+                </button>
               </div>
             );
           })
@@ -157,11 +159,14 @@ export default function FamilyThread({ estateId, estateName }) {
       {lastPost && (
         <p className="small" style={{ margin: '0 0 0.75rem' }}>
           Just posted —{' '}
-          <a href={noteWaHref(lastPost)} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}
-            onClick={() => logWhatsAppShare('family_note', { estateId, estateName }, api)}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontWeight: 700, padding: 0 }}
+            onClick={() => shareNoteOnWhatsApp(lastPost)}
           >
             share this note on WhatsApp
-          </a>
+          </button>
         </p>
       )}
 

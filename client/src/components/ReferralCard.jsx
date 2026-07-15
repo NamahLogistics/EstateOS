@@ -6,9 +6,8 @@ import {
   shareCareOnboardText,
   shareFamilyOnboardText,
   shareReferralText,
-  whatsappShareUrl,
 } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { openTrackedWhatsAppShare } from '../activity.js';
 
 const CITY_KEY = 'heirready_invite_city_v2';
 const SUGGESTED_CITIES = ['Mumbai', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Chennai', 'Jaipur', 'Ahmedabad', 'Kolkata'];
@@ -112,50 +111,51 @@ export default function ReferralCard({ compact = false }) {
     };
   }, [code, referral, city, origin]);
 
-  const familyWa = useMemo(
-    () =>
-      links.family
-        ? whatsappShareUrl(
-            shareFamilyOnboardText({
-              link: links.family,
-              city,
-              inviterName: user?.name,
-              lang,
-            })
-          )
-        : null,
-    [links.family, city, user?.name, lang]
-  );
+  async function shareFamilyWa(e) {
+    needCity(e);
+    if (!cityReady || !links.family) return;
+    await openTrackedWhatsAppShare({
+      api,
+      destination: links.family,
+      kind: 'referral_family',
+      meta: { city: city.trim() },
+      buildText: (link) =>
+        shareFamilyOnboardText({ link, city, inviterName: user?.name, lang }),
+      toast,
+    });
+  }
 
-  const careWa = useMemo(
-    () =>
-      links.care
-        ? whatsappShareUrl(
-            shareCareOnboardText({
-              link: links.care,
-              city,
-              inviterName: user?.name,
-              lang,
-            })
-          )
-        : null,
-    [links.care, city, user?.name, lang]
-  );
+  async function shareCareWa(e) {
+    needCity(e);
+    if (!cityReady || !links.care) return;
+    await openTrackedWhatsAppShare({
+      api,
+      destination: links.care,
+      kind: 'referral_care',
+      meta: { city: city.trim() },
+      buildText: (link) =>
+        shareCareOnboardText({ link, city, inviterName: user?.name, lang }),
+      toast,
+    });
+  }
 
-  const lawyerWa = useMemo(
-    () =>
-      links.lawyer
-        ? whatsappShareUrl(
-            shareReferralText({
-              link: links.lawyer,
-              inviterName: user?.name,
-              accountType: 'lawyer',
-              lang,
-            })
-          )
-        : null,
-    [links.lawyer, user?.name, lang]
-  );
+  async function shareLawyerWa() {
+    if (!links.lawyer) return;
+    await openTrackedWhatsAppShare({
+      api,
+      destination: links.lawyer,
+      kind: 'referral_lawyer',
+      meta: { city: city.trim() || null },
+      buildText: (link) =>
+        shareReferralText({
+          link,
+          inviterName: user?.name,
+          accountType: 'lawyer',
+          lang,
+        }),
+      toast,
+    });
+  }
 
   if (!user) return null;
 
@@ -269,48 +269,39 @@ export default function ReferralCard({ compact = false }) {
 
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {!isCare && (
-              <a
+              <button
+                type="button"
                 className="btn"
                 style={{ ...waBtn, opacity: cityReady ? 1 : 0.55 }}
-                href={familyWa || '#'}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => {
-                  needCity(e);
-                  if (cityReady) logWhatsAppShare('referral_family', { city: city.trim() }, api);
-                }}
+                disabled={!links.family}
+                onClick={shareFamilyWa}
               >
                 {t('waSiblings')}
-              </a>
+              </button>
             )}
 
             {!isLawyer && (
-              <a
+              <button
+                type="button"
                 className="btn"
                 style={{ ...waBtn, opacity: cityReady ? 1 : 0.55 }}
-                href={careWa || '#'}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => {
-                  needCity(e);
-                  if (cityReady) logWhatsAppShare('referral_care', { city: city.trim() }, api);
-                }}
+                disabled={!links.care}
+                onClick={shareCareWa}
               >
                 {t('waCare')}
-              </a>
+              </button>
             )}
 
             {isLawyer && (
-              <a
+              <button
+                type="button"
                 className="btn"
                 style={waBtn}
-                href={lawyerWa || '#'}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => logWhatsAppShare('referral_lawyer', { city: city.trim() || null }, api)}
+                disabled={!links.lawyer}
+                onClick={shareLawyerWa}
               >
                 {t('waAdvocates')}
-              </a>
+              </button>
             )}
           </div>
 

@@ -1,5 +1,5 @@
 /**
- * Per-recipient email click tracking + signup attribution.
+ * Per-link click tracking (email + WhatsApp) + signup attribution.
  * Resend “click tracking” only gives rates — these unique /r/:code links tell you who.
  */
 import crypto from 'crypto';
@@ -43,12 +43,17 @@ export function createTrackedLink(opts) {
   const code = shortCode();
   const email = opts.email ? String(opts.email).trim().toLowerCase() : null;
   const userId = opts.userId || null;
+  const channel =
+    opts.channel ||
+    opts.meta?.channel ||
+    (email ? 'email' : 'whatsapp');
 
   mutate((s) => {
     if (!s.clickLinks) s.clickLinks = [];
     s.clickLinks.push({
       id,
       code,
+      channel,
       userId,
       email,
       campaign,
@@ -87,7 +92,8 @@ export function createTrackedLinksForEmails(emails, { campaign, destination, met
       userId: user?.id || null,
       campaign,
       destination,
-      meta,
+      meta: { ...(meta || {}), channel: 'email' },
+      channel: 'email',
     });
     out.push({
       email,
@@ -98,6 +104,43 @@ export function createTrackedLinksForEmails(emails, { campaign, destination, met
     });
   }
   return out;
+}
+
+/**
+ * Mint a unique /r/:code for a logged-in WhatsApp share tap.
+ * @param {{ id: string, name?: string, email?: string }} sharer
+ */
+export function createWhatsAppTrackedLink(
+  sharer,
+  { kind, destination, estateId, estateName, city, meta } = {}
+) {
+  const shareKind = String(kind || 'share').trim().slice(0, 48);
+  let dest = String(destination || '').trim();
+  if (!dest) throw new Error('destination required');
+  if (dest.startsWith('/')) dest = `${appBase()}${dest}`;
+
+  return createTrackedLink({
+    userId: sharer.id,
+    email: null,
+    campaign: `wa_${shareKind}`,
+    destination: dest,
+    channel: 'whatsapp',
+    meta: {
+      channel: 'whatsapp',
+      kind: shareKind,
+      sharedByUserId: sharer.id,
+      sharedByName: sharer.name || null,
+      sharedByEmail: sharer.email || null,
+      estateId: estateId || null,
+      estateName: estateName || null,
+      city: city || null,
+      ...(meta || {}),
+    },
+  });
+}
+
+function linkChannel(row) {
+  return row?.channel || row?.meta?.channel || (row?.email ? 'email' : 'whatsapp');
 }
 
 /** Resolve /r/:code — log click, return destination or null */
@@ -117,16 +160,19 @@ export function consumeClick(code, { ip, userAgent } = {}) {
     destination = row.destination;
     record = { ...row };
 
+    const ch = linkChannel(row);
     if (!s.leads) s.leads = [];
     s.leads.push({
       id: crypto.randomUUID(),
-      type: 'email_click',
+      type: ch === 'whatsapp' ? 'whatsapp_click' : 'email_click',
+      channel: ch,
       campaign: row.campaign,
       code: row.code,
       userId: row.userId,
       email: row.email,
       destination: row.destination,
       clickCount: row.clickCount,
+      meta: row.meta || null,
       ip: ip || null,
       userAgent: userAgent ? String(userAgent).slice(0, 240) : null,
       at: row.lastClickAt,
@@ -135,21 +181,27 @@ export function consumeClick(code, { ip, userAgent } = {}) {
 
   if (record && destination) {
     try {
+      const ch = linkChannel(record);
       recordActivity({
-        type: 'email_click',
-        userId: record.userId,
-        email: record.email,
+        type: ch === 'whatsapp' ? 'whatsapp_click' : 'email_click',
+        userId: ch === 'whatsapp' ? record.meta?.sharedByUserId || record.userId : record.userId,
+        email: ch === 'whatsapp' ? record.meta?.sharedByEmail : record.email,
+        name: ch === 'whatsapp' ? record.meta?.sharedByName : null,
         meta: {
+          channel: ch,
           campaign: record.campaign,
           code: record.code,
+          kind: record.meta?.kind || null,
           destination,
           clickCount: record.clickCount,
+          estateId: record.meta?.estateId || null,
+          estateName: record.meta?.estateName || null,
         },
         ip: ip || null,
         userAgent: userAgent || null,
       });
     } catch (err) {
-      console.error('activity email_click failed', err.message);
+      console.error('activity link_click failed', err.message);
     }
   }
 
@@ -189,29 +241,50 @@ export function attachEmailClickOnRegister(s, user, emailClickCode) {
   link.convertedAt = new Date().toISOString();
   link.convertedUserId = user.id;
   link.convertedEmail = signupEmail;
-  user.emailAttribution = {
+  const ch = linkChannel(link);
+  user.clickAttribution = {
     code: link.code,
     campaign: link.campaign,
+    channel: ch,
     mailedEmail: link.email,
+    sharedByUserId: link.meta?.sharedByUserId || null,
+    sharedByName: link.meta?.sharedByName || null,
+    kind: link.meta?.kind || null,
     clickedAt: link.lastClickAt,
     attributedAt: link.convertedAt,
   };
   return {
     code: link.code,
     campaign: link.campaign,
+    channel: ch,
     mailedEmail: link.email,
+    sharedByUserId: link.meta?.sharedByUserId || null,
+    sharedByName: link.meta?.sharedByName || null,
+    kind: link.meta?.kind || null,
     signupEmail,
     differentEmail: Boolean(link.email && link.email !== signupEmail),
   };
 }
 
-function serializeLink(c) {
+function serializeLink(c, usersById) {
+  const ch = linkChannel(c);
+  const sharer =
+    ch === 'whatsapp'
+      ? usersById?.get(c.meta?.sharedByUserId || c.userId)
+      : null;
   return {
     code: c.code,
+    channel: ch,
     email: c.email,
     userId: c.userId,
     campaign: c.campaign,
     destination: c.destination,
+    kind: c.meta?.kind || null,
+    sharedByUserId: c.meta?.sharedByUserId || (ch === 'whatsapp' ? c.userId : null),
+    sharedByName: c.meta?.sharedByName || sharer?.name || null,
+    sharedByEmail: c.meta?.sharedByEmail || sharer?.email || null,
+    estateId: c.meta?.estateId || null,
+    estateName: c.meta?.estateName || null,
     clickCount: c.clickCount || 0,
     createdAt: c.createdAt,
     lastClickAt: c.lastClickAt,
@@ -221,31 +294,45 @@ function serializeLink(c) {
   };
 }
 
-export function listClickStats({ campaign, limit = 100 } = {}) {
+function matchesChannel(c, channel) {
+  if (!channel || channel === 'all') return true;
+  return linkChannel(c) === channel;
+}
+
+export function listClickStats({ campaign, channel = null, limit = 100 } = {}) {
   const store = readStore();
   const usersByEmail = new Map(
     (store.users || []).map((u) => [String(u.email || '').toLowerCase(), u])
   );
+  const usersById = new Map((store.users || []).map((u) => [u.id, u]));
 
-  const all = (store.clickLinks || []).filter((c) => !campaign || c.campaign === campaign);
+  const all = (store.clickLinks || [])
+    .filter((c) => matchesChannel(c, channel))
+    .filter((c) => !campaign || c.campaign === campaign);
   const links = [...all]
     .sort((a, b) =>
       String(b.lastClickAt || b.createdAt).localeCompare(String(a.lastClickAt || a.createdAt))
     )
     .slice(0, limit)
-    .map(serializeLink);
+    .map((c) => serializeLink(c, usersById));
 
   const events = (store.leads || [])
-    .filter((l) => l.type === 'email_click' && (!campaign || l.campaign === campaign))
+    .filter(
+      (l) =>
+        (l.type === 'email_click' || l.type === 'whatsapp_click') &&
+        matchesChannel({ channel: l.channel || l.meta?.channel, email: l.email, meta: l.meta }, channel) &&
+        (!campaign || l.campaign === campaign)
+    )
     .sort((a, b) => String(b.at).localeCompare(String(a.at)))
     .slice(0, limit);
 
   const clicked = all.filter((c) => (c.clickCount || 0) > 0);
   const waiting = all.filter((c) => !(c.clickCount > 0));
   const converted = clicked.filter((c) => c.convertedAt);
-  /** Clicked mail, never attributed a signup (and no account on the mailed address). */
+  /** Clicked, never attributed signup. Email: also skip if mailed address already has account. */
   const abandoned = clicked.filter((c) => {
     if (c.convertedAt) return false;
+    if (linkChannel(c) === 'whatsapp') return true;
     if (c.email && usersByEmail.has(c.email)) return false;
     return true;
   });
@@ -258,17 +345,17 @@ export function listClickStats({ campaign, limit = 100 } = {}) {
   return {
     links,
     events,
-    waiting: waiting.map(serializeLink),
+    waiting: waiting.map((c) => serializeLink(c, usersById)),
     abandoned: abandoned
       .sort((a, b) => String(b.lastClickAt || '').localeCompare(String(a.lastClickAt || '')))
-      .map(serializeLink),
+      .map((c) => serializeLink(c, usersById)),
     converted: converted
       .sort((a, b) => String(b.convertedAt || '').localeCompare(String(a.convertedAt || '')))
-      .map(serializeLink),
+      .map((c) => serializeLink(c, usersById)),
     signedUpSameEmail: signedUpSameEmail.map((c) => {
       const u = usersByEmail.get(c.email);
       return {
-        ...serializeLink(c),
+        ...serializeLink(c, usersById),
         userName: u?.name || null,
         userCreatedAt: u?.createdAt || null,
       };

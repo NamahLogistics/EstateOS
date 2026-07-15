@@ -3,9 +3,8 @@ import { useAuth } from '../auth.jsx';
 import {
   buildInviteUrl,
   shareCounselInviteText,
-  whatsappShareUrl,
 } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { openTrackedWhatsAppShare } from '../activity.js';
 
 const SCOPE_OPTIONS = [
   'succession',
@@ -664,46 +663,46 @@ export default function CounselPanel({ estateId, onToast }) {
             </p>
             {user?.referralCode && (
               <div style={{ marginBottom: '1rem' }}>
-                <a
+                <button
+                  type="button"
                   className="btn"
                   style={{
                     background: '#128C7E',
                     color: '#fff',
                     border: 'none',
                     fontWeight: 700,
-                    textDecoration: 'none',
                     padding: '0.65rem 1rem',
                     borderRadius: 12,
                     display: 'inline-block',
                   }}
-                  href={whatsappShareUrl(
-                    shareCounselInviteText({
-                      link: buildInviteUrl({
-                        origin: window.location.origin,
-                        ref: user.referralCode,
-                        type: 'lawyer',
-                        city: listingForm.city || listing?.city,
-                      }),
+                  onClick={() => {
+                    const dest = buildInviteUrl({
+                      origin: window.location.origin,
+                      ref: user.referralCode,
+                      type: 'lawyer',
                       city: listingForm.city || listing?.city,
-                      inviterName: user.name,
-                      estateName: counsel?.estateName || undefined,
-                    })
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() =>
-                    logWhatsAppShare(
-                      'counsel_invite',
-                      {
+                    });
+                    openTrackedWhatsAppShare({
+                      api,
+                      destination: dest,
+                      kind: 'counsel_invite',
+                      meta: {
                         estateId,
                         city: listingForm.city || listing?.city || null,
                       },
-                      api
-                    )
-                  }
+                      buildText: (tracked) =>
+                        shareCounselInviteText({
+                          link: tracked,
+                          city: listingForm.city || listing?.city,
+                          inviterName: user.name,
+                          estateName: counsel?.estateName || undefined,
+                        }),
+                      toast: notify,
+                    });
+                  }}
                 >
                   WhatsApp invite your family counsel
-                </a>
+                </button>
                 <p className="small muted" style={{ margin: '0.45rem 0 0' }}>
                   Soft ask — not an advice forum. They join Counsel desk free; you may get a referral credit if they pay later.
                 </p>

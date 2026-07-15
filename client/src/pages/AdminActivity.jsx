@@ -10,6 +10,8 @@ const FILTERS = [
   { id: 'invite_accepted', label: 'Joined vault' },
   { id: 'email_click', label: 'Email clicks' },
   { id: 'email_signup', label: 'Email → signup' },
+  { id: 'whatsapp_click', label: 'WA link clicks' },
+  { id: 'whatsapp_signup', label: 'WA → signup' },
   { id: 'checkout', label: 'Checkout' },
   { id: 'copy_link', label: 'Copied links' },
 ];
@@ -32,6 +34,14 @@ function labelFor(e) {
     case 'email_signup':
       return `Signed up from email${e.meta?.campaign ? ` · ${e.meta.campaign}` : ''}${
         e.meta?.differentEmail && e.meta?.mailedEmail ? ` (mailed ${e.meta.mailedEmail})` : ''
+      }`;
+    case 'whatsapp_click':
+      return `WhatsApp link click${e.meta?.kind ? ` · ${e.meta.kind}` : ''}${
+        e.meta?.campaign ? ` (${e.meta.campaign})` : ''
+      }`;
+    case 'whatsapp_signup':
+      return `Signed up from WhatsApp${e.meta?.campaign ? ` · ${e.meta.campaign}` : ''}${
+        e.meta?.sharedByName ? ` (shared by ${e.meta.sharedByName})` : ''
       }`;
     case 'checkout':
       return `Checkout · ${kind || e.meta?.plan || 'action'}`;

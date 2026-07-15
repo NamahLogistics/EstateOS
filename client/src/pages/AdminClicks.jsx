@@ -5,6 +5,7 @@ import { useAuth } from '../auth.jsx';
 export default function AdminClicks() {
   const { user, api, toast } = useAuth();
   const [campaign, setCampaign] = useState('');
+  const [channel, setChannel] = useState('all');
   const [data, setData] = useState({
     links: [],
     events: [],
@@ -18,9 +19,10 @@ export default function AdminClicks() {
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const qs = campaign.trim()
-        ? `?campaign=${encodeURIComponent(campaign.trim())}`
-        : '';
+      const params = new URLSearchParams();
+      if (campaign.trim()) params.set('campaign', campaign.trim());
+      if (channel && channel !== 'all') params.set('channel', channel);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await api(`/api/admin/clicks${qs}`);
       setData({
         links: res.links || [],
@@ -35,11 +37,11 @@ export default function AdminClicks() {
     } finally {
       setBusy(false);
     }
-  }, [api, campaign, toast]);
+  }, [api, campaign, channel, toast]);
 
   useEffect(() => {
     if (user?.isAdmin) load().catch(() => {});
-  }, [user?.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.isAdmin, channel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user) return <Navigate to="/auth" replace />;
   if (!user.isAdmin) {
@@ -73,13 +75,32 @@ export default function AdminClicks() {
         Admin
       </p>
       <h1 className="display" style={{ fontSize: '2rem', margin: '0.35rem 0 0.5rem' }}>
-        Email clicks
+        Link clicks
       </h1>
       <p className="muted" style={{ marginTop: 0, maxWidth: 560 }}>
-        Who opened a tracked <code>/r/…</code> link, who bounced without signing up, and who converted.
-        Attribution survives if they browse then register later (or use a different signup email).{' '}
+        Tracked <code>/r/…</code> links from outreach email and WhatsApp shares — who clicked, who
+        bounced, who signed up. WhatsApp rows show who shared; we still don’t know if they sent the
+        message.{' '}
         <Link to="/app/admin/activity">Activity</Link>
       </p>
+
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0 0 1rem' }}>
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'email', label: 'Email' },
+          { id: 'whatsapp', label: 'WhatsApp' },
+        ].map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={channel === f.id ? 'btn btn-primary' : 'btn btn-ghost'}
+            style={{ padding: '0.4rem 0.75rem', fontSize: '0.9rem' }}
+            onClick={() => setChannel(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '1rem 0 1.25rem' }}>
         <input
@@ -106,10 +127,13 @@ export default function AdminClicks() {
           background: 'rgba(254, 243, 199, 0.35)',
         }}
       >
-        <strong>Clicked, no signup ({abandoned.length})</strong>
+        <strong>
+          {channel === 'whatsapp' ? 'Clicked link, no signup' : 'Clicked, no signup'} ({abandoned.length})
+        </strong>
         <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
-          Opened the mail link and still have no HeirReady account on that address (and no attributed
-          signup with another email).
+          {channel === 'whatsapp'
+            ? 'Someone opened a link from a WhatsApp share but has not registered yet.'
+            : 'Opened the mail link and still have no HeirReady account on that address (and no attributed signup with another email).'}
         </p>
         {abandoned.length === 0 ? (
           <p className="small muted" style={{ margin: '0.5rem 0 0' }}>
@@ -119,7 +143,14 @@ export default function AdminClicks() {
           <ul style={{ margin: '0.65rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
             {abandoned.map((l) => (
               <li key={l.code}>
-                <strong>{l.email || '—'}</strong>
+                {l.channel === 'whatsapp' ? (
+                  <>
+                    <strong>{l.sharedByName || l.sharedByEmail || '—'}</strong>
+                    <span className="small muted"> shared · {l.kind || l.campaign}</span>
+                  </>
+                ) : (
+                  <strong>{l.email || '—'}</strong>
+                )}
                 {l.lastClickAt ? ` · last click ${new Date(l.lastClickAt).toLocaleString()}` : ''}
                 <br />
                 <span className="small muted">

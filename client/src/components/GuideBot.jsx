@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
-import { shareInviteText, whatsappShareUrl } from '../whatsapp.js';
-import { logWhatsAppShare } from '../activity.js';
+import { shareInviteText } from '../whatsapp.js';
+import { openTrackedWhatsAppShare } from '../activity.js';
 import {
   CARE_CHIPS,
   COUNSEL_CHIPS,
@@ -647,14 +647,6 @@ export default function GuideBot() {
     const res = await api(`/api/estates/${estateId}/family-link?role=manager`);
     const link = res.invite?.link;
     if (!link) throw new Error(L(lang, 'Could not create invite link', 'आमंत्रण लिंक नहीं बना'));
-    const wa = whatsappShareUrl(
-      shareInviteText({
-        estateName: estateCtx?.name || L(lang, 'our parent map', 'हमारा अभिभावक नक्शा'),
-        link,
-        inviterName: user?.name,
-        lang,
-      })
-    );
     pushBot(
       L(
         lang,
@@ -662,7 +654,13 @@ export default function GuideBot() {
         'परिवार लिंक तैयार। वही लिंक हर भाई-बहन को WhatsApp पर भेजें।'
       ),
       [
-        { id: '__wa__', label: L(lang, 'Open WhatsApp invite', 'WhatsApp आमंत्रण खोलें'), href: wa },
+        {
+          id: '__wa__',
+          label: L(lang, 'Open WhatsApp invite', 'WhatsApp आमंत्रण खोलें'),
+          destination: link,
+          estateId,
+          estateName: estateCtx?.name || null,
+        },
         ...chips,
       ]
     );
@@ -708,10 +706,28 @@ export default function GuideBot() {
 
   async function onChip(chip) {
     if (busy) return;
+    if (chip.id === '__wa__' && chip.destination) {
+      await openTrackedWhatsAppShare({
+        api,
+        destination: chip.destination,
+        kind: 'guide_invite',
+        meta: {
+          estateId: chip.estateId || estateCtx?.id || null,
+          estateName: chip.estateName || estateCtx?.name || null,
+        },
+        buildText: (tracked) =>
+          shareInviteText({
+            estateName:
+              chip.estateName || estateCtx?.name || L(lang, 'our parent map', 'हमारा अभिभावक नक्शा'),
+            link: tracked,
+            inviterName: user?.name,
+            lang,
+          }),
+        toast,
+      });
+      return;
+    }
     if (chip.href) {
-      if (chip.id === '__wa__' || /whatsapp/i.test(chip.href)) {
-        logWhatsAppShare('guide_invite', { estateId: estateCtx?.id || null }, api);
-      }
       window.open(chip.href, '_blank', 'noopener,noreferrer');
       return;
     }

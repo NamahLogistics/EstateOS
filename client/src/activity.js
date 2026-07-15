@@ -2,6 +2,8 @@
  * Log product activity to our DB (admin Activity page).
  * Fire-and-forget — never blocks UX.
  */
+import { whatsappShareUrl } from './whatsapp.js';
+
 const STORAGE_KEY = 'estate_os_session';
 
 function currentPath() {
@@ -55,4 +57,41 @@ export function logWhatsAppShare(kind, meta = {}, apiFn) {
 
 export function logCopyLink(kind, meta = {}, apiFn) {
   logActivity('copy_link', { kind, ...meta }, apiFn);
+}
+
+/**
+ * Mint /r/:code, put it in the WA message, open WhatsApp.
+ * @param {{
+ *   api: Function,
+ *   destination: string,
+ *   kind: string,
+ *   buildText: (trackedUrl: string) => string,
+ *   meta?: object,
+ *   toast?: (msg: string) => void,
+ * }} opts
+ */
+export async function openTrackedWhatsAppShare({
+  api,
+  destination,
+  kind,
+  buildText,
+  meta = {},
+  toast,
+}) {
+  if (!api || !destination || !kind || typeof buildText !== 'function') return false;
+  try {
+    const res = await api('/api/share/tracked-link', {
+      method: 'POST',
+      body: { destination, kind, ...meta },
+    });
+    const tracked = res.trackedUrl;
+    if (!tracked) throw new Error('No tracked link');
+    const text = buildText(tracked);
+    logWhatsAppShare(kind, { ...meta, code: res.code }, api);
+    window.open(whatsappShareUrl(text), '_blank', 'noopener,noreferrer');
+    return true;
+  } catch (err) {
+    if (toast) toast(err.message || 'Could not open WhatsApp');
+    return false;
+  }
 }

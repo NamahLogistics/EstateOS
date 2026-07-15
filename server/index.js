@@ -59,6 +59,7 @@ import {
   listClickStats,
   destinationWithClickAttribution,
   attachEmailClickOnRegister,
+  createWhatsAppTrackedLink,
 } from './clickTrack.js';
 import { recordActivity, listActivity, isClientActivityType } from './activity.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
@@ -436,15 +437,20 @@ app.post('/api/auth/register', async (req, res) => {
       },
     });
     if (emailAttr) {
+      const signupType = emailAttr.channel === 'whatsapp' ? 'whatsapp_signup' : 'email_signup';
       recordActivity({
-        type: 'email_signup',
+        type: signupType,
         userId: user.id,
         email: user.email,
         name: user.name,
         meta: {
           campaign: emailAttr.campaign,
           code: emailAttr.code,
-          mailedEmail: emailAttr.mailedEmail,
+          channel: emailAttr.channel,
+          kind: emailAttr.kind || null,
+          mailedEmail: emailAttr.mailedEmail || null,
+          sharedByUserId: emailAttr.sharedByUserId || null,
+          sharedByName: emailAttr.sharedByName || null,
           differentEmail: emailAttr.differentEmail,
         },
       });
@@ -644,7 +650,38 @@ app.post('/api/admin/tracked-links', adminRequired, (req, res) => {
 /** Admin: who clicked (exact email + count + times) */
 app.get('/api/admin/clicks', adminRequired, (req, res) => {
   const campaign = String(req.query?.campaign || '').trim() || null;
-  res.json(listClickStats({ campaign, limit: Number(req.query?.limit) || 200 }));
+  const channel = String(req.query?.channel || '').trim() || null;
+  res.json(
+    listClickStats({
+      campaign,
+      channel,
+      limit: Number(req.query?.limit) || 200,
+    })
+  );
+});
+
+/**
+ * Logged-in user: mint unique /r/:code for a WhatsApp share message.
+ * Body: { destination, kind, estateId?, estateName?, city? }
+ */
+app.post('/api/share/tracked-link', authRequired, (req, res) => {
+  const destination = String(req.body?.destination || '').trim();
+  const kind = String(req.body?.kind || '').trim();
+  if (!destination || !kind) {
+    return res.status(400).json({ error: 'destination and kind required' });
+  }
+  try {
+    const link = createWhatsAppTrackedLink(req.user, {
+      kind,
+      destination,
+      estateId: req.body?.estateId || null,
+      estateName: req.body?.estateName || null,
+      city: req.body?.city || null,
+    });
+    res.json({ ok: true, ...link });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not create link' });
+  }
 });
 
 /**

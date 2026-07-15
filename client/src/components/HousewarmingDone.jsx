@@ -7,7 +7,7 @@ import {
   shareInviteText,
   whatsappShareUrl,
 } from '../whatsapp.js';
-import { logCopyLink, logWhatsAppShare } from '../activity.js';
+import { logCopyLink, openTrackedWhatsAppShare } from '../activity.js';
 
 const waBtn = {
   padding: '0.75rem 1.1rem',
@@ -69,23 +69,23 @@ export default function HousewarmingDone({
   async function shareSiblingWa() {
     const link = await ensureInviteLink();
     if (!link) return;
-    const href = whatsappShareUrl(
-      shareHousewarmingDoneText({
-        estateName: subjectName,
-        link,
-        inviterName: inviterName || user?.name,
-        lang,
-      })
-    );
-    logWhatsAppShare('housewarming_invite', { estateId, estateName: subjectName }, api);
-    window.open(href, '_blank', 'noopener,noreferrer');
+    await openTrackedWhatsAppShare({
+      api,
+      destination: link,
+      kind: 'housewarming_invite',
+      meta: { estateId, estateName: subjectName },
+      buildText: (tracked) =>
+        shareHousewarmingDoneText({
+          estateName: subjectName,
+          link: tracked,
+          inviterName: inviterName || user?.name,
+          lang,
+        }),
+      toast,
+    });
   }
 
-  const emergencyWa = emergencyUrl
-    ? whatsappShareUrl(
-        shareEmergencyText({ subjectName, url: emergencyUrl, lang })
-      )
-    : null;
+  const emergencyWa = emergencyUrl;
 
   return (
     <div
@@ -160,19 +160,25 @@ export default function HousewarmingDone({
             />
           )}
           <div style={{ display: 'grid', gap: '0.5rem' }}>
-            {emergencyWa && (
-              <a
+            {emergencyWa && emergencyUrl && (
+              <button
+                type="button"
                 className="btn"
                 style={waBtn}
-                href={emergencyWa}
-                target="_blank"
-                rel="noreferrer"
                 onClick={() =>
-                  logWhatsAppShare('emergency_qr', { estateId, estateName: subjectName }, api)
+                  openTrackedWhatsAppShare({
+                    api,
+                    destination: emergencyUrl,
+                    kind: 'emergency_qr',
+                    meta: { estateId, estateName: subjectName },
+                    buildText: (tracked) =>
+                      shareEmergencyText({ subjectName, url: tracked, lang }),
+                    toast,
+                  })
                 }
               >
                 WhatsApp fridge QR
-              </a>
+              </button>
             )}
             <button
               type="button"
@@ -258,17 +264,21 @@ export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvite
   async function shareWhatsApp() {
     const link = lastLink || (await createInvite({ withEmail: false }));
     if (!link) return;
-    const href = whatsappShareUrl(
-      shareInviteText({
-        estateName: subjectName,
-        link,
-        inviterName: inviterName || user?.name,
-        lang,
-      })
-    );
-    logWhatsAppShare('sibling_invite', { estateId, estateName: subjectName }, api);
-    window.open(href, '_blank', 'noopener,noreferrer');
-    toast(t('opensWhatsApp'));
+    const ok = await openTrackedWhatsAppShare({
+      api,
+      destination: link,
+      kind: 'sibling_invite',
+      meta: { estateId, estateName: subjectName },
+      buildText: (tracked) =>
+        shareInviteText({
+          estateName: subjectName,
+          link: tracked,
+          inviterName: inviterName || user?.name,
+          lang,
+        }),
+      toast,
+    });
+    if (ok) toast(t('opensWhatsApp'));
   }
 
   async function emailInvite(e) {
