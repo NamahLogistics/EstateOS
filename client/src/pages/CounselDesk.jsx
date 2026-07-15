@@ -74,7 +74,7 @@ export default function CounselDesk() {
         if (desk.leadsUnlocked) return loadLeads();
         setLeadsError({
           needsPayment: true,
-          message: 'Upgrade to Counsel Pro for structured matter briefs when families retain you',
+          message: 'Upgrade to Counsel Pro to see families looking for counsel in your cities',
         });
       })
       .catch((e) => toast(e.message));
@@ -95,7 +95,7 @@ export default function CounselDesk() {
       });
       setData((d) => ({ ...d, lawyer: res.lawyer }));
       setProfileForm(profileFormFromLawyer(res.lawyer));
-      toast('Profile saved — visible when families seek counsel');
+      toast('Profile saved — visible in family directory');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -160,7 +160,7 @@ export default function CounselDesk() {
           feeNote: feeNote[listingId] || data?.lawyer?.retainerBand || '',
         },
       });
-      toast('Introduction sent — family notified by email');
+      toast('Approach sent — family notified by email');
       await Promise.all([loadDesk(), loadLeads()]);
     } catch (err) {
       toast(err.message);
@@ -205,7 +205,7 @@ export default function CounselDesk() {
             <div>
               <strong>Your counsel profile</strong>
               <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-                Families see this profile when they seek counsel. Complete it before introducing yourself.
+                Families see this in the directory. Complete it before approaching leads.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -349,7 +349,7 @@ export default function CounselDesk() {
                 checked={profileForm.acceptingMatters}
                 onChange={(e) => setProfileForm({ ...profileForm, acceptingMatters: e.target.checked })}
               />
-              Accepting new matters (show when families seek counsel)
+              Accepting new matters (show in directory)
             </label>
           </div>
         </form>
@@ -377,9 +377,9 @@ export default function CounselDesk() {
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <div style={{ padding: '1rem 1.1rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <strong>Open family matters</strong>
+            <strong>City leads</strong>
             <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-              Families who asked to be found for counsel. Vault contents stay private until they retain you — not a contact list for sale.
+              Families who opted in to be found. Vault contents stay private until they retain you.
             </p>
           </div>
           {leadsUnlocked && (
@@ -400,7 +400,7 @@ export default function CounselDesk() {
         {leadsError?.needsPayment ? (
           <div className="item-row" style={{ display: 'grid', gap: '0.75rem' }}>
             <p style={{ margin: 0 }}>
-              Counsel Pro ($19/yr) unlocks structured matter tools when families ask to be found — not a marketing list.
+              City leads unlock with <strong>Counsel Pro</strong> (₹1,499/yr) — Family/Diaspora plans do not include the lead board.
             </p>
             <p className="small muted" style={{ margin: 0 }}>
               {leadsError.message}
@@ -412,7 +412,7 @@ export default function CounselDesk() {
         ) : leadsError ? (
           <div className="item-row muted">{leadsError.message}</div>
         ) : !leads ? (
-          <div className="item-row muted">Loading open matters…</div>
+          <div className="item-row muted">Loading leads…</div>
         ) : leads.leads?.length === 0 ? (
           <div className="item-row muted">
             No open family listings in {cityFilter || (leads.lawyerCities || []).join(' / ') || 'your cities'} yet.
@@ -497,7 +497,7 @@ export default function CounselDesk() {
                       disabled={busy}
                       onClick={() => approach(lead.id)}
                     >
-                      Introduce yourself
+                      Approach family
                     </button>
                   )}
                 </div>
@@ -513,7 +513,7 @@ export default function CounselDesk() {
         </div>
         {engagements.length === 0 ? (
           <div className="item-row muted">
-            No engagements yet. Families request you from Counsel, or introduce yourself on open matters after upgrading.
+            No engagements yet. Families request you from Counsel, or you approach open city leads after upgrading.
           </div>
         ) : (
           engagements.map((e) => (

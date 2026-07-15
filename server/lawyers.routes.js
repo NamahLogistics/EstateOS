@@ -553,7 +553,7 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
     }
     if (!userHasCounselPro(req.user)) {
       return res.status(402).json({
-        error: 'Upgrade to Counsel Pro ($19/yr) for matter tools when families ask to be found',
+        error: 'Upgrade to Counsel Pro (₹1,499/yr) to see families looking for counsel in your cities',
         needsPayment: true,
         planSuggested: 'counsel',
         leadsUnlocked: false,
@@ -636,7 +636,7 @@ export function registerLawyerRoutes(app, { canAccessEstate, upload, saveUpload 
     if (!profile) return res.status(403).json({ error: 'Counsel profile required' });
     if (!userHasCounselPro(req.user)) {
       return res.status(402).json({
-        error: 'Upgrade to Counsel Pro ($19/yr) to introduce yourself on open family matters',
+        error: 'Upgrade to Counsel Pro (₹1,499/yr) to approach families',
         needsPayment: true,
         planSuggested: 'counsel',
       });

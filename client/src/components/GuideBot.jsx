@@ -247,8 +247,8 @@ export default function GuideBot() {
       pushBot(
         L(
           lang,
-          'Counsel desk is free to start — Pro adds structured matter briefs when a family retains you.',
-          'वकील डेस्क शुरू में मुफ़्त — परिवार नियुक्त करे तो Pro मामला संक्षिप्त देता है।'
+          'Counsel desk is free to start — Pro unlocks city leads. Soft approaches only.',
+          'वकील डेस्क शुरू में मुफ़्त — Pro से शहर लीड। केवल नरम अप्रोच।'
         ),
         chips
       );
@@ -354,8 +354,8 @@ export default function GuideBot() {
       pushBot(
         L(
           lang,
-          'Complete profile → take Counsel Pro for matter briefs when retained. Vault stays locked until the family accepts. Soft intros only — not a contact list for sale.',
-          'प्रोफ़ाइल पूरा करें → नियुक्ति पर Counsel Pro से मामला संक्षिप्त। तिजोरी परिवार स्वीकार करे तब तक लॉक। संपर्क सूची बेची नहीं जाती।'
+          'Complete profile → take Counsel Pro → approach families in your cities who opted in. Vault stays locked until they accept. Soft WhatsApp intros only — no cold spam.',
+          'प्रोफ़ाइल पूरा करें → Counsel Pro लें → अपने शहरों के परिवारों तक पहुँचें जिन्होंने ऑप्ट-इन किया। वे स्वीकार करें तब तक वॉल्ट लॉक। नरम WhatsApp — स्पैम नहीं।'
         ),
         chips
       );
@@ -410,8 +410,8 @@ export default function GuideBot() {
       pushBot(
         L(
           lang,
-          'Next: cities + bar ID on Counsel desk, then Counsel Pro for matter briefs. No free-form legal Q&A here.',
-          'आगे: Counsel डेस्क पर शहर + बार आईडी, फिर मामला संक्षिप्त के लिए Counsel Pro। यहाँ खुली कानूनी Q&A नहीं।'
+          'Next: cities + bar ID on Counsel desk, then Counsel Pro for leads. No free-form legal Q&A here.',
+          'आगे: Counsel डेस्क पर शहर + बार आईडी, फिर लीड के लिए Counsel Pro। यहाँ खुली कानूनी Q&A नहीं।'
         ),
         chips
       );
@@ -603,7 +603,7 @@ export default function GuideBot() {
     pushBot(
       L(
         lang,
-        'Counsel profile saved. Open Counsel desk for matter briefs — I won’t invent legal strategy.',
+        'Counsel profile saved. Open Counsel desk for Pro leads — I won’t invent legal strategy.',
         'वकील प्रोफ़ाइल सेव। Pro लीड के लिए Counsel डेस्क खोलें — मैं कानूनी रणनीति नहीं बनाऊँगा।'
       ),
       chips

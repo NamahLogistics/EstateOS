@@ -28,7 +28,7 @@ export function upgradeReasonFromError(err, fallback = 'items') {
 function copyFor(reason, careComingSoon, gift) {
   const careNote = careComingSoon
     ? 'City care network is coming soon.'
-    : 'Want to save care contacts in the vault? Family + Care / Diaspora + Care on Pricing.';
+    : 'Want city nurses & maids? Family + Care / Diaspora + Care on Pricing.';
   const owner = gift?.ownerName || 'the owner';
   const giftEstateId = gift?.estateId;
   const giftQs = giftEstateId
@@ -42,7 +42,7 @@ function copyFor(reason, careComingSoon, gift) {
       body:
         gift && !gift.iAmOwner
           ? `You’ve hit the shared 12-item limit on ${gift.estateName || 'this map'}. Gift Family to ${owner} (unlocks this vault), or start your own Life Map for you and your kids.`
-          : 'You’ve used all 12 Life Map items. Family unlocks unlimited vault, sibling invites, and counsel-ready briefs — $19/year.',
+          : 'You’ve used all 12 Life Map items. Family unlocks unlimited vault, sibling invites, and counsel-ready briefs — ₹1,499/year.',
       features:
         gift && !gift.iAmOwner
           ? [
@@ -53,8 +53,8 @@ function copyFor(reason, careComingSoon, gift) {
           : ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
       cta:
         gift && !gift.iAmOwner
-          ? `Gift Family to ${owner} — $19/yr`
-          : 'Upgrade to Family — $19/yr',
+          ? `Gift Family to ${owner} — ₹1,499/yr`
+          : 'Upgrade to Family — ₹1,499/yr',
       href: `/pricing?plan=family&checkout=1${giftQs}`,
       note:
         gift && !gift.iAmOwner
@@ -67,11 +67,11 @@ function copyFor(reason, careComingSoon, gift) {
     estate: {
       plan: 'family',
       title: 'Free plan: one parent',
-      body: 'Map another parent or relative with Family — unlimited vault items, invites, and counsel retain. $19/year.',
+      body: 'Map another parent or relative with Family — unlimited vault items, invites, and counsel retain. ₹1,499/year.',
       features: ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
-      cta: 'Upgrade to Family — $19/yr',
+      cta: 'Upgrade to Family — ₹1,499/yr',
       href: '/pricing?plan=family&checkout=1',
-      note: `Need India+US or India+UK? Diaspora is $149/yr. ${careNote}`,
+      note: `Need India+US or India+UK? Diaspora is ₹12,499/yr. ${careNote}`,
     },
     near: {
       plan: 'family',
@@ -86,22 +86,22 @@ function copyFor(reason, careComingSoon, gift) {
           : ['Unlimited Life Map items', 'Invite siblings + WhatsApp share', 'Retain counsel with a clean brief'],
       cta:
         gift && !gift.iAmOwner
-          ? `Gift Family to ${owner} — $19/yr`
-          : 'Upgrade to Family — $19/yr',
+          ? `Gift Family to ${owner} — ₹1,499/yr`
+          : 'Upgrade to Family — ₹1,499/yr',
       href: `/pricing?plan=family&checkout=1${giftQs}`,
       note:
         gift && !gift.iAmOwner
           ? 'Payment activates the vault owner’s plan — not a separate personal plan for you.'
           : careComingSoon
-            ? 'Saving care contacts (Family + Care) — coming soon.'
-            : 'Want care contacts in the vault too? Family + Care is $39/yr (2×).',
+            ? 'City nurses & maids (Family + Care) — coming soon.'
+            : 'Want city nurses & maids too? Family + Care is ₹2,998/yr (2×).',
       secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : null,
       secondaryAction: gift && !gift.iAmOwner ? 'own_map' : null,
     },
     diaspora: {
       plan: 'diaspora',
       title: 'Cross-border packs need Diaspora',
-      body: 'India + US / India + UK pathways need Diaspora ($149/yr).',
+      body: 'India + US / India + UK pathways need Diaspora (₹12,499/yr).',
       features: [
         'Everything in Family',
         'India + US and India + UK packs',
@@ -109,13 +109,13 @@ function copyFor(reason, careComingSoon, gift) {
       ],
       cta:
         gift && !gift.iAmOwner
-          ? `Gift Diaspora to ${owner} — $149/yr`
-          : 'Upgrade to Diaspora — $149/yr',
+          ? `Gift Diaspora to ${owner} — ₹12,499/yr`
+          : 'Upgrade to Diaspora — ₹12,499/yr',
       href: `/pricing?plan=diaspora&checkout=1${giftQs}`,
       note: careComingSoon
         ? 'City care add-on (Diaspora + Care) is coming soon.'
-        : 'Need care contacts as well? Diaspora + Care is $299/yr.',
-      secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : careComingSoon ? null : 'Diaspora + Care — $299/yr',
+        : 'Need city care as well? Diaspora + Care is ₹24,998/yr.',
+      secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : careComingSoon ? null : 'Diaspora + Care — ₹24,998/yr',
       secondaryHref:
         gift && !gift.iAmOwner ? null : careComingSoon ? null : `/pricing?plan=diaspora_care&checkout=1${giftQs}`,
       secondaryAction: gift && !gift.iAmOwner ? 'own_map' : null,
@@ -139,19 +139,19 @@ function copyFor(reason, careComingSoon, gift) {
       : {
           plan: 'family',
           title: 'City care needs a Care plan',
-          body: 'Save nurse / maid contacts into the vault with Family + Care or Diaspora + Care — double the base Family / Diaspora price.',
+          body: 'Nurses, maids, and attendants unlock with Family + Care or Diaspora + Care — double the base Family / Diaspora price.',
           features: [
-            'Save caregivers you choose into the vault',
-            'Phone numbers for people you trust',
-            'Continuity for care at home',
+            'Browse caregivers by city & role',
+            'Phone numbers unlocked',
+            'Save into Care at home vault',
           ],
           cta:
             gift && !gift.iAmOwner
               ? `Gift Family + Care to ${owner}`
-              : 'Family + Care — $39/yr',
+              : 'Family + Care — ₹2,998/yr',
           href: `/pricing?plan=family_care&checkout=1${giftQs}`,
-          note: 'Abroad with cross-border packs? Diaspora + Care is $299/yr.',
-          secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : 'Diaspora + Care — $299/yr',
+          note: 'Abroad with cross-border packs? Diaspora + Care is ₹24,998/yr.',
+          secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : 'Diaspora + Care — ₹24,998/yr',
           secondaryHref: gift && !gift.iAmOwner ? null : `/pricing?plan=diaspora_care&checkout=1${giftQs}`,
           secondaryAction: gift && !gift.iAmOwner ? 'own_map' : null,
         },
@@ -160,16 +160,16 @@ function copyFor(reason, careComingSoon, gift) {
       title: 'Living outside India?',
       body: careComingSoon
         ? 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways.'
-        : 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways. Add Care (2×) on either if you want care contacts in the vault.',
+        : 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways. Add Care (2×) on either if you want city nurses & maids.',
       features: [
         'India + US / India + UK execution packs',
         'Everything in Family included',
         'Pay with international card from abroad',
       ],
-      cta: 'Choose Diaspora — $149/yr',
+      cta: 'Choose Diaspora — ₹12,499/yr',
       href: '/pricing?plan=diaspora&checkout=1',
       note: careComingSoon ? 'City care network is coming soon — not for purchase yet.' : null,
-      secondaryCta: 'Continue with Family — $19/yr',
+      secondaryCta: 'Continue with Family — ₹1,499/yr',
       secondaryHref: null,
     },
   };

@@ -90,7 +90,7 @@ const dict = {
     remembered: 'Remembered it?',
     backSignIn: 'Back to sign in',
     authFamilyBlurb: 'Families map estates. Counsel and care when you need them.',
-    authCounselBlurb: 'Counsel desk and matter briefs — for advocates retained by families.',
+    authCounselBlurb: 'Counsel desk, city leads, and matter briefs — for advocates.',
     authCareBlurb: 'List your cities and role free — families will find you when city care launches.',
     welcomeBack: 'Welcome back.',
 
@@ -131,7 +131,7 @@ const dict = {
     cityInMessage: 'City in the message',
     yourCity: 'Your city',
     waSiblings: 'WhatsApp siblings / family',
-    waCare: 'WhatsApp caregivers',
+    waCare: 'WhatsApp nurses / maids',
     opensWhatsApp: 'Opens WhatsApp with a ready message — choose who to send it to.',
 
     // Landing (first viewport + how it works)
@@ -154,8 +154,8 @@ const dict = {
     unclaimedBody:
       'Tens of thousands of crores sit unclaimed in Indian banks, insurance, and IEPF — often because heirs never knew what existed. HeirReady doesn’t reclaim that money; it helps siblings map Mum/Dad’s life so you’re not starting blind.',
     localCare: 'Local care bench',
-    localCareSoon: 'Coming soon — save local care contacts into the vault. Caregivers can join free today.',
-    localCareLive: 'On Family + Care or Diaspora + Care, save nurse / maid contacts into the vault.',
+    localCareSoon: 'Coming soon — city nurses and maids you can save to the vault. Caregivers can join free today.',
+    localCareLive: 'On Family + Care or Diaspora + Care, see nurses and maids in their city, save them to the vault.',
     notLegal: 'Not a will. Not a bank. Not a substitute for licensed legal advice.',
     cityCare: 'City care',
     forAdvocates: 'For advocates',
@@ -209,11 +209,11 @@ const dict = {
     loadingCare: 'Loading care desk…',
     estateCreated: 'File created — start housewarming',
     landingCityCareSoon:
-      'Saving local care contacts into the vault is coming soon. Caregivers can join free now and list their city.',
+      'Family browse for nurses and maids is coming soon. Caregivers can join free now and list their city — we’ll open family unlock when the network is ready.',
     landingCityCareLive:
-      'Save nurse / maid contacts into Mum/Dad’s vault — Family + Care ($39) or Diaspora + Care ($299). Caregivers join free.',
+      'Nurses, maids, attendants in the parent’s city — Family + Care (₹2,998) or Diaspora + Care (₹24,998). Caregivers join free.',
     landingCounselLead:
-      'Join as counsel. Complete your profile and take Counsel Pro for structured matter briefs when a family retains you — the vault stays locked until they accept. HeirReady is not a marketing list or lead marketplace.',
+      'Join as counsel. Complete your profile, take Counsel Pro, and approach families in your cities who asked to be found — vault stays locked until they accept.',
   },
   hi: {
     estates: 'फ़ाइलें',
@@ -295,7 +295,7 @@ const dict = {
     remembered: 'याद आ गया?',
     backSignIn: 'प्रवेश पर वापस',
     authFamilyBlurb: 'परिवार फ़ाइलें बनाते हैं। ज़रूरत पर वकील और देखभाल।',
-    authCounselBlurb: 'मामले की संक्षिप्त जानकारी और Counsel डेस्क — परिवार द्वारा नियुक्त अधिवक्ताओं के लिए।',
+    authCounselBlurb: 'शहर के परिवारों के लीड और मामले — अधिवक्ताओं के लिए।',
     authCareBlurb: 'शहर और भूमिका मुफ़्त में लिखें — देखभाल नेटवर्क शुरू होने पर परिवार आपको ढूँढेंगे।',
     welcomeBack: 'वापसी पर स्वागत है।',
 
@@ -333,7 +333,7 @@ const dict = {
     cityInMessage: 'संदेश में शहर',
     yourCity: 'आपका शहर',
     waSiblings: 'व्हाट्सऐप — भाई-बहन / परिवार',
-    waCare: 'व्हाट्सऐप — देखभाल कर्मी',
+    waCare: 'व्हाट्सऐप — नर्स / आया',
     opensWhatsApp: 'व्हाट्सऐप खुलेगा, तैयार संदेश के साथ — किसे भेजना है चुनें।',
 
     heroLine:
@@ -355,8 +355,8 @@ const dict = {
     unclaimedBody:
       'भारत में हज़ारों करोड़ रुपये बैंक, बीमा और IEPF में बेदावा पड़े हैं — अक्सर उत्तराधिकारियों को पता ही नहीं होता। HeirReady वह पैसा वापस नहीं दिलाता; भाई-बहन माँ-पापा का जीवन मैप करते हैं ताकि अँधेरे में शुरू न करना पड़े।',
     localCare: 'स्थानीय देखभाल',
-    localCareSoon: 'जल्द — स्थानीय देखभाल संपर्क तिजोरी में सहेज सकेंगे। देखभाल कर्मी आज मुफ़्त जुड़ सकते हैं।',
-    localCareLive: 'परिवार + देखभाल या डायस्पोरा + देखभाल पर, नर्स/आया संपर्क तिजोरी में सहेजें।',
+    localCareSoon: 'जल्द — शहर की नर्स/आया तिजोरी में सहेज सकेंगे। देखभाल कर्मी आज मुफ़्त जुड़ सकते हैं।',
+    localCareLive: 'परिवार + देखभाल या डायस्पोरा + देखभाल पर, अपने शहर की नर्स/आया देखें और तिजोरी में सहेजें।',
     notLegal: 'यह वसीयत नहीं। बैंक नहीं। कानूनी सलाह का विकल्प नहीं।',
     cityCare: 'शहर देखभाल',
     forAdvocates: 'अधिवक्ताओं के लिए',
@@ -409,11 +409,11 @@ const dict = {
     loadingCare: 'देखभाल केंद्र लोड हो रहा है…',
     estateCreated: 'फ़ाइल बन गई — सेटअप शुरू करें',
     landingCityCareSoon:
-      'तिजोरी में स्थानीय देखभाल संपर्क सहेजना जल्द। देखभाल कर्मी अभी मुफ़्त जुड़कर शहर लिख सकते हैं।',
+      'नर्स/आया खोजना परिवारों के लिए जल्द। देखभाल कर्मी अभी मुफ़्त जुड़कर शहर लिख सकते हैं — नेटवर्क तैयार होने पर परिवार देख पाएँगे।',
     landingCityCareLive:
-      'नर्स/आया संपर्क माँ-पापा की तिजोरी में सहेजें — परिवार + देखभाल ($39) या डायस्पोरा + देखभाल ($299)। देखभाल कर्मी मुफ़्त।',
+      'माता/पिता के शहर में नर्स, आया, अटेंडेंट — परिवार + देखभाल (₹२,९९८) या डायस्पोरा + देखभाल (₹२४,९९८)। देखभाल कर्मी मुफ़्त।',
     landingCounselLead:
-      'वकील के रूप में जुड़ें। प्रोफ़ाइल पूरी करें और Counsel Pro लें — जब कोई परिवार आपको नियुक्त करे तो मामला संक्षिप्त तैयार हो। तिजोरी तब तक बंद। HeirReady मार्केटिंग सूची या लीड बाज़ार नहीं है।',
+      'वकील के रूप में जुड़ें। प्रोफ़ाइल पूरी करें, Counsel Pro लें, और अपने शहर के उन परिवारों से संपर्क करें जिन्होंने खुद को ढूँढने को कहा — तिजोरी तब तक बंद रहती है जब तक वे स्वीकार न करें।',
   },
 };
 

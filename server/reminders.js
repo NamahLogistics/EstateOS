@@ -83,7 +83,7 @@ export async function runReminderPass() {
     if (!user.email || !userHasPaidAccess(user) || !user.planExpiresAt) continue;
     // Auto-renewing card skips “please renew” mail — charge + webhook extends access
     const autoRenew =
-      (user.paddleSubscriptionId || user.razorpaySubscriptionId) &&
+      user.razorpaySubscriptionId &&
       (user.subscriptionStatus === 'active' ||
         user.subscriptionStatus === 'authenticated' ||
         user.subscriptionStatus === 'pending');

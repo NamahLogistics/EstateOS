@@ -50,7 +50,7 @@ import {
   removePushSubscription,
   pushConfigured,
 } from './notifications.js';
-import { registerBillingRoutes, paddleConfigured } from './billing.js';
+import { registerBillingRoutes, razorpayConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
@@ -1951,10 +1951,10 @@ app.get('/api/health', (_req, res) => {
     persistence: persistenceMode(),
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
-    billing: paddleConfigured() ? 'paddle' : 'direct',
+    billing: razorpayConfigured() ? 'razorpay' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.23.1',
+    version: '1.23.2',
     push: pushConfigured(),
   });
 });

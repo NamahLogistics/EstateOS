@@ -10,7 +10,7 @@ const plans = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
+    price: '₹0',
     blurb: 'Start mapping today',
     features: ['1 estate / parent', '12 Life Map items', 'Unlock rules', 'India checklist on unlock'],
     cta: 'Start free',
@@ -18,7 +18,7 @@ const plans = [
   {
     id: 'family',
     name: 'Family',
-    price: '$19/yr',
+    price: '₹1,499/yr',
     blurb: 'India vault + siblings + counsel',
     features: [
       'Unlimited vault items',
@@ -32,14 +32,14 @@ const plans = [
   {
     id: 'family_care',
     name: 'Family + Care',
-    price: '$39/yr',
-    blurbLive: '2× Family — save local care contacts in the vault',
-    blurbSoon: 'Local care contacts — coming soon',
+    price: '₹2,998/yr',
+    blurbLive: '2× Family — adds city nurses & maids',
+    blurbSoon: 'City nurses & maids — coming soon',
     features: [
       'Everything in Family',
-      'Save nurse / maid contacts to the vault',
-      'Phone numbers for people you choose',
-      'Continuity for care at home',
+      'Browse nurses / maids by city',
+      'Phone numbers unlocked',
+      'Save caregivers into Life Map',
     ],
     ctaLive: 'Get Family + Care',
     carePlan: true,
@@ -47,27 +47,27 @@ const plans = [
   {
     id: 'diaspora',
     name: 'Diaspora',
-    price: '$149/yr',
+    price: '₹12,499/yr',
     blurb: 'You’re abroad — parents’ papers are in India',
     features: [
       'Everything in Family',
       'India + US / India + UK packs',
       'NRI / cross-border pathway',
-      'Pay with card worldwide (USD)',
+      'Pay with international card from abroad',
     ],
     cta: 'Get Diaspora',
   },
   {
     id: 'diaspora_care',
     name: 'Diaspora + Care',
-    price: '$299/yr',
-    blurbLive: '2× Diaspora — cross-border + care contacts',
-    blurbSoon: 'Cross-border + care contacts — coming soon',
+    price: '₹24,998/yr',
+    blurbLive: '2× Diaspora — cross-border + city care',
+    blurbSoon: 'Cross-border + city care — coming soon',
     features: [
       'Everything in Diaspora',
-      'Save local care contacts to the vault',
-      'Phone numbers for people you choose',
-      'Continuity for care at home',
+      'City nurses & maids directory',
+      'Phone numbers unlocked',
+      'Save caregivers into Life Map',
     ],
     ctaLive: 'Get Diaspora + Care',
     carePlan: true,
@@ -75,33 +75,33 @@ const plans = [
   {
     id: 'counsel',
     name: 'Counsel Pro',
-    price: '$19/yr',
-    blurb: 'For advocates — matter desk & briefs',
+    price: '₹1,499/yr',
+    blurb: 'For lawyers — city family leads',
     features: [
-      'Structured succession matter briefs',
-      'Collaborate when a family retains you',
-      'Vault stays locked until they accept',
-      'No free-form legal advice marketplace',
+      'See families looking for counsel in your cities',
+      'Approach opted-in estates',
+      'Counsel desk + matter brief',
+      'No vault access until family accepts',
     ],
-    cta: 'Get Counsel Pro',
+    cta: 'Unlock city leads',
   },
 ];
 
 function referralHalfPrice(planId) {
-  if (planId === 'family' || planId === 'counsel') return '$9.50';
-  if (planId === 'family_care') return '$19.50';
-  if (planId === 'diaspora') return '$74.50';
-  if (planId === 'diaspora_care') return '$149.50';
+  if (planId === 'family' || planId === 'counsel') return '₹750';
+  if (planId === 'family_care') return '₹1,499';
+  if (planId === 'diaspora') return '₹6,250';
+  if (planId === 'diaspora_care') return '₹12,499';
   return null;
 }
 
-function loadPaddle() {
+function loadRazorpay() {
   return new Promise((resolve, reject) => {
-    if (window.Paddle) return resolve(window.Paddle);
+    if (window.Razorpay) return resolve(window.Razorpay);
     const script = document.createElement('script');
-    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
-    script.onload = () => resolve(window.Paddle);
-    script.onerror = () => reject(new Error('Failed to load Paddle'));
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(window.Razorpay);
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
     document.body.appendChild(script);
   });
 }
@@ -158,48 +158,6 @@ export default function Pricing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  async function applyVerified(verified, data) {
-    if (!verified.gifted) {
-      setUser({
-        ...user,
-        plan: verified.plan,
-        planExpiresAt: verified.planExpiresAt,
-        planActive: verified.planActive,
-        daysUntilExpiry: verified.daysUntilExpiry,
-        needsRenewal: verified.needsRenewal,
-        autoRenew: verified.autoRenew,
-        subscriptionStatus: verified.subscriptionStatus,
-        referralDiscountCredits: verified.referralDiscountCredits ?? 0,
-      });
-    } else {
-      setUser({
-        ...user,
-        referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
-      });
-    }
-    setCredits(verified.referralDiscountCredits ?? 0);
-    setBilling((b) => ({
-      ...(b || {}),
-      ...verified,
-      autoRenew: verified.autoRenew,
-      subscriptionStatus: verified.subscriptionStatus,
-    }));
-    toast(
-      verified.gifted
-        ? `Gifted ${verified.plan} to ${verified.beneficiaryName || 'the vault owner'}`
-        : verified.kind === 'upgrade'
-          ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
-          : verified.autoRenew || data.autoRenew
-            ? `Payment successful — ${verified.plan} auto-renews yearly until you cancel`
-            : verified.referralDiscount
-              ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-              : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
-    );
-    if (verified.gifted && verified.giftEstateId) {
-      window.location.assign(`/app/estates/${verified.giftEstateId}`);
-    }
-  }
-
   async function checkout(plan) {
     if (plan === 'free') {
       window.location.assign(user ? '/app' : '/auth?mode=register');
@@ -222,40 +180,95 @@ export default function Pricing() {
         method: 'POST',
         body: { plan, ...(giftEstateId ? { giftEstateId } : {}) },
       });
-      if (data.mode === 'paddle') {
-        const Paddle = await loadPaddle();
-        Paddle.Environment.set(data.environment === 'production' ? 'production' : 'sandbox');
-        Paddle.Initialize({
-          token: data.clientToken,
-          eventCallback: async (event) => {
-            if (event?.name === 'checkout.closed' || event?.name === 'checkout.error') {
-              setBusy(false);
-              return;
-            }
-            if (event?.name !== 'checkout.completed') return;
+      if (data.mode === 'razorpay' || data.mode === 'razorpay_subscription') {
+        const Razorpay = await loadRazorpay();
+        const options = {
+          key: data.keyId,
+          name: data.name,
+          description: data.description,
+          prefill: data.prefill,
+          theme: { color: '#2c4d3c' },
+          config: data.checkoutConfig || {
+            display: {
+              blocks: {
+                cards: {
+                  name: 'Card (works from US / UK / Gulf)',
+                  instruments: [{ method: 'card' }],
+                },
+                india: {
+                  name: 'UPI / Netbanking (India)',
+                  instruments: [{ method: 'upi' }, { method: 'netbanking' }],
+                },
+              },
+              sequence: ['block.cards', 'block.india'],
+              preferences: { show_default_blocks: false },
+            },
+          },
+          handler: async (response) => {
             try {
-              const txnId =
-                event?.data?.transaction_id ||
-                event?.data?.id ||
-                data.transactionId;
               const verified = await api('/api/billing/verify', {
                 method: 'POST',
-                body: { transactionId: txnId, plan: data.plan },
+                body: {
+                  ...response,
+                  plan: data.plan,
+                },
               });
-              await applyVerified(verified, data);
+              if (!verified.gifted) {
+                setUser({
+                  ...user,
+                  plan: verified.plan,
+                  planExpiresAt: verified.planExpiresAt,
+                  planActive: verified.planActive,
+                  daysUntilExpiry: verified.daysUntilExpiry,
+                  needsRenewal: verified.needsRenewal,
+                  autoRenew: verified.autoRenew,
+                  subscriptionStatus: verified.subscriptionStatus,
+                  referralDiscountCredits: verified.referralDiscountCredits ?? 0,
+                });
+              } else {
+                setUser({
+                  ...user,
+                  referralDiscountCredits: verified.referralDiscountCredits ?? user.referralDiscountCredits,
+                });
+              }
+              setCredits(verified.referralDiscountCredits ?? 0);
+              setBilling((b) => ({
+                ...(b || {}),
+                ...verified,
+                autoRenew: verified.autoRenew,
+                subscriptionStatus: verified.subscriptionStatus,
+              }));
+              toast(
+                verified.gifted
+                  ? `Gifted ${verified.plan} to ${verified.beneficiaryName || 'the vault owner'}`
+                  : verified.kind === 'upgrade'
+                    ? `Upgraded — same renewal ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : ''}`
+                    : verified.autoRenew || data.mode === 'razorpay_subscription'
+                      ? `Payment successful — ${verified.plan} auto-renews yearly until you cancel`
+                      : verified.referralDiscount
+                        ? `Paid with 50% referral reward — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+                        : `Payment successful — ${verified.plan} until ${verified.planExpiresAt ? new Date(verified.planExpiresAt).toLocaleDateString() : 'next year'}`
+              );
+              if (verified.gifted && verified.giftEstateId) {
+                window.location.assign(`/app/estates/${verified.giftEstateId}`);
+              }
             } catch (err) {
               toast(err.message);
-            } finally {
-              setBusy(false);
             }
           },
+        };
+        if (data.mode === 'razorpay_subscription') {
+          options.subscription_id = data.subscriptionId;
+        } else {
+          options.amount = data.amount;
+          options.currency = data.currency || 'INR';
+          options.order_id = data.orderId;
+        }
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', (resp) => {
+          toast(resp.error?.description || 'Payment failed');
         });
-        Paddle.Checkout.open({
-          transactionId: data.transactionId,
-          customer: data.customer?.email
-            ? { email: data.customer.email }
-            : undefined,
-        });
+        rzp.open();
       } else {
         if (!data.gift) {
           setUser({
@@ -269,10 +282,10 @@ export default function Pricing() {
         if (data.gift?.estateId) {
           window.location.assign(`/app/estates/${data.gift.estateId}`);
         }
-        setBusy(false);
       }
     } catch (err) {
       toast(err.message);
+    } finally {
       setBusy(false);
     }
   }
@@ -348,7 +361,7 @@ export default function Pricing() {
         Pricing
       </h1>
       <p className="muted" style={{ maxWidth: 560 }}>
-        Annual plans in USD via Paddle — your card is charged every year until you cancel. Mid-year
+        Annual plans via Razorpay — your card is charged every year until you cancel. Mid-year
         upgrades: pay only the difference for days left. Downgrades wait until renewal.
       </p>
       {(billing?.autoRenew ||
@@ -433,8 +446,8 @@ export default function Pricing() {
         </p>
         <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
           <strong>1 credit = 50% off one payment</strong> at checkout — your Family, Diaspora, or Counsel
-          Pro charge (first year, renew, or mid-year upgrade). Example: Family $19 → ~$9.50 with a
-          credit; Diaspora $149 → ~$74.50. One credit is used per checkout; leftovers stay for later
+          Pro charge (first year, renew, or mid-year upgrade). Example: Family ₹1,499 → ~₹750 with a
+          credit; Diaspora ₹12,499 → ~₹6,250. One credit is used per checkout; leftovers stay for later
           years. Credits don’t expire.
         </p>
         <p className="small muted" style={{ margin: '0.65rem 0 0', lineHeight: 1.5 }}>
@@ -479,8 +492,8 @@ export default function Pricing() {
       ) : (
         <div className="upgrade-limit-banner" style={{ marginTop: '1.1rem', maxWidth: 640 }}>
           <p className="small">
-            <strong>Want nurse / maid contacts in the vault?</strong> Take Family + Care ($39) or Diaspora +
-            Care ($299) — when that layer opens.
+            <strong>Want nurses & maids in their city?</strong> Take Family + Care (₹2,998) or Diaspora +
+            Care (₹24,998) — double the base plan.
           </p>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button

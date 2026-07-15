@@ -111,7 +111,7 @@ export const CARE_CHIPS = (lang) => [
 export const COUNSEL_CHIPS = (lang) => [
   { id: 'counsel_profile', label: L(lang, 'Finish my profile', 'प्रोफ़ाइल पूरा करें') },
   { id: 'counsel_cities', label: L(lang, 'Set my cities', 'शहर सेट करें') },
-  { id: 'counsel_leads', label: L(lang, 'How counsel Pro works', 'Counsel Pro कैसे') },
+  { id: 'counsel_leads', label: L(lang, 'How leads work', 'लीड कैसे काम करती हैं') },
   { id: 'where_am_i', label: L(lang, 'What should I do next?', 'अब क्या करें?') },
 ];
 

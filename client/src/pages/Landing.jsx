@@ -119,7 +119,7 @@ export default function Landing() {
           ) : (
             <>
               <Link className="btn btn-primary" to="/pricing?plan=family_care">
-                Family + Care — $39/yr
+                Family + Care — ₹2,998/yr
               </Link>
               <Link className="btn btn-ghost" to="/auth?mode=register&type=care">
                 {t('iProvideCareFree')}
@@ -143,7 +143,7 @@ export default function Landing() {
                 {t('registerCounsel')}
               </Link>
               <Link className="btn btn-ghost" to="/pricing">
-                Counsel Pro — $19/yr
+                Counsel Pro — ₹1,499/yr
               </Link>
             </>
           )}

@@ -258,8 +258,7 @@ export default function CarePanel({ estateId, onSaved }) {
       {unlocked === false && (
         <div className="upgrade-limit-banner" style={{ marginTop: '0.75rem' }}>
           <p className="small">
-            <strong>Add Care Network.</strong> Family + Care $39/yr or Diaspora + Care $299/yr —
-            save local care contacts into the vault when that layer is live.
+            <strong>Add Care Network.</strong> Family + Care ₹2,998/yr or Diaspora + Care ₹24,998/yr —
             then browse and save caregivers to the vault.
           </p>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>

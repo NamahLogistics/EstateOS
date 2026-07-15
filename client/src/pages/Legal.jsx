@@ -55,10 +55,10 @@ export function LegalTerms() {
         appointments, and lawful use of the service.
       </p>
       <p>
-        Paid plans (Family / Diaspora / Counsel Pro) are billed annually in USD via Paddle. Family + Care and Diaspora + Care are listed as coming soon and are not available for purchase.
+        Paid plans (Family / Diaspora / Counsel Pro) are billed annually in INR via Razorpay. Family + Care and Diaspora + Care are listed as coming soon and are not available for purchase.
         Mid-year upgrades charge a prorated difference for remaining days and keep your renewal date; downgrades take effect at renewal.
-        Checkout is card-based in USD (Paddle is merchant of record and handles tax where applicable).
-        HeirReady sells software subscriptions for family continuity vaults and related tools. We do not sell, rent, or enrich marketing lists or third-party contact databases.
+        Buyers abroad typically pay with an international debit/credit card. UPI and Indian
+        netbanking remain available for payers in India. We do not require UPI for NRI checkout.
         Features may change; material downgrades of a paid plan during a paid term will be handled
         under our Cancellation & Refunds policy.
       </p>
@@ -90,7 +90,7 @@ export function LegalPrivacy() {
       <p>
         We collect account details (name, email), authentication data, estate vault metadata,
         uploaded documents you choose to add, audit logs, counsel matter data, and payment metadata
-        from Paddle (we do not store full card numbers).
+        from Razorpay (we do not store full card numbers).
       </p>
       <p>
         We use this data to operate HeirReady, process payments, send transactional email (invites,
@@ -137,12 +137,12 @@ export function LegalRefunds() {
       <p>
         Refund requests after 7 days, or after substantial use of paid features, are evaluated
         case-by-case. Approved refunds are processed within <strong>5–7 business days</strong>{' '}
-        after approval; the card issuer or bank may take additional time to reflect credit.
+        after approval; the card issuer or UPI/bank provider may take additional time to reflect credit.
       </p>
       <p>
         Chargebacks for valid paid periods may lead to account suspension. Write to{' '}
-        <a href={`mailto:${biz.email}`}>{biz.email}</a> with your registered email and Paddle
-        transaction id.
+        <a href={`mailto:${biz.email}`}>{biz.email}</a> with your registered email and Razorpay
+        payment id.
       </p>
     </LegalShell>
   );
@@ -162,8 +162,8 @@ export function LegalShipping() {
       </p>
       <p>
         If access is not enabled after payment, email{' '}
-        <a href={`mailto:${biz.email}`}>{biz.email}</a> with your registered email and Paddle
-        transaction id.
+        <a href={`mailto:${biz.email}`}>{biz.email}</a> with your registered email and Razorpay
+        payment id.
       </p>
     </LegalShell>
   );
