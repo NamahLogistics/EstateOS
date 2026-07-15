@@ -160,7 +160,7 @@ export function registerCareRoutes(app) {
     }
     if (!userHasCareNetwork(req.user)) {
       return res.status(402).json({
-        error: 'City nurses & maids unlock with Family + Care (₹2,998/yr) or Diaspora + Care (₹24,998/yr). Upgrade on Pricing.',
+        error: 'City nurses & maids unlock with Family + Care ($39/yr) or Diaspora + Care ($299/yr). Upgrade on Pricing.',
         code: 'PLAN_LIMIT',
         upgradePlan: 'family_care',
         careUnlocked: false,

@@ -8,25 +8,32 @@ export const PLAN_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 export const PLAN_YEAR_DAYS = 365;
 export const RENEWAL_WARN_DAYS = 30;
 
-/** Annual list prices in paise — keep in sync with billing PLAN_AMOUNTS defaults */
-export const PLAN_LIST_PAISE = {
-  family: 149900,
-  family_care: 299800,
-  diaspora: 1249900,
-  diaspora_care: 2499800,
-  counsel: 149900,
-  care: 299800,
+/** Annual list prices in USD cents — keep in sync with billing PLAN_AMOUNTS defaults */
+export const PLAN_LIST_CENTS = {
+  family: 1900, // $19
+  family_care: 3900, // $39
+  diaspora: 14900, // $149
+  diaspora_care: 29900, // $299
+  counsel: 1900, // $19
+  care: 3900,
 };
 
+/** @deprecated use PLAN_LIST_CENTS */
+export const PLAN_LIST_PAISE = PLAN_LIST_CENTS;
+
 export function planListPaise(plan) {
-  return PLAN_LIST_PAISE[plan] || 0;
+  return PLAN_LIST_CENTS[plan] || 0;
+}
+
+export function planListCents(plan) {
+  return PLAN_LIST_CENTS[plan] || 0;
 }
 
 /**
  * Quote for checkout: new/renew (full year + stack) vs mid-year upgrade (prorated delta, keep expiry).
  * Downgrades while active are rejected.
  */
-export function quotePlanChange(user, targetPlan, amounts = PLAN_LIST_PAISE) {
+export function quotePlanChange(user, targetPlan, amounts = PLAN_LIST_CENTS) {
   applyPlanExpiryInPlace(user);
   const fullAmount = amounts[targetPlan];
   if (!fullAmount) {
@@ -83,7 +90,7 @@ export function quotePlanChange(user, targetPlan, amounts = PLAN_LIST_PAISE) {
   const fraction = Math.min(1, daysLeft / PLAN_YEAR_DAYS);
   const delta = fullAmount - fromAmount;
   let amount = Math.round(delta * fraction);
-  if (delta > 0 && amount > 0 && amount < 100) amount = 100; // Razorpay ₹1 minimum
+  if (delta > 0 && amount > 0 && amount < 50) amount = 50; // Paddle ~$0.50 minimum
 
   return {
     kind: 'upgrade',
@@ -220,8 +227,9 @@ export function planPublicFields(user) {
     daysUntilExpiry = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
   }
   const subStatus = user.subscriptionStatus || null;
+  const subId = user.paddleSubscriptionId || user.razorpaySubscriptionId;
   const autoRenew =
-    Boolean(user.razorpaySubscriptionId) &&
+    Boolean(subId) &&
     (subStatus === 'active' || subStatus === 'authenticated' || subStatus === 'pending');
   return {
     plan: user.plan || 'free',

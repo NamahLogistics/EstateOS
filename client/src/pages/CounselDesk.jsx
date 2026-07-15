@@ -400,7 +400,7 @@ export default function CounselDesk() {
         {leadsError?.needsPayment ? (
           <div className="item-row" style={{ display: 'grid', gap: '0.75rem' }}>
             <p style={{ margin: 0 }}>
-              City leads unlock with <strong>Counsel Pro</strong> (₹1,499/yr) — Family/Diaspora plans do not include the lead board.
+              City leads unlock with <strong>Counsel Pro</strong> ($19/yr) — Family/Diaspora plans do not include the lead board.
             </p>
             <p className="small muted" style={{ margin: 0 }}>
               {leadsError.message}

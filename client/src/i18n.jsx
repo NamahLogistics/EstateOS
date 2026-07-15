@@ -211,7 +211,7 @@ const dict = {
     landingCityCareSoon:
       'Family browse for nurses and maids is coming soon. Caregivers can join free now and list their city — we’ll open family unlock when the network is ready.',
     landingCityCareLive:
-      'Nurses, maids, attendants in the parent’s city — Family + Care (₹2,998) or Diaspora + Care (₹24,998). Caregivers join free.',
+      'Nurses, maids, attendants in the parent’s city — Family + Care ($39) or Diaspora + Care ($299). Caregivers join free.',
     landingCounselLead:
       'Join as counsel. Complete your profile, take Counsel Pro, and approach families in your cities who asked to be found — vault stays locked until they accept.',
   },
@@ -411,7 +411,7 @@ const dict = {
     landingCityCareSoon:
       'नर्स/आया खोजना परिवारों के लिए जल्द। देखभाल कर्मी अभी मुफ़्त जुड़कर शहर लिख सकते हैं — नेटवर्क तैयार होने पर परिवार देख पाएँगे।',
     landingCityCareLive:
-      'माता/पिता के शहर में नर्स, आया, अटेंडेंट — परिवार + देखभाल (₹२,९९८) या डायस्पोरा + देखभाल (₹२४,९९८)। देखभाल कर्मी मुफ़्त।',
+      'माता/पिता के शहर में नर्स, आया, अटेंडेंट — परिवार + देखभाल ($39) या डायस्पोरा + देखभाल ($299)। देखभाल कर्मी मुफ़्त।',
     landingCounselLead:
       'वकील के रूप में जुड़ें। प्रोफ़ाइल पूरी करें, Counsel Pro लें, और अपने शहर के उन परिवारों से संपर्क करें जिन्होंने खुद को ढूँढने को कहा — तिजोरी तब तक बंद रहती है जब तक वे स्वीकार न करें।',
   },

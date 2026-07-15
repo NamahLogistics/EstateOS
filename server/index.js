@@ -50,7 +50,7 @@ import {
   removePushSubscription,
   pushConfigured,
 } from './notifications.js';
-import { registerBillingRoutes, razorpayConfigured } from './billing.js';
+import { registerBillingRoutes, paddleConfigured } from './billing.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
@@ -145,7 +145,7 @@ app.use(
   })
 );
 
-// Capture raw body for Razorpay webhook HMAC (must match exact bytes)
+// Capture raw body for Paddle webhook HMAC (must match exact bytes)
 app.use(
   express.json({
     limit: '8mb',
@@ -1951,10 +1951,10 @@ app.get('/api/health', (_req, res) => {
     persistence: persistenceMode(),
     files: persistenceMode() === 'postgres' ? 'postgres' : 'local',
     mail: mailConfigured() ? 'resend' : 'outbox',
-    billing: razorpayConfigured() ? 'razorpay' : 'direct',
+    billing: paddleConfigured() ? 'paddle' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.22.9',
+    version: '1.23.0',
     push: pushConfigured(),
   });
 });
