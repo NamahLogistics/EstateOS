@@ -21,9 +21,11 @@ import {
 } from './db.js';
 import {
   authRequired,
+  adminRequired,
   hashPassword,
   verifyPassword,
   signToken,
+  isAppAdmin,
 } from './auth.js';
 import {
   ITEM_CATEGORIES,
@@ -303,6 +305,7 @@ function publicUser(user) {
     subscriptionStatus: plan.subscriptionStatus,
     subscriptionCancelAt: plan.subscriptionCancelAt,
     accountType: user.accountType || 'family',
+    isAdmin: isAppAdmin(user),
     referralCode: user.referralCode || null,
     referralDiscountCredits: user.referralDiscountCredits || 0,
   };
@@ -535,14 +538,9 @@ app.post('/api/notifications/read', authRequired, (req, res) => {
 
 /**
  * Admin: create in-app alerts (+ web push) via the live process store.
- * Header: X-Admin-Key: ADMIN_API_KEY
- * Body: { emails?: string[], userIds?: string[], title, body?, url?, type?, estateId? }
+ * Auth: signed-in app admin, or X-Admin-Key.
  */
-app.post('/api/admin/notify', (req, res) => {
-  const key = process.env.ADMIN_API_KEY;
-  if (!key || req.get('X-Admin-Key') !== key) {
-    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
-  }
+app.post('/api/admin/notify', adminRequired, (req, res) => {
   const title = String(req.body?.title || '').trim();
   const body = String(req.body?.body || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
@@ -587,11 +585,7 @@ app.post('/api/admin/notify', (req, res) => {
  * Admin: mint per-recipient tracked email links (exact who-clicked).
  * Body: { emails: string[], campaign, destination, meta? }
  */
-app.post('/api/admin/tracked-links', (req, res) => {
-  const key = process.env.ADMIN_API_KEY;
-  if (!key || req.get('X-Admin-Key') !== key) {
-    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
-  }
+app.post('/api/admin/tracked-links', adminRequired, (req, res) => {
   const emails = Array.isArray(req.body?.emails) ? req.body.emails : [];
   const campaign = String(req.body?.campaign || '').trim();
   const destination = String(req.body?.destination || '').trim();
@@ -607,11 +601,7 @@ app.post('/api/admin/tracked-links', (req, res) => {
 });
 
 /** Admin: who clicked (exact email + count + times) */
-app.get('/api/admin/clicks', (req, res) => {
-  const key = process.env.ADMIN_API_KEY;
-  if (!key || req.get('X-Admin-Key') !== key) {
-    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
-  }
+app.get('/api/admin/clicks', adminRequired, (req, res) => {
   const campaign = String(req.query?.campaign || '').trim() || null;
   res.json(listClickStats({ campaign, limit: Number(req.query?.limit) || 200 }));
 });
@@ -2371,6 +2361,10 @@ async function boot() {
   seedLawyersIfNeeded();
   mutate((s) => {
     for (const e of s.estates) ensureEstateDefaults(e);
+    // Persist app-admin flag for allowlisted emails
+    for (const u of s.users || []) {
+      if (isAppAdmin(u) && !u.isAdmin) u.isAdmin = true;
+    }
   });
   await flushPersist();
   try {

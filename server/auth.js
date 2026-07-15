@@ -5,6 +5,23 @@ import { applyPlanExpiryInPlace, planPublicFields } from './plans.js';
 
 const SECRET = process.env.JWT_SECRET || 'estate-os-dev-secret';
 
+/** Emails that always have app admin (comma-separated). Default: founder. */
+export function adminEmailList() {
+  const raw =
+    process.env.ADMIN_EMAILS || 'mishra.shubham0301@gmail.com';
+  return raw
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isAppAdmin(user) {
+  if (!user) return false;
+  if (user.isAdmin === true) return true;
+  const email = String(user.email || '').trim().toLowerCase();
+  return Boolean(email && adminEmailList().includes(email));
+}
+
 export function signToken(user) {
   return jwt.sign({ sub: user.id, email: user.email, name: user.name }, SECRET, {
     expiresIn: '30d',
@@ -38,11 +55,24 @@ export function authRequired(req, res, next) {
       planExpiresAt: planFields.planExpiresAt,
       planActive: planFields.planActive,
       accountType: user.accountType || 'family',
+      isAdmin: isAppAdmin(user),
     };
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid session' });
   }
+}
+
+/** Prefer session admin; fall back to X-Admin-Key for scripts. */
+export function adminRequired(req, res, next) {
+  const key = process.env.ADMIN_API_KEY;
+  if (key && req.get('X-Admin-Key') === key) return next();
+  return authRequired(req, res, () => {
+    if (!req.user?.isAdmin) {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    next();
+  });
 }
 
 export async function hashPassword(password) {
