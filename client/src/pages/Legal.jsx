@@ -58,6 +58,7 @@ export function LegalTerms() {
         Paid plans (Family / Diaspora / Counsel Pro) are billed annually in USD via Paddle. Family + Care and Diaspora + Care are listed as coming soon and are not available for purchase.
         Mid-year upgrades charge a prorated difference for remaining days and keep your renewal date; downgrades take effect at renewal.
         Checkout is card-based in USD (Paddle is merchant of record and handles tax where applicable).
+        HeirReady sells software subscriptions for family continuity vaults and related tools. We do not sell, rent, or enrich marketing lists or third-party contact databases.
         Features may change; material downgrades of a paid plan during a paid term will be handled
         under our Cancellation & Refunds policy.
       </p>

@@ -28,7 +28,7 @@ export function upgradeReasonFromError(err, fallback = 'items') {
 function copyFor(reason, careComingSoon, gift) {
   const careNote = careComingSoon
     ? 'City care network is coming soon.'
-    : 'Want city nurses & maids? Family + Care / Diaspora + Care on Pricing.';
+    : 'Want to save care contacts in the vault? Family + Care / Diaspora + Care on Pricing.';
   const owner = gift?.ownerName || 'the owner';
   const giftEstateId = gift?.estateId;
   const giftQs = giftEstateId
@@ -93,8 +93,8 @@ function copyFor(reason, careComingSoon, gift) {
         gift && !gift.iAmOwner
           ? 'Payment activates the vault owner’s plan — not a separate personal plan for you.'
           : careComingSoon
-            ? 'City nurses & maids (Family + Care) — coming soon.'
-            : 'Want city nurses & maids too? Family + Care is $39/yr (2×).',
+            ? 'Saving care contacts (Family + Care) — coming soon.'
+            : 'Want care contacts in the vault too? Family + Care is $39/yr (2×).',
       secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : null,
       secondaryAction: gift && !gift.iAmOwner ? 'own_map' : null,
     },
@@ -114,7 +114,7 @@ function copyFor(reason, careComingSoon, gift) {
       href: `/pricing?plan=diaspora&checkout=1${giftQs}`,
       note: careComingSoon
         ? 'City care add-on (Diaspora + Care) is coming soon.'
-        : 'Need city care as well? Diaspora + Care is $299/yr.',
+        : 'Need care contacts as well? Diaspora + Care is $299/yr.',
       secondaryCta: gift && !gift.iAmOwner ? 'Start my own Life Map' : careComingSoon ? null : 'Diaspora + Care — $299/yr',
       secondaryHref:
         gift && !gift.iAmOwner ? null : careComingSoon ? null : `/pricing?plan=diaspora_care&checkout=1${giftQs}`,
@@ -139,11 +139,11 @@ function copyFor(reason, careComingSoon, gift) {
       : {
           plan: 'family',
           title: 'City care needs a Care plan',
-          body: 'Nurses, maids, and attendants unlock with Family + Care or Diaspora + Care — double the base Family / Diaspora price.',
+          body: 'Save nurse / maid contacts into the vault with Family + Care or Diaspora + Care — double the base Family / Diaspora price.',
           features: [
-            'Browse caregivers by city & role',
-            'Phone numbers unlocked',
-            'Save into Care at home vault',
+            'Save caregivers you choose into the vault',
+            'Phone numbers for people you trust',
+            'Continuity for care at home',
           ],
           cta:
             gift && !gift.iAmOwner
@@ -160,7 +160,7 @@ function copyFor(reason, careComingSoon, gift) {
       title: 'Living outside India?',
       body: careComingSoon
         ? 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways.'
-        : 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways. Add Care (2×) on either if you want city nurses & maids.',
+        : 'Family is India vault + siblings. Diaspora adds India+US / India+UK pathways. Add Care (2×) on either if you want care contacts in the vault.',
       features: [
         'India + US / India + UK execution packs',
         'Everything in Family included',

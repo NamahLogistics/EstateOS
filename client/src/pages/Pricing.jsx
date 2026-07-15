@@ -33,13 +33,13 @@ const plans = [
     id: 'family_care',
     name: 'Family + Care',
     price: '$39/yr',
-    blurbLive: '2× Family — adds city nurses & maids',
-    blurbSoon: 'City nurses & maids — coming soon',
+    blurbLive: '2× Family — save local care contacts in the vault',
+    blurbSoon: 'Local care contacts — coming soon',
     features: [
       'Everything in Family',
-      'Browse nurses / maids by city',
-      'Phone numbers unlocked',
-      'Save caregivers into Life Map',
+      'Save nurse / maid contacts to the vault',
+      'Phone numbers for people you choose',
+      'Continuity for care at home',
     ],
     ctaLive: 'Get Family + Care',
     carePlan: true,
@@ -61,13 +61,13 @@ const plans = [
     id: 'diaspora_care',
     name: 'Diaspora + Care',
     price: '$299/yr',
-    blurbLive: '2× Diaspora — cross-border + city care',
-    blurbSoon: 'Cross-border + city care — coming soon',
+    blurbLive: '2× Diaspora — cross-border + care contacts',
+    blurbSoon: 'Cross-border + care contacts — coming soon',
     features: [
       'Everything in Diaspora',
-      'City nurses & maids directory',
-      'Phone numbers unlocked',
-      'Save caregivers into Life Map',
+      'Save local care contacts to the vault',
+      'Phone numbers for people you choose',
+      'Continuity for care at home',
     ],
     ctaLive: 'Get Diaspora + Care',
     carePlan: true,
@@ -76,14 +76,14 @@ const plans = [
     id: 'counsel',
     name: 'Counsel Pro',
     price: '$19/yr',
-    blurb: 'For lawyers — city family leads',
+    blurb: 'For advocates — matter desk & briefs',
     features: [
-      'See families looking for counsel in your cities',
-      'Approach opted-in estates',
-      'Counsel desk + matter brief',
-      'No vault access until family accepts',
+      'Structured succession matter briefs',
+      'Collaborate when a family retains you',
+      'Vault stays locked until they accept',
+      'No free-form legal advice marketplace',
     ],
-    cta: 'Unlock city leads',
+    cta: 'Get Counsel Pro',
   },
 ];
 
@@ -479,8 +479,8 @@ export default function Pricing() {
       ) : (
         <div className="upgrade-limit-banner" style={{ marginTop: '1.1rem', maxWidth: 640 }}>
           <p className="small">
-            <strong>Want nurses & maids in their city?</strong> Take Family + Care ($39) or Diaspora +
-            Care ($299) — double the base plan.
+            <strong>Want nurse / maid contacts in the vault?</strong> Take Family + Care ($39) or Diaspora +
+            Care ($299) — when that layer opens.
           </p>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button

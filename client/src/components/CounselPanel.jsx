@@ -857,7 +857,7 @@ export default function CounselPanel({ estateId, onToast }) {
                 </div>
               </div>
               <p className="small muted" style={{ marginBottom: '0.75rem' }}>
-                No demo counsel. Request someone from the directory below, or publish “Looking for counsel” so paid advocates in your city can approach you.
+                No demo counsel yet. Request counsel below, or publish “Looking for counsel” so advocates can introduce themselves — vault stays locked until you accept.
               </p>
             </>
           )}
@@ -866,7 +866,7 @@ export default function CounselPanel({ estateId, onToast }) {
         {(!active || active.status === 'approached') && (
           <div className="card">
             <div style={{ padding: '1rem 1.1rem' }}>
-              <strong>Counsel directory</strong>
+              <strong>Counsel options</strong>
               <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
                 <input
                   placeholder="City"
@@ -889,13 +889,13 @@ export default function CounselPanel({ estateId, onToast }) {
                   NRI-friendly only
                 </label>
                 <button type="button" className="btn btn-ghost" onClick={search}>
-                  Filter directory
+                  Filter counsel
                 </button>
               </div>
             </div>
             {lawyers.length === 0 ? (
               <div className="item-row muted small">
-                No advocates in the directory yet. Publish your city listing so counsel can find you, or ask an advocate to register as counsel.
+                No advocates listed yet. Publish your city listing so counsel can find you, or ask an advocate to register as counsel.
               </div>
             ) : (
             lawyers.map((l) => (

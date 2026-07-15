@@ -1954,7 +1954,7 @@ app.get('/api/health', (_req, res) => {
     billing: paddleConfigured() ? 'paddle' : 'direct',
     careNetwork: CARE_NETWORK_COMING_SOON ? 'coming_soon' : 'live',
     /** Flip: Railway CARE_NETWORK_COMING_SOON=false + restart */
-    version: '1.23.0',
+    version: '1.23.1',
     push: pushConfigured(),
   });
 });

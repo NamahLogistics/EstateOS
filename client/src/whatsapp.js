@@ -94,7 +94,7 @@ export function shareReferralText({ link, inviterName, accountType, lang = 'en' 
   if (accountType === 'lawyer') {
     return (
       `Hi —${who ? ` ${who} here.` : ''}\n\n` +
-      `I’m on HeirReady Counsel desk (city leads + matter briefs for succession).\n\n` +
+        `I’m on HeirReady Counsel desk (matter briefs for succession).\n\n` +
       `Join as counsel (free to start):\n${link}`
     );
   }
@@ -213,7 +213,7 @@ export function shareCounselInviteText({ link, city, inviterName, estateName, la
     (estateName
       ? `We’re mapping ${estateName} on HeirReady${where}.\n\n`
       : `Families use HeirReady for parent life admin${where}.\n\n`) +
-    `If you’re succession / property counsel, join the free Counsel desk — city leads may reach you:\n${link}`
+    `If you’re succession / property counsel, join the free Counsel desk — families who retain you can share a structured brief:\n${link}`
   );
 }
 
