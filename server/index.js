@@ -51,6 +51,11 @@ import {
   pushConfigured,
 } from './notifications.js';
 import { registerBillingRoutes, razorpayConfigured } from './billing.js';
+import {
+  createTrackedLinksForEmails,
+  consumeClick,
+  listClickStats,
+} from './clickTrack.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
@@ -576,6 +581,39 @@ app.post('/api/admin/notify', (req, res) => {
       return { userId: n.userId, email: u?.email || null, notificationId: n.id };
     }),
   });
+});
+
+/**
+ * Admin: mint per-recipient tracked email links (exact who-clicked).
+ * Body: { emails: string[], campaign, destination, meta? }
+ */
+app.post('/api/admin/tracked-links', (req, res) => {
+  const key = process.env.ADMIN_API_KEY;
+  if (!key || req.get('X-Admin-Key') !== key) {
+    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
+  }
+  const emails = Array.isArray(req.body?.emails) ? req.body.emails : [];
+  const campaign = String(req.body?.campaign || '').trim();
+  const destination = String(req.body?.destination || '').trim();
+  if (!emails.length || !campaign || !destination) {
+    return res.status(400).json({ error: 'emails[], campaign, and destination required' });
+  }
+  const links = createTrackedLinksForEmails(emails, {
+    campaign,
+    destination,
+    meta: req.body?.meta || null,
+  });
+  res.json({ ok: true, count: links.length, links });
+});
+
+/** Admin: who clicked (exact email + count + times) */
+app.get('/api/admin/clicks', (req, res) => {
+  const key = process.env.ADMIN_API_KEY;
+  if (!key || req.get('X-Admin-Key') !== key) {
+    return res.status(401).json({ error: 'Admin key required (X-Admin-Key)' });
+  }
+  const campaign = String(req.query?.campaign || '').trim() || null;
+  res.json(listClickStats({ campaign, limit: Number(req.query?.limit) || 200 }));
 });
 
 app.get('/api/push/vapid-public-key', (req, res) => {
@@ -2300,6 +2338,18 @@ app.get('/api/public/emergency/:token', (req, res) => {
 registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase, upload, saveUpload });
 registerCareRoutes(app);
 
+/** Public email click redirect — records who clicked, then sends them on. */
+app.get('/r/:code', (req, res) => {
+  const hit = consumeClick(req.params.code, {
+    ip: req.ip || req.headers['x-forwarded-for'] || null,
+    userAgent: req.get('user-agent'),
+  });
+  if (!hit?.destination) {
+    return res.redirect(302, '/');
+  }
+  return res.redirect(302, hit.destination);
+});
+
 // Production static
 const dist = path.join(__dirname, '..', 'client', 'dist');
 if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
@@ -2311,6 +2361,7 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
   app.use(express.static(dist, { index: false }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+    if (req.path.startsWith('/r/')) return next();
     res.sendFile(path.join(dist, 'index.html'));
   });
 }

@@ -32,6 +32,7 @@ const empty = () => ({
   pendingPayments: [],
   notifications: [],
   pushSubscriptions: [],
+  clickLinks: [],
 });
 
 function migrate(store) {
