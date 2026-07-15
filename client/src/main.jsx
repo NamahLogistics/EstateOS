@@ -6,10 +6,12 @@ import { AuthProvider } from './auth.jsx';
 import { I18nProvider } from './i18n.jsx';
 import { registerServiceWorker } from './pwa.js';
 import { initAnalytics, track } from './analytics.js';
+import { captureEmailClickAttribution } from './emailClick.js';
 import './styles.css';
 
 registerServiceWorker();
 initAnalytics();
+captureEmailClickAttribution();
 track('app_boot');
 
 createRoot(document.getElementById('root')).render(

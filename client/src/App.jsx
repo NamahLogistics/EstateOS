@@ -20,6 +20,7 @@ import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
 import AdminClicks from './pages/AdminClicks.jsx';
 import AdminActivity from './pages/AdminActivity.jsx';
 import GuideBot from './components/GuideBot.jsx';
+import { captureEmailClickAttribution } from './emailClick.js';
 
 function Shell({ children }) {
   const { user, logout } = useAuth();
@@ -31,6 +32,10 @@ function Shell({ children }) {
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname, location.hash]);
+
+  useEffect(() => {
+    captureEmailClickAttribution();
+  }, [location.search]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;

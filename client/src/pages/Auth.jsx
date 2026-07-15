@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
+import { captureEmailClickAttribution, clearEmailClickCode, getEmailClickCode } from '../emailClick.js';
 
 const REF_KEY = 'estate_os_ref';
 const CITY_KEY = 'heirready_invite_city_v2';
@@ -67,6 +68,7 @@ export default function AuthPage() {
     } catch {
       /* ignore */
     }
+    captureEmailClickAttribution();
     if (refFromUrl) {
       localStorage.setItem(REF_KEY, refFromUrl);
       setReferralCode(refFromUrl);
@@ -156,8 +158,10 @@ export default function AuthPage() {
           city: form.city || undefined,
           role: form.role || undefined,
           phone: form.phone || undefined,
+          emailClickCode: getEmailClickCode() || undefined,
         });
         localStorage.removeItem(REF_KEY);
+        clearEmailClickCode();
         if (form.city) localStorage.setItem(CITY_KEY, form.city);
         track('signup', {
           accountType: data.user?.accountType,

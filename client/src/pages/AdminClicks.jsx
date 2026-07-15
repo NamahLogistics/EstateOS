@@ -5,7 +5,14 @@ import { useAuth } from '../auth.jsx';
 export default function AdminClicks() {
   const { user, api, toast } = useAuth();
   const [campaign, setCampaign] = useState('');
-  const [data, setData] = useState({ links: [], events: [] });
+  const [data, setData] = useState({
+    links: [],
+    events: [],
+    waiting: [],
+    abandoned: [],
+    converted: [],
+    signedUpSameEmail: [],
+  });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -15,7 +22,14 @@ export default function AdminClicks() {
         ? `?campaign=${encodeURIComponent(campaign.trim())}`
         : '';
       const res = await api(`/api/admin/clicks${qs}`);
-      setData({ links: res.links || [], events: res.events || [] });
+      setData({
+        links: res.links || [],
+        events: res.events || [],
+        waiting: res.waiting || [],
+        abandoned: res.abandoned || [],
+        converted: res.converted || [],
+        signedUpSameEmail: res.signedUpSameEmail || [],
+      });
     } catch (err) {
       toast(err.message || 'Could not load clicks');
     } finally {
@@ -43,7 +57,12 @@ export default function AdminClicks() {
   }
 
   const clicked = (data.links || []).filter((l) => (l.clickCount || 0) > 0);
-  const waiting = (data.links || []).filter((l) => !(l.clickCount > 0));
+  const waiting = data.waiting?.length
+    ? data.waiting
+    : (data.links || []).filter((l) => !(l.clickCount > 0));
+  const abandoned = data.abandoned || [];
+  const converted = data.converted || [];
+  const signedUpSameEmail = data.signedUpSameEmail || [];
 
   return (
     <section style={{ padding: '1.5rem 0 3rem', maxWidth: 800 }}>
@@ -57,16 +76,16 @@ export default function AdminClicks() {
         Email clicks
       </h1>
       <p className="muted" style={{ marginTop: 0, maxWidth: 560 }}>
-        Exact who clicked tracked links (<code>/r/…</code>). Resend’s click subdomain only shows rates —
-        this list is per person. For WhatsApp shares and signups, see{' '}
-        <Link to="/app/admin/activity">Activity</Link>.
+        Who opened a tracked <code>/r/…</code> link, who bounced without signing up, and who converted.
+        Attribution survives if they browse then register later (or use a different signup email).{' '}
+        <Link to="/app/admin/activity">Activity</Link>
       </p>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '1rem 0 1.25rem' }}>
         <input
           className="input"
           style={{ flex: '1 1 14rem', minWidth: 0 }}
-          placeholder="Filter campaign (e.g. mishra_own_map)"
+          placeholder="Filter campaign (e.g. abhiraj_lifemap)"
           value={campaign}
           onChange={(e) => setCampaign(e.target.value)}
           onKeyDown={(e) => {
@@ -78,8 +97,89 @@ export default function AdminClicks() {
         </button>
       </div>
 
+      <div
+        className="card"
+        style={{
+          padding: '1rem 1.15rem',
+          marginBottom: '1rem',
+          borderColor: 'rgba(180, 83, 9, 0.45)',
+          background: 'rgba(254, 243, 199, 0.35)',
+        }}
+      >
+        <strong>Clicked, no signup ({abandoned.length})</strong>
+        <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+          Opened the mail link and still have no HeirReady account on that address (and no attributed
+          signup with another email).
+        </p>
+        {abandoned.length === 0 ? (
+          <p className="small muted" style={{ margin: '0.5rem 0 0' }}>
+            None right now.
+          </p>
+        ) : (
+          <ul style={{ margin: '0.65rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+            {abandoned.map((l) => (
+              <li key={l.code}>
+                <strong>{l.email || '—'}</strong>
+                {l.lastClickAt ? ` · last click ${new Date(l.lastClickAt).toLocaleString()}` : ''}
+                <br />
+                <span className="small muted">
+                  {l.campaign} · {l.clickCount} click{l.clickCount === 1 ? '' : 's'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <div className="card" style={{ padding: '1rem 1.15rem', marginBottom: '1rem' }}>
-        <strong>Clicked ({clicked.length})</strong>
+        <strong>Converted after click ({converted.length})</strong>
+        <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+          Signed up after the tracked link (includes different signup email when attributed via{' '}
+          <code>hr_ec</code>).
+        </p>
+        {converted.length === 0 ? (
+          <p className="small muted" style={{ margin: '0.5rem 0 0' }}>
+            No attributed conversions yet.
+          </p>
+        ) : (
+          <ul style={{ margin: '0.65rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+            {converted.map((l) => (
+              <li key={l.code}>
+                <strong>{l.convertedEmail || l.email || '—'}</strong>
+                {l.email && l.convertedEmail && l.email !== l.convertedEmail ? (
+                  <span className="small muted"> (mailed {l.email})</span>
+                ) : null}
+                {l.convertedAt ? ` · ${new Date(l.convertedAt).toLocaleString()}` : ''}
+                <br />
+                <span className="small muted">{l.campaign}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {signedUpSameEmail.length > 0 && (
+        <div className="card" style={{ padding: '1rem 1.15rem', marginBottom: '1rem' }}>
+          <strong>Same email already registered ({signedUpSameEmail.length})</strong>
+          <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+            Clicked as a known account — not “abandoned”. (Attribution stamp may be missing if they
+            clicked before this feature.)
+          </p>
+          <ul style={{ margin: '0.65rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+            {signedUpSameEmail.map((l) => (
+              <li key={l.code}>
+                <strong>{l.email}</strong>
+                {l.userName ? ` · ${l.userName}` : ''}
+                <br />
+                <span className="small muted">{l.campaign}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: '1rem 1.15rem', marginBottom: '1rem' }}>
+        <strong>All clicked ({clicked.length})</strong>
         {clicked.length === 0 ? (
           <p className="small muted" style={{ margin: '0.5rem 0 0' }}>
             No clicks yet for this filter.
@@ -91,6 +191,7 @@ export default function AdminClicks() {
                 <strong>{l.email || l.userId || '—'}</strong>
                 {' · '}
                 {l.clickCount} click{l.clickCount === 1 ? '' : 's'}
+                {l.convertedAt ? ' · converted' : ''}
                 {l.lastClickAt
                   ? ` · last ${new Date(l.lastClickAt).toLocaleString()}`
                   : ''}

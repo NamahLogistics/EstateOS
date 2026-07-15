@@ -57,6 +57,8 @@ import {
   createTrackedLinksForEmails,
   consumeClick,
   listClickStats,
+  destinationWithClickAttribution,
+  attachEmailClickOnRegister,
 } from './clickTrack.js';
 import { recordActivity, listActivity, isClientActivityType } from './activity.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
@@ -362,10 +364,16 @@ app.post('/api/auth/register', async (req, res) => {
     preferredCity: (req.body?.city || '').trim() || null,
     createdAt: new Date().toISOString(),
   };
+  let emailAttr = null;
   mutate((s) => {
     if (!s.careWorkers) s.careWorkers = [];
     attachReferralOnRegister(s, user, referralCode || ref);
     ensureUserReferralFields(user, s);
+    emailAttr = attachEmailClickOnRegister(
+      s,
+      user,
+      req.body?.emailClickCode || req.body?.hr_ec
+    );
     s.users.push(user);
     if (type === 'lawyer') {
       s.lawyers.push({
@@ -422,8 +430,25 @@ app.post('/api/auth/register', async (req, res) => {
         accountType: user.accountType,
         referral: Boolean(referralCode || ref),
         city: user.preferredCity || null,
+        emailCampaign: emailAttr?.campaign || null,
+        emailClickCode: emailAttr?.code || null,
+        mailedEmail: emailAttr?.mailedEmail || null,
       },
     });
+    if (emailAttr) {
+      recordActivity({
+        type: 'email_signup',
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        meta: {
+          campaign: emailAttr.campaign,
+          code: emailAttr.code,
+          mailedEmail: emailAttr.mailedEmail,
+          differentEmail: emailAttr.differentEmail,
+        },
+      });
+    }
   } catch (err) {
     console.error('activity signup failed', err.message);
   }
@@ -2411,16 +2436,22 @@ app.get('/api/public/emergency/:token', (req, res) => {
 registerLawyerRoutes(app, { canAccessEstate: canAccessEstateBase, upload, saveUpload });
 registerCareRoutes(app);
 
-/** Public email click redirect — records who clicked, then sends them on. */
+/** Public email click redirect — records who clicked, then sends them on with attribution. */
 app.get('/r/:code', (req, res) => {
   const hit = consumeClick(req.params.code, {
     ip: req.ip || req.headers['x-forwarded-for'] || null,
     userAgent: req.get('user-agent'),
   });
-  if (!hit?.destination) {
+  if (!hit?.destination || !hit?.link?.code) {
     return res.redirect(302, '/');
   }
-  return res.redirect(302, hit.destination);
+  const dest = destinationWithClickAttribution(hit.destination, hit.link.code);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `hr_ec=${encodeURIComponent(hit.link.code)}; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax${secure}`
+  );
+  return res.redirect(302, dest);
 });
 
 // Production static
