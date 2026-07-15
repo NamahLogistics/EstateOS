@@ -4,6 +4,7 @@ import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
 import { shareInviteText, whatsappShareUrl } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 import {
   CARE_CHIPS,
   COUNSEL_CHIPS,
@@ -708,6 +709,9 @@ export default function GuideBot() {
   async function onChip(chip) {
     if (busy) return;
     if (chip.href) {
+      if (chip.id === '__wa__' || /whatsapp/i.test(chip.href)) {
+        logWhatsAppShare('guide_invite', { estateId: estateCtx?.id || null }, api);
+      }
       window.open(chip.href, '_blank', 'noopener,noreferrer');
       return;
     }

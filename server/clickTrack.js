@@ -4,6 +4,7 @@
  */
 import crypto from 'crypto';
 import { mutate, readStore } from './db.js';
+import { recordActivity } from './activity.js';
 
 function appBase() {
   return (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
@@ -116,6 +117,26 @@ export function consumeClick(code, { ip, userAgent } = {}) {
       at: row.lastClickAt,
     });
   });
+
+  if (record && destination) {
+    try {
+      recordActivity({
+        type: 'email_click',
+        userId: record.userId,
+        email: record.email,
+        meta: {
+          campaign: record.campaign,
+          code: record.code,
+          destination,
+          clickCount: record.clickCount,
+        },
+        ip: ip || null,
+        userAgent: userAgent || null,
+      });
+    } catch (err) {
+      console.error('activity email_click failed', err.message);
+    }
+  }
 
   return record && destination
     ? { destination, link: record }

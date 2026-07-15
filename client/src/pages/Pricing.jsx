@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useCareNetwork } from '../careNetwork.js';
 import { track } from '../analytics.js';
+import { logActivity } from '../activity.js';
 import ReferralCard from '../components/ReferralCard.jsx';
 import UpgradeGate from '../components/UpgradeGate.jsx';
 import PaymentCheckoutGate from '../components/PaymentCheckoutGate.jsx';
@@ -327,6 +328,7 @@ export default function Pricing() {
   async function handleCheckoutFailed(plan, failReason) {
     const soft = softFailReason(failReason);
     track('checkout_failed', { plan, reason: failReason || null });
+    logActivity('checkout', { kind: 'failed', plan, reason: failReason || null }, api);
     setRecovery({
       mode: 'failed',
       plan,
@@ -422,6 +424,7 @@ export default function Pricing() {
     }
     const giftEstateId = searchParams.get('giftEstate') || undefined;
     track('checkout_start', { plan, gift: Boolean(giftEstateId) });
+    logActivity('checkout', { kind: 'start', plan, gift: Boolean(giftEstateId) }, api);
     setBusy(true);
     try {
       const data = await api('/api/billing/checkout', {
@@ -477,6 +480,11 @@ export default function Pricing() {
                 giftEstateId: verified.giftEstateId || null,
               });
               track('checkout_paid', { plan: verified.plan, kind: verified.kind });
+              logActivity(
+                'checkout',
+                { kind: 'paid', plan: verified.plan, paymentKind: verified.kind },
+                api
+              );
               if (verified.gifted && verified.giftEstateId) {
                 window.location.assign(`/app/estates/${verified.giftEstateId}`);
               }

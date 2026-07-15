@@ -33,6 +33,7 @@ const empty = () => ({
   notifications: [],
   pushSubscriptions: [],
   clickLinks: [],
+  activityEvents: [],
 });
 
 function migrate(store) {

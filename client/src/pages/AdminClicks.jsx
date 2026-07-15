@@ -58,7 +58,8 @@ export default function AdminClicks() {
       </h1>
       <p className="muted" style={{ marginTop: 0, maxWidth: 560 }}>
         Exact who clicked tracked links (<code>/r/…</code>). Resend’s click subdomain only shows rates —
-        this list is per person.
+        this list is per person. For WhatsApp shares and signups, see{' '}
+        <Link to="/app/admin/activity">Activity</Link>.
       </p>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '1rem 0 1.25rem' }}>

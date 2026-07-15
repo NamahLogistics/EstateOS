@@ -18,6 +18,7 @@ import InstallBanner from './components/InstallBanner.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
 import AdminClicks from './pages/AdminClicks.jsx';
+import AdminActivity from './pages/AdminActivity.jsx';
 import GuideBot from './components/GuideBot.jsx';
 
 function Shell({ children }) {
@@ -62,9 +63,14 @@ function Shell({ children }) {
           </a>
           <NotificationBell />
           {user?.isAdmin && (
-            <Link className="nav-link" to="/app/admin/clicks" onClick={() => setMenuOpen(false)}>
-              Clicks
-            </Link>
+            <>
+              <Link className="nav-link" to="/app/admin/activity" onClick={() => setMenuOpen(false)}>
+                Activity
+              </Link>
+              <Link className="nav-link" to="/app/admin/clicks" onClick={() => setMenuOpen(false)}>
+                Clicks
+              </Link>
+            </>
           )}
         </>
       )}
@@ -217,6 +223,7 @@ export default function App() {
         <Route path="/app" element={<Private><Shell><Dashboard /></Shell></Private>} />
         <Route path="/app/counsel" element={<Private><Shell><CounselDesk /></Shell></Private>} />
         <Route path="/app/care" element={<Private><Shell><CareDesk /></Shell></Private>} />
+        <Route path="/app/admin/activity" element={<Private><Shell><AdminActivity /></Shell></Private>} />
         <Route path="/app/admin/clicks" element={<Private><Shell><AdminClicks /></Shell></Private>} />
         <Route path="/app/estates/:id" element={<Private><Shell><EstatePage /></Shell></Private>} />
         <Route path="*" element={<Navigate to="/" replace />} />

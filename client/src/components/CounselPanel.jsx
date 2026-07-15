@@ -5,6 +5,7 @@ import {
   shareCounselInviteText,
   whatsappShareUrl,
 } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 
 const SCOPE_OPTIONS = [
   'succession',
@@ -690,6 +691,16 @@ export default function CounselPanel({ estateId, onToast }) {
                   )}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() =>
+                    logWhatsAppShare(
+                      'counsel_invite',
+                      {
+                        estateId,
+                        city: listingForm.city || listing?.city || null,
+                      },
+                      api
+                    )
+                  }
                 >
                   WhatsApp invite your family counsel
                 </a>

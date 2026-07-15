@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { shareFamilyNoteText, whatsappShareUrl } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 
 const waMini = {
   padding: '0.35rem 0.7rem',
@@ -141,6 +142,9 @@ export default function FamilyThread({ estateId, estateName }) {
                   href={noteWaHref(p)}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() =>
+                    logWhatsAppShare('family_note', { estateId, estateName }, api)
+                  }
                 >
                   WhatsApp
                 </a>
@@ -153,7 +157,9 @@ export default function FamilyThread({ estateId, estateName }) {
       {lastPost && (
         <p className="small" style={{ margin: '0 0 0.75rem' }}>
           Just posted —{' '}
-          <a href={noteWaHref(lastPost)} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
+          <a href={noteWaHref(lastPost)} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}
+            onClick={() => logWhatsAppShare('family_note', { estateId, estateName }, api)}
+          >
             share this note on WhatsApp
           </a>
         </p>

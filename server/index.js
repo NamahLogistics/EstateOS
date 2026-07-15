@@ -58,6 +58,7 @@ import {
   consumeClick,
   listClickStats,
 } from './clickTrack.js';
+import { recordActivity, listActivity, isClientActivityType } from './activity.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
@@ -411,6 +412,21 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
   });
+  try {
+    recordActivity({
+      type: 'signup',
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      meta: {
+        accountType: user.accountType,
+        referral: Boolean(referralCode || ref),
+        city: user.preferredCity || null,
+      },
+    });
+  } catch (err) {
+    console.error('activity signup failed', err.message);
+  }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });
 });
@@ -606,6 +622,40 @@ app.get('/api/admin/clicks', adminRequired, (req, res) => {
   res.json(listClickStats({ campaign, limit: Number(req.query?.limit) || 200 }));
 });
 
+/**
+ * Logged-in product taps (WhatsApp share, copy link, checkout).
+ * Body: { type: 'whatsapp_share'|'copy_link'|'checkout', meta?: object }
+ */
+app.post('/api/activity', authRequired, (req, res) => {
+  const type = String(req.body?.type || '').trim();
+  if (!isClientActivityType(type)) {
+    return res.status(400).json({ error: 'Unsupported activity type' });
+  }
+  const meta = req.body?.meta && typeof req.body.meta === 'object' ? req.body.meta : {};
+  if (type === 'whatsapp_share' && !meta.kind) {
+    return res.status(400).json({ error: 'meta.kind required for whatsapp_share' });
+  }
+  const event = recordActivity({
+    type,
+    userId: req.user.id,
+    email: req.user.email,
+    name: req.user.name,
+    meta,
+    path: typeof req.body?.path === 'string' ? req.body.path : null,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+  res.json({ ok: true, id: event?.id });
+});
+
+/** Admin: who did what (shares, signups, joins, email clicks, …) */
+app.get('/api/admin/activity', adminRequired, (req, res) => {
+  const type = String(req.query?.type || '').trim() || null;
+  res.json({
+    events: listActivity({ type, limit: Number(req.query?.limit) || 200 }),
+  });
+});
+
 app.get('/api/push/vapid-public-key', (req, res) => {
   try {
     res.json({ publicKey: getVapidPublicKey(), configured: true });
@@ -751,6 +801,22 @@ app.post('/api/estates', authRequired, (req, res) => {
       detail: `Created estate for ${estate.subjectName} (${pack})`,
     });
   });
+  try {
+    recordActivity({
+      type: 'estate_created',
+      userId: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      meta: {
+        estateId: estate.id,
+        estateName: estate.subjectName,
+        relation: estate.subjectRelation,
+        countryPack: pack,
+      },
+    });
+  } catch (err) {
+    console.error('activity estate_created failed', err.message);
+  }
   res.status(201).json({ estate });
 });
 
@@ -1593,6 +1659,23 @@ app.post('/api/invites/:token/accept', authRequired, async (req, res) => {
       detail: `${req.user.email} joined as ${invite.role}`,
     });
   });
+
+  try {
+    recordActivity({
+      type: 'invite_accepted',
+      userId: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      meta: {
+        estateId: invite.estateId,
+        estateName: estate.subjectName,
+        role: invite.role,
+        invitedBy: invite.invitedBy || null,
+      },
+    });
+  } catch (err) {
+    console.error('activity invite_accepted failed', err.message);
+  }
 
   const fresh = readStore();
   const owner = fresh.users.find((u) => u.id === estate.ownerId);

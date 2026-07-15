@@ -10,6 +10,7 @@ import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../compon
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
 import { shareEmergencyText, shareLightReviewText, whatsappShareUrl } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 
 const TABS = [
   'housewarming',
@@ -95,7 +96,7 @@ async function printVaultFile(file) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-async function shareVaultFile(file) {
+async function shareVaultFile(file, estateMeta = {}) {
   const absolute = fileAbsoluteUrl(file);
   const title = file.name || 'HeirReady document';
   if (navigator.share) {
@@ -108,15 +109,18 @@ async function shareVaultFile(file) {
         });
         if (navigator.canShare?.({ files: [shareFile] })) {
           await navigator.share({ files: [shareFile], title, text: `HeirReady — ${title}` });
+          logWhatsAppShare('document', { channel: 'native_share', ...estateMeta });
           return 'shared';
         }
       }
       await navigator.share({ title, text: `HeirReady document: ${title}`, url: absolute });
+      logWhatsAppShare('document', { channel: 'native_share', ...estateMeta });
       return 'shared';
     } catch (err) {
       if (err?.name === 'AbortError') return 'cancelled';
     }
   }
+  logWhatsAppShare('document', { channel: 'whatsapp', ...estateMeta });
   window.open(
     whatsappShareUrl(`HeirReady document: ${title}\n\n${absolute}`),
     '_blank',
@@ -883,6 +887,12 @@ export default function EstatePage() {
                 href={wa}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() =>
+                  logWhatsAppShare('light_review', {
+                    estateId: id,
+                    estateName: estate.subjectName,
+                  }, api)
+                }
               >
                 WhatsApp siblings
               </a>
@@ -1210,7 +1220,10 @@ export default function EstatePage() {
                                     style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
                                     onClick={async () => {
                                       try {
-                                        const mode = await shareVaultFile(f);
+                                        const mode = await shareVaultFile(f, {
+                                          estateId: id,
+                                          estateName: estate?.subjectName,
+                                        });
                                         if (mode === 'shared') toast('Shared');
                                         else if (mode === 'whatsapp') toast('Opening WhatsApp…');
                                       } catch (err) {
@@ -1466,6 +1479,12 @@ export default function EstatePage() {
                   )}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() =>
+                    logWhatsAppShare('emergency_qr', {
+                      estateId: id,
+                      estateName: estate.subjectName,
+                    }, api)
+                  }
                 >
                   Share on WhatsApp
                 </a>

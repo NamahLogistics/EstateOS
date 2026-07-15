@@ -8,6 +8,7 @@ import {
   shareReferralText,
   whatsappShareUrl,
 } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 
 const CITY_KEY = 'heirready_invite_city_v2';
 const SUGGESTED_CITIES = ['Mumbai', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Chennai', 'Jaipur', 'Ahmedabad', 'Kolkata'];
@@ -274,7 +275,10 @@ export default function ReferralCard({ compact = false }) {
                 href={familyWa || '#'}
                 target="_blank"
                 rel="noreferrer"
-                onClick={needCity}
+                onClick={(e) => {
+                  needCity(e);
+                  if (cityReady) logWhatsAppShare('referral_family', { city: city.trim() }, api);
+                }}
               >
                 {t('waSiblings')}
               </a>
@@ -287,7 +291,10 @@ export default function ReferralCard({ compact = false }) {
                 href={careWa || '#'}
                 target="_blank"
                 rel="noreferrer"
-                onClick={needCity}
+                onClick={(e) => {
+                  needCity(e);
+                  if (cityReady) logWhatsAppShare('referral_care', { city: city.trim() }, api);
+                }}
               >
                 {t('waCare')}
               </a>
@@ -300,6 +307,7 @@ export default function ReferralCard({ compact = false }) {
                 href={lawyerWa || '#'}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => logWhatsAppShare('referral_lawyer', { city: city.trim() || null }, api)}
               >
                 {t('waAdvocates')}
               </a>

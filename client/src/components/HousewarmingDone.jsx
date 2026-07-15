@@ -7,6 +7,7 @@ import {
   shareInviteText,
   whatsappShareUrl,
 } from '../whatsapp.js';
+import { logCopyLink, logWhatsAppShare } from '../activity.js';
 
 const waBtn = {
   padding: '0.75rem 1.1rem',
@@ -76,6 +77,7 @@ export default function HousewarmingDone({
         lang,
       })
     );
+    logWhatsAppShare('housewarming_invite', { estateId, estateName: subjectName }, api);
     window.open(href, '_blank', 'noopener,noreferrer');
   }
 
@@ -134,6 +136,7 @@ export default function HousewarmingDone({
               style={{ width: '100%', marginTop: '0.5rem' }}
               onClick={async () => {
                 await navigator.clipboard.writeText(inviteLink).catch(() => {});
+                logCopyLink('family_invite', { estateId, estateName: subjectName }, api);
                 toast('Family link copied — same link for every sibling');
               }}
             >
@@ -158,7 +161,16 @@ export default function HousewarmingDone({
           )}
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {emergencyWa && (
-              <a className="btn" style={waBtn} href={emergencyWa} target="_blank" rel="noreferrer">
+              <a
+                className="btn"
+                style={waBtn}
+                href={emergencyWa}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() =>
+                  logWhatsAppShare('emergency_qr', { estateId, estateName: subjectName }, api)
+                }
+              >
                 WhatsApp fridge QR
               </a>
             )}
@@ -254,6 +266,7 @@ export function SiblingInviteCard({ estateId, subjectName, inviterName, onInvite
         lang,
       })
     );
+    logWhatsAppShare('sibling_invite', { estateId, estateName: subjectName }, api);
     window.open(href, '_blank', 'noopener,noreferrer');
     toast(t('opensWhatsApp'));
   }

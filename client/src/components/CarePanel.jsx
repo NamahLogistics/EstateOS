@@ -7,12 +7,13 @@ import {
   shareCareOnboardText,
   whatsappShareUrl,
 } from '../whatsapp.js';
+import { logWhatsAppShare } from '../activity.js';
 import UpgradeGate, { isPlanLimitError } from './UpgradeGate.jsx';
 
 const CITY_KEY = 'heirready_invite_city_v2';
 const SUGGESTED = ['Lucknow', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Hyderabad', 'Jaipur'];
 
-function ComingSoonCard({ city, onCity, stats, careWa, user }) {
+function ComingSoonCard({ city, onCity, stats, careWa, user, onWaShare }) {
   const listed = stats?.listed ?? 0;
   const goal = stats?.goal ?? 12;
   const pct = Math.round(Math.min(1, listed / goal) * 100);
@@ -102,7 +103,13 @@ function ComingSoonCard({ city, onCity, stats, careWa, user }) {
       </p>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
         {careWa ? (
-          <a className="btn btn-primary" href={careWa} target="_blank" rel="noreferrer">
+          <a
+            className="btn btn-primary"
+            href={careWa}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => onWaShare?.()}
+          >
             WhatsApp invite caregivers
           </a>
         ) : (
@@ -241,6 +248,9 @@ export default function CarePanel({ estateId, onSaved }) {
         stats={stats}
         careWa={careWa}
         user={user}
+        onWaShare={() =>
+          logWhatsAppShare('referral_care', { city: city.trim() || null }, api)
+        }
       />
     );
   }
