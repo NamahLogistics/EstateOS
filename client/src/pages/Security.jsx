@@ -130,57 +130,54 @@ export default function SecurityPage() {
       </div>
 
       <div className="card" style={{ padding: '1.15rem 1.25rem', marginBottom: '1rem' }}>
-        <strong>Trust proof — what end-to-end encryption actually covers</strong>
-        <p className="small muted" style={{ margin: '0.4rem 0 0.75rem' }}>
-          Secrets are encrypted on your device with AES-256-GCM before they leave the browser. Keys
-          are derived from your password (and your recovery key). HeirReady never receives those
-          keys in a usable form — so we cannot open your vault even if asked.
+        <strong>Your family’s private details stay private</strong>
+        <p className="small muted" style={{ margin: '0.4rem 0 0.85rem' }}>
+          Think of your vault like a locked box. The lock opens only with your password (and a
+          recovery key you keep). We never get a spare key — so even HeirReady cannot open the box
+          and read what’s inside.
         </p>
 
         <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
-          Nobody at HeirReady can read
+          We cannot see
         </p>
         <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
-          <li>Bank / demat / LIC / Folio account numbers and references</li>
-          <li>Free-text notes and private instructions</li>
-          <li>Uploaded document bytes (PDFs, photos, scans)</li>
-          <li>Your encryption keys (wrapped ciphertext only on our servers)</li>
+          <li>Bank, LIC, demat, or folio numbers</li>
+          <li>The notes you write for family</li>
+          <li>Photos and PDFs you upload</li>
         </ul>
 
         <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
-          What HeirReady staff can see (needed to run the product)
+          We can see (so the app works)
         </p>
         <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
-          <li>Your email, plan, and billing status</li>
-          <li>Family / estate labels and member emails</li>
-          <li>Item category and title (e.g. “HDFC salary” — not the account number)</li>
-          <li>Expiry / reminder dates and unlock-rule settings</li>
-          <li>That encrypted blobs exist — not their contents</li>
+          <li>Your email and whether you’re on a paid plan</li>
+          <li>Who’s in the family circle (names and emails)</li>
+          <li>
+            Simple labels you choose — like “Papa’s HDFC account” — but not the actual account
+            number
+          </li>
+          <li>Reminder dates (so we can nudge you before something expires)</li>
         </ul>
 
         <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
-          If hackers breach our servers
+          If someone attacks our systems
         </p>
         <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
           <li>
-            Vault secrets stay ciphertext — useless without your password or recovery key
+            Your real secrets stay scrambled — without your password or recovery key, the box
+            stays locked
           </li>
+          <li>Your login password is never stored as plain text</li>
           <li>
-            Passwords are scrypt hashes, not plain text — attackers cannot reverse them into your
-            login password
-          </li>
-          <li>
-            They could see the same metadata staff can (titles, emails, categories) — not account
-            numbers, notes, or file contents
-          </li>
-          <li>
-            Signed download links and 2FA still block casual access to accounts
+            An attacker might see the same labels we see (titles, emails) — not numbers, notes, or
+            documents
           </li>
         </ul>
 
         <p className="small muted" style={{ margin: 0 }}>
-          Enable vault encryption below and save the recovery key offline. If you reset your
-          password without that key, even you cannot decrypt the vault — and neither can we.
+          Turn on vault encryption below and write down the recovery key somewhere safe. If you
+          forget your password and lose that key, nobody can open the vault — including us. That’s
+          the trade-off that keeps your family data truly private.
         </p>
       </div>
 
