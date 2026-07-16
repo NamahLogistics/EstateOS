@@ -46,8 +46,8 @@ export default function SmsPhoneBanner() {
     >
       <strong>Upgrade sign-in alerts</strong>
       <p className="small muted" style={{ margin: '0.3rem 0 0.65rem' }}>
-        Add your mobile — India or NRI (US, UK, UAE, etc.) — and we’ll text you when someone tries
-        to sign in from a new device. Email confirm still works either way.
+        Add your mobile — India or NRI (US, UK, UAE, etc.) — for upgraded sign-in alerts. Email
+        confirm for new devices still works either way.
       </p>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <Link className="btn btn-primary" to="/app/security#phone" style={{ display: 'inline-block' }}>

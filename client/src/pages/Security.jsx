@@ -14,10 +14,7 @@ export default function SecurityPage() {
   const [busy, setBusy] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneCountry, setPhoneCountry] = useState('91'); // dial code; '' = other/+
-  const [phoneStep, setPhoneStep] = useState('idle'); // idle | code
-  const [phoneCode, setPhoneCode] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
-  const [phoneMaskedPending, setPhoneMaskedPending] = useState('');
   const highlightPhone = location.hash === '#phone';
 
   const phoneCountries = [
@@ -119,7 +116,7 @@ export default function SecurityPage() {
     }
   }
 
-  async function startPhoneVerify(e) {
+  async function savePhone(e) {
     e.preventDefault();
     setPhoneBusy(true);
     try {
@@ -127,30 +124,9 @@ export default function SecurityPage() {
         method: 'POST',
         body: { phone: phoneInput, countryDial: phoneCountry },
       });
-      setPhoneMaskedPending(res.phoneMasked || '');
-      setPhoneStep('code');
-      setPhoneCode(res.debugCode || '');
-      toast(res.message || 'Code sent');
-    } catch (err) {
-      toast(err.message);
-    } finally {
-      setPhoneBusy(false);
-    }
-  }
-
-  async function confirmPhone(e) {
-    e.preventDefault();
-    setPhoneBusy(true);
-    try {
-      const res = await api('/api/me/phone/confirm', {
-        method: 'POST',
-        body: { code: phoneCode },
-      });
       if (res.user) setUser(res.user);
-      setPhoneStep('idle');
       setPhoneInput('');
-      setPhoneCode('');
-      toast(res.message || 'Mobile verified');
+      toast(res.message || 'Saved and verified');
     } catch (err) {
       toast(err.message);
     } finally {
@@ -306,19 +282,19 @@ export default function SecurityPage() {
           background: highlightPhone ? 'rgba(220, 232, 225, 0.35)' : undefined,
         }}
       >
-        <strong>SMS login alerts (optional)</strong>
+        <strong>Mobile for login alerts (optional)</strong>
         <p className="small muted" style={{ margin: '0.35rem 0 0.75rem' }}>
-          Add your mobile — India or abroad (US, UK, UAE, Singapore, etc.) — so we can text you when
-          someone tries to sign in from a new device. Used only for sign-in / security alerts unless
-          you opt in to product reminders below.
+          Add your mobile — India or abroad (US, UK, UAE, Singapore, etc.). Used for sign-in /
+          security alerts unless you opt in to product reminders below.
         </p>
 
         {user.phoneVerified ? (
           <>
             <p className="small" style={{ margin: '0 0 0.65rem' }}>
-              <strong>{user.phoneMasked || `+91••••••${user.phoneLast4 || ''}`}</strong>
+              <strong>{user.phoneMasked || `••••${user.phoneLast4 || ''}`}</strong>
               {' · '}
-              {user.smsAlertsEnabled ? 'Alerts on' : 'Alerts off'}
+              Saved and verified
+              {user.smsAlertsEnabled ? ' · Alerts on' : ' · Alerts off'}
             </p>
             <label
               className="small"
@@ -330,7 +306,7 @@ export default function SecurityPage() {
                 disabled={phoneBusy}
                 onChange={(e) => patchPhone({ smsAlertsEnabled: e.target.checked })}
               />
-              Text me on SMS for new-device sign-ins
+              Prefer SMS alerts for new-device sign-ins (when SMS is enabled later)
             </label>
             <label
               className="small"
@@ -355,47 +331,8 @@ export default function SecurityPage() {
               Remove mobile
             </button>
           </>
-        ) : phoneStep === 'code' ? (
-          <form onSubmit={confirmPhone}>
-            <p className="small muted" style={{ marginTop: 0 }}>
-              Code sent to {phoneMaskedPending || 'your phone'}. Expires in 10 minutes.
-            </p>
-            <div className="field">
-              <label>6-digit SMS code</label>
-              <input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={phoneCode}
-                onChange={(e) => setPhoneCode(e.target.value)}
-                placeholder="123456"
-                maxLength={8}
-                required
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button type="submit" className="btn btn-primary" disabled={phoneBusy}>
-                {phoneBusy ? '…' : 'Verify & turn on alerts'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  setPhoneStep('idle');
-                  setPhoneCode('');
-                }}
-              >
-                Back
-              </button>
-            </div>
-          </form>
         ) : (
-          <form onSubmit={startPhoneVerify}>
-            {!user.smsConfigured ? (
-              <p className="small" style={{ marginTop: 0, color: 'var(--ink-soft)' }}>
-                SMS delivery isn’t fully set up on our side yet — you can still try; if it fails,
-                check back soon.
-              </p>
-            ) : null}
+          <form onSubmit={savePhone}>
             <div className="field">
               <label>Country</label>
               <select
@@ -431,7 +368,7 @@ export default function SecurityPage() {
               />
             </div>
             <button type="submit" className="btn btn-primary" disabled={phoneBusy}>
-              {phoneBusy ? 'Sending…' : 'Send verification code'}
+              {phoneBusy ? 'Saving…' : 'Save mobile'}
             </button>
           </form>
         )}

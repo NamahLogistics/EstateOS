@@ -67,11 +67,7 @@ import {
   phoneOwnerFields,
   maskPhone,
   smsConfigured,
-  hashPhoneCode,
-  generatePhoneOtp,
-  sendPhoneVerifyOtp,
   sendNewDeviceSms,
-  PHONE_COUNTRY_OPTIONS,
 } from './sms.js';
 import {
   ensureVapidKeys,
@@ -624,7 +620,12 @@ app.post('/api/auth/login', async (req, res) => {
       console.error('new device email failed', err.message);
     }
 
-    if (refreshed.phoneVerifiedAt && refreshed.phone && refreshed.smsAlertsEnabled) {
+    if (
+      refreshed.phoneVerifiedAt &&
+      refreshed.phone &&
+      refreshed.smsAlertsEnabled &&
+      smsConfigured()
+    ) {
       try {
         await sendNewDeviceSms({
           to: refreshed.phone,
@@ -642,12 +643,13 @@ app.post('/api/auth/login', async (req, res) => {
       email: refreshed.email,
       deviceLabel: label,
       smsAlertSent: Boolean(
-        refreshed.phoneVerifiedAt && refreshed.phone && refreshed.smsAlertsEnabled
+        refreshed.phoneVerifiedAt &&
+          refreshed.phone &&
+          refreshed.smsAlertsEnabled &&
+          smsConfigured()
       ),
       message:
-        refreshed.phoneVerifiedAt && refreshed.smsAlertsEnabled
-          ? 'New device — check your email and SMS, tap “Yes, it was me”, then sign in again here.'
-          : 'New device — check your email and tap “Yes, it was me”, then sign in again here.',
+        'New device — check your email and tap “Yes, it was me”, then sign in again here.',
     });
   }
 
@@ -982,17 +984,10 @@ function phoneStartAllowed(userId) {
   return true;
 }
 
-/** Start voluntary phone verify — SMS OTP. Body: { phone, countryDial? } */
+/** Save voluntary phone (no SMS OTP for now). Body: { phone, countryDial? } */
 app.post('/api/me/phone/start', authRequired, async (req, res) => {
-  if (!smsConfigured()) {
-    return res.status(503).json({
-      error:
-        'SMS alerts aren’t set up on the server yet. Check back soon, or email support@heirready.com.',
-      smsConfigured: false,
-    });
-  }
   if (!phoneStartAllowed(req.user.id)) {
-    return res.status(429).json({ error: 'Too many SMS codes. Try again in an hour.' });
+    return res.status(429).json({ error: 'Too many updates. Try again in an hour.' });
   }
   const dialRaw = req.body?.countryDial;
   const countryDial =
@@ -1008,70 +1003,11 @@ app.post('/api/me/phone/start', authRequired, async (req, res) => {
         'Enter a valid mobile with country code (India, US, UK, UAE, etc. — or full number starting with +)',
     });
   }
-  const code = generatePhoneOtp();
-  const codeHash = hashPhoneCode(code);
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   mutate((s) => {
     const u = s.users.find((x) => x.id === req.user.id);
     if (!u) return;
-    u.phonePending = e164;
-    u.phoneVerifyCodeHash = codeHash;
-    u.phoneVerifyExpiresAt = expiresAt;
-    u.phoneVerifyRequestedAt = new Date().toISOString();
-  });
-  await flushPersist();
-
-  try {
-    const sent = await sendPhoneVerifyOtp({ to: e164, code });
-    const out = {
-      ok: true,
-      phoneMasked: maskPhone(e164),
-      message: 'We sent a 6-digit code by SMS. Enter it below.',
-      expiresInMinutes: 10,
-    };
-    if (sent.mode === 'logged') out.debugCode = code; // local/log provider only
-    res.json(out);
-  } catch (err) {
-    console.error('phone verify sms failed', err.message);
-    const status =
-      err.code === 'SMS_NOT_CONFIGURED'
-        ? 503
-        : err.code === 'SMS_INTL_UNSUPPORTED'
-          ? 400
-          : 502;
-    res.status(status).json({
-      error: err.message || 'Could not send SMS',
-      smsConfigured: smsConfigured(),
-    });
-  }
-});
-
-/** Confirm SMS OTP. Body: { code } */
-app.post('/api/me/phone/confirm', authRequired, async (req, res) => {
-  const store = readStore();
-  const user = store.users.find((u) => u.id === req.user.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const code = String(req.body?.code || '').replace(/\s+/g, '');
-  if (!/^\d{6}$/.test(code)) {
-    return res.status(400).json({ error: 'Enter the 6-digit SMS code' });
-  }
-  if (
-    !user.phonePending ||
-    !user.phoneVerifyCodeHash ||
-    !user.phoneVerifyExpiresAt ||
-    new Date(user.phoneVerifyExpiresAt).getTime() < Date.now()
-  ) {
-    return res.status(400).json({ error: 'Code expired — request a new one' });
-  }
-  if (hashPhoneCode(code) !== user.phoneVerifyCodeHash) {
-    return res.status(401).json({ error: 'Invalid code' });
-  }
-
-  mutate((s) => {
-    const u = s.users.find((x) => x.id === req.user.id);
-    if (!u) return;
-    u.phone = u.phonePending;
+    u.phone = e164;
     u.phoneVerifiedAt = new Date().toISOString();
     u.smsAlertsEnabled = true;
     if (u.phoneMarketingOptIn == null) u.phoneMarketingOptIn = false;
@@ -1084,8 +1020,24 @@ app.post('/api/me/phone/confirm', authRequired, async (req, res) => {
   res.json({
     ok: true,
     user: publicUser(refreshed),
-    message: 'Mobile verified — SMS login alerts are on',
+    phoneMasked: maskPhone(e164),
+    message: 'Saved and verified',
   });
+});
+
+/** Legacy OTP confirm — phone is saved without OTP now. */
+app.post('/api/me/phone/confirm', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.phone && user.phoneVerifiedAt) {
+    return res.json({
+      ok: true,
+      user: publicUser(user),
+      message: 'Saved and verified',
+    });
+  }
+  return res.status(400).json({ error: 'Add your mobile number on the Security page' });
 });
 
 /** Update alerts / marketing / remove phone. Body: { smsAlertsEnabled?, phoneMarketingOptIn?, clear? } */
