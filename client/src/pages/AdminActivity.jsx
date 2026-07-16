@@ -8,6 +8,7 @@ const FILTERS = [
   { id: 'signup', label: 'Signups' },
   { id: 'estate_created', label: 'Life Maps' },
   { id: 'invite_accepted', label: 'Joined vault' },
+  { id: 'email_sent', label: 'Emails sent' },
   { id: 'email_click', label: 'Email clicks' },
   { id: 'email_signup', label: 'Email → signup' },
   { id: 'whatsapp_click', label: 'WA link clicks' },
@@ -29,6 +30,10 @@ function labelFor(e) {
       return `Created Life Map${e.meta?.estateName ? `: ${e.meta.estateName}` : ''}`;
     case 'invite_accepted':
       return `Joined vault${e.meta?.estateName ? `: ${e.meta.estateName}` : ''}`;
+    case 'email_sent':
+      return `Email sent${e.meta?.campaign ? ` · ${e.meta.campaign}` : ''}${
+        e.meta?.subject ? `: ${e.meta.subject}` : ''
+      }`;
     case 'email_click':
       return `Email click${e.meta?.campaign ? ` · ${e.meta.campaign}` : ''}`;
     case 'email_signup':

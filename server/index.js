@@ -91,6 +91,7 @@ import {
   scrubPreviewBotClicks,
 } from './clickTrack.js';
 import { recordActivity, listActivity, isClientActivityType } from './activity.js';
+import { sendTrackedOutreachEmail } from './outreachMail.js';
 import { INTERVIEW_QUESTIONS, answersToItems } from './interview.js';
 import { runReminderPass, ensureEstateDefaults, scheduleLightReview } from './reminders.js';
 import {
@@ -1276,6 +1277,31 @@ app.post('/api/admin/tracked-links', adminRequired, (req, res) => {
     meta: req.body?.meta || null,
   });
   res.json({ ok: true, count: links.length, links });
+});
+
+/**
+ * Admin: send outreach email with tracked CTA (shows in Activity + Clicks).
+ * Body: { to, subject, html?, text?, campaign, destination, name?, ctaLabel?, meta? }
+ * Put {{TRACKED_URL}} in html/text, or a CTA button is appended automatically.
+ */
+app.post('/api/admin/outreach-email', adminRequired, async (req, res) => {
+  try {
+    const result = await sendTrackedOutreachEmail({
+      to: req.body?.to,
+      subject: req.body?.subject,
+      html: req.body?.html,
+      text: req.body?.text,
+      campaign: req.body?.campaign,
+      destination: req.body?.destination,
+      name: req.body?.name,
+      ctaLabel: req.body?.ctaLabel,
+      meta: req.body?.meta || null,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('outreach email failed', err.message);
+    res.status(400).json({ error: err.message || 'Could not send outreach email' });
+  }
 });
 
 /** Admin: who clicked (exact email + count + times) */
