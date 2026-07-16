@@ -458,6 +458,13 @@ export default function AuthPage() {
         <p className="muted" style={{ marginTop: '-0.3rem' }}>
           {subtitle}
         </p>
+        {(mode === 'register' || mode === 'login') && (
+          <p className="small" style={{ marginTop: 0, lineHeight: 1.5 }}>
+            Worried about security?{' '}
+            <Link to="/security">See how we protect family data</Link> — vault secrets stay locked
+            with your key.
+          </p>
+        )}
         {mode === 'register' && cityHint && !isLawyer && (
           <p className="small" style={{ marginTop: 0 }}>
             Invite city: <strong>{cityHint}</strong>

@@ -7,6 +7,7 @@ import FamilyThread from '../components/FamilyThread.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import HousewarmingDone, { SiblingInviteCard } from '../components/HousewarmingDone.jsx';
 import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
+import SecurityTrustBanner from '../components/SecurityTrustBanner.jsx';
 import { useVaultCrypto } from '../crypto/VaultCryptoContext.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
@@ -770,6 +771,7 @@ export default function EstatePage() {
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
       <UnlockCryptoBanner />
+      <SecurityTrustBanner compact />
       <Link to="/app" className="small muted">
         {t('allEstates')}
       </Link>

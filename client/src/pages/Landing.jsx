@@ -64,6 +64,22 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="section-how" id="security">
+        <h2 className="display section-how-title">Worried about putting family data in an app?</h2>
+        <p className="section-lead">
+          Vault secrets stay locked with your key — even HeirReady cannot read bank numbers, notes, or
+          files. See exactly what we can and can’t see before you sign up.
+        </p>
+        <div className="hero-actions">
+          <Link className="btn btn-primary" to="/security">
+            How we protect your data
+          </Link>
+          <Link className="btn btn-ghost" to={user ? '/app' : '/auth?mode=register'}>
+            {user ? t('openEstates') : t('startFree')}
+          </Link>
+        </div>
+      </section>
+
       <section className="section-how">
         <h2 className="display section-how-title">{t('unclaimedTitle')}</h2>
         <p className="section-lead">{t('unclaimedBody')}</p>

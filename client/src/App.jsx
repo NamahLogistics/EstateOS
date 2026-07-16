@@ -20,6 +20,7 @@ import EnableAlertsBanner from './components/EnableAlertsBanner.jsx';
 import AdminClicks from './pages/AdminClicks.jsx';
 import AdminActivity from './pages/AdminActivity.jsx';
 import SecurityPage from './pages/Security.jsx';
+import PublicSecurityPage from './pages/PublicSecurity.jsx';
 import GuideBot from './components/GuideBot.jsx';
 import { captureEmailClickAttribution } from './emailClick.js';
 
@@ -95,6 +96,9 @@ function Shell({ children }) {
       )}
       <Link className="nav-link" to="/pricing" onClick={() => setMenuOpen(false)}>
         {t('pricing')}
+      </Link>
+      <Link className="nav-link" to="/security" onClick={() => setMenuOpen(false)}>
+        Data security
       </Link>
       <button type="button" className="nav-link nav-link-btn" onClick={toggle} title={t('langHint')} aria-label={t('langHint')}>
         {t('lang')}
@@ -222,6 +226,7 @@ export default function App() {
         <Route path="/guides/:slug" element={<Shell><GuideArticle /></Shell>} />
         <Route path="/terms" element={<Shell><LegalTerms /></Shell>} />
         <Route path="/privacy" element={<Shell><LegalPrivacy /></Shell>} />
+        <Route path="/security" element={<Shell><PublicSecurityPage /></Shell>} />
         <Route path="/refunds" element={<Shell><LegalRefunds /></Shell>} />
         <Route path="/shipping" element={<Shell><LegalShipping /></Shell>} />
         <Route path="/contact" element={<Shell><ContactPage /></Shell>} />
