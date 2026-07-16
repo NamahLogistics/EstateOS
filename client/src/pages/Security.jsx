@@ -174,6 +174,27 @@ export default function SecurityPage() {
           </li>
         </ul>
 
+        <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
+          Attackers can open your vault only if you slip
+        </p>
+        <p className="small muted" style={{ margin: '0 0 0.4rem' }}>
+          Breaking into HeirReady’s servers is not enough. Someone gets into the vault only if they
+          also get hold of your key — usually because something on your side went wrong:
+        </p>
+        <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>You reuse a password and it leaks elsewhere, or you fall for a fake login page</li>
+          <li>You leave 2FA off — so a stolen password is enough</li>
+          <li>Your phone or laptop is unlocked and someone uses your open HeirReady session</li>
+          <li>Virus / scam software on your device watches you type or copies what’s on screen</li>
+          <li>You share or lose the recovery key (photo in chat, sticky note, email to yourself)</li>
+          <li>A family member you invited shares access carelessly</li>
+        </ul>
+        <p className="small" style={{ margin: '0 0 0.85rem' }}>
+          <strong>Your side of the lock:</strong> turn on authenticator 2FA below, use a unique
+          password, keep the recovery key offline, and lock your devices. Do that, and a server
+          attack still leaves your vault shut.
+        </p>
+
         <p className="small muted" style={{ margin: 0 }}>
           Turn on vault encryption below and write down the recovery key somewhere safe. If you
           forget your password and lose that key, nobody can open the vault — including us. That’s
