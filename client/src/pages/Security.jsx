@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
@@ -130,21 +130,57 @@ export default function SecurityPage() {
       </div>
 
       <div className="card" style={{ padding: '1.15rem 1.25rem', marginBottom: '1rem' }}>
-        <strong>What we protect</strong>
-        <ul className="small" style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
-          <li>
-            <strong>End-to-end encryption</strong> — bank/LIC numbers, notes, and documents are
-            encrypted on your device (AES-256-GCM). Our servers only store ciphertext.
-          </li>
-          <li>Passwords hashed with scrypt (never stored in plain text)</li>
-          <li>Vault documents require a signed link — not a guessable public URL</li>
-          <li>Authenticator 2FA (TOTP — Google Authenticator, Authy, 1Password)</li>
-          <li>HTTPS in production · session tokens expire</li>
+        <strong>Trust proof — what end-to-end encryption actually covers</strong>
+        <p className="small muted" style={{ margin: '0.4rem 0 0.75rem' }}>
+          Secrets are encrypted on your device with AES-256-GCM before they leave the browser. Keys
+          are derived from your password (and your recovery key). HeirReady never receives those
+          keys in a usable form — so we cannot open your vault even if asked.
+        </p>
+
+        <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
+          Nobody at HeirReady can read
+        </p>
+        <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>Bank / demat / LIC / Folio account numbers and references</li>
+          <li>Free-text notes and private instructions</li>
+          <li>Uploaded document bytes (PDFs, photos, scans)</li>
+          <li>Your encryption keys (wrapped ciphertext only on our servers)</li>
         </ul>
-        <p className="small muted" style={{ margin: '0.75rem 0 0' }}>
-          Category and item titles stay visible so the Life Map UI works. Secrets (account refs,
-          notes, files) are E2EE. Save your recovery key when you enable encryption — password reset
-          without it cannot decrypt old vaults.
+
+        <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
+          What HeirReady staff can see (needed to run the product)
+        </p>
+        <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>Your email, plan, and billing status</li>
+          <li>Family / estate labels and member emails</li>
+          <li>Item category and title (e.g. “HDFC salary” — not the account number)</li>
+          <li>Expiry / reminder dates and unlock-rule settings</li>
+          <li>That encrypted blobs exist — not their contents</li>
+        </ul>
+
+        <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
+          If hackers breach our servers
+        </p>
+        <ul className="small" style={{ margin: '0 0 0.85rem', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>
+            Vault secrets stay ciphertext — useless without your password or recovery key
+          </li>
+          <li>
+            Passwords are scrypt hashes, not plain text — attackers cannot reverse them into your
+            login password
+          </li>
+          <li>
+            They could see the same metadata staff can (titles, emails, categories) — not account
+            numbers, notes, or file contents
+          </li>
+          <li>
+            Signed download links and 2FA still block casual access to accounts
+          </li>
+        </ul>
+
+        <p className="small muted" style={{ margin: 0 }}>
+          Enable vault encryption below and save the recovery key offline. If you reset your
+          password without that key, even you cannot decrypt the vault — and neither can we.
         </p>
       </div>
 
