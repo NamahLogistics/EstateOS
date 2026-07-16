@@ -162,6 +162,426 @@ export const GUIDES = [
     ],
     cta: 'Get a fridge QR in minutes — start free',
   },
+  {
+    slug: 'unclaimed-deposits-iepf-what-heirs-should-map',
+    title: 'Unclaimed deposits & IEPF: what heirs should map before they need to search',
+    description:
+      'Why crores sit unclaimed in Indian banks, insurance, and IEPF — and the practical Life Map adult children abroad should build so the family is not starting blind.',
+    updated: '16 July 2026',
+    lead:
+      'Every few months another headline appears: tens of thousands of crores sitting unclaimed in banks, insurance, and the Investor Education and Protection Fund (IEPF). Those numbers are real — and they are usually a symptom. Someone opened an account, bought shares, or paid a premium years ago. KYC drifted. The phone number changed. Heirs never had a list. HeirReady does not reclaim that money for you. This guide is about mapping what exists so your family is not searching cold when something happens.',
+    sections: [
+      {
+        h: 'What “unclaimed” usually means in India',
+        paras: [
+          '“Unclaimed” is not one government vault with your family’s name on it. It is a patchwork: dormant bank deposits, forgotten insurance proceeds, shares and dividends moved to IEPF after long inactivity, and similar pools at other institutions. Rules and timelines differ by product. The common thread is silence — no nominee update, no heir who knew the account existed, no paper trail at home.',
+        ],
+        body: [
+          'Bank deposits left inactive for years can be classified dormant / unclaimed under RBI frameworks (exact treatment depends on product and circulars — verify with the bank).',
+          'Insurance claims may sit unpaid when the insurer cannot find a nominee or when the family never knew a policy existed.',
+          'Shares, mutual fund units, and related amounts can end up with IEPF after prolonged non-claim — reclaim is a process, not a WhatsApp favour.',
+          'Public search tools (bank unclaimed portals, IEPF search, insurer helpdesks) help only if you know whose name to search and which institutions to try.',
+        ],
+      },
+      {
+        h: 'Why NRI siblings get blindsided',
+        paras: [
+          'If you live abroad, you often hear “everything is fine” until a hospital admission or a death certificate makes the paperwork urgent. Then the hunt starts: which SBI branch, which LIC policy, which demat, whose SIM receives OTPs. Weeks disappear while flights are booked and society offices are called.',
+        ],
+        body: [
+          'Parents may have accounts opened decades ago that never appear in the “active” wallet they use for UPI.',
+          'Joint accounts and nominee fields are often outdated after a sibling marriage, a new phone, or a name spelling change.',
+          'Physical papers live in a steel cupboard, bank locker, or “with the CA” — and nobody wrote that down.',
+          'One sibling abroad becomes the default project manager; without a shared map, the others cannot help efficiently.',
+        ],
+      },
+      {
+        h: 'What to map now (calm day checklist)',
+        paras: [
+          'You do not need every statement. You need a reliable inventory: institution, rough identity (last four digits / folio / policy no. if known), where papers live, and who holds the OTP phone. Capture that in a shared Life Map while parents can still answer on a video call.',
+        ],
+        body: [
+          'Banks and post office: bank name, branch city if known, account type (savings / FD / joint), OTP SIM owner.',
+          'Insurance: LIC and others — policy numbers, nominee as recorded, agent or branch contact if any.',
+          'Investments: demat / broker, mutual fund folios, PPF / EPF if parents mention them.',
+          'IEPF risk flags: old shares from employer ESOP, IPO allotments, or demat accounts they “don’t use anymore.”',
+          'Property and society: flat / house / plot papers location; society secretary phone.',
+          'People: CA, lawyer, family friend who “knows the papers,” maid / nurse phone.',
+        ],
+      },
+      {
+        h: 'How to search later without starting from zero',
+        paras: [
+          'If a claim path starts, a Life Map turns panic into a to-do list. You still work with banks, insurers, and — if needed — counsel. The difference is you are not inventing the list of places to call.',
+        ],
+        body: [
+          'Use the mapped institution list first; then use official unclaimed / IEPF search tools for gaps.',
+          'Keep death certificate / doctor letters in multiple copies once they exist — every counter asks for them.',
+          'Appoint a sibling unlocker so one person abroad is not the single key.',
+          'Do not paste full account passwords into a family WhatsApp group; use a vault with unlock rules.',
+        ],
+      },
+      {
+        h: 'What HeirReady is — and is not — in this story',
+        paras: [
+          'HeirReady is a family continuity vault: Life Map, sibling invite, fridge QR for contacts, unlock-with-proof, and India execution checklists. It is not a reclaim agency, not a bank, and not legal advice. Mapping early is how you avoid becoming another family that only discovers accounts when the unclaimed headlines feel personal.',
+        ],
+        body: [
+          'Free plan: start one parent Life Map and invite a sibling.',
+          'Store labels + encrypted secrets; finish housewarming for the emergency QR.',
+          'Retain counsel on the same file only if you choose — optional, separate from the map itself.',
+        ],
+      },
+    ],
+    cta: 'Start a free Life Map before you need to search',
+  },
+  {
+    slug: 'demat-mutual-fund-folios-nri-family-map',
+    title: 'Demat & mutual fund folios: what NRI kids should capture for parents',
+    description:
+      'Broker, DP ID, folio numbers, and nominee fields — a practical checklist for adult children abroad mapping Indian investments without turning it into a scare conversation.',
+    updated: '16 July 2026',
+    lead:
+      'Bank accounts get discussed. Demat and mutual fund folios often do not — until dividends bounce, KYC freezes, or an heir needs transmission. For adult children abroad, the goal is not to become the family broker. It is to know which platforms exist, under whose PAN, and who receives OTPs, so a future claim is not a scavenger hunt across apps your parents barely open anymore.',
+    sections: [
+      {
+        h: 'Why investment maps go missing',
+        paras: [
+          'Many parents bought funds through a bank relationship manager, an office ESOP, or a one-time IPO. The app password was set once. The phone number on file is an old Airtel SIM. You see “some investments” in conversation and nothing structured in writing.',
+        ],
+        body: [
+          'Multiple brokers / RTAs over the years (CAMS, KFin, different AMCs) mean multiple logins.',
+          'Demat may sit with a bank broker while mutual funds are “direct” on another app.',
+          'Nominee on the demat and nominee on each folio can disagree.',
+          'NRI / resident status changes break KYC until someone updates it — often discovered at the worst time.',
+        ],
+      },
+      {
+        h: 'Calm-day capture list',
+        paras: [
+          'On a video call, ask parents to open the apps they still use — or to find the last CAS / statement email. You type into the Life Map. They narrate. Stop if they tire; partial is better than nothing.',
+        ],
+        body: [
+          'Broker / depository participant name (e.g. bank broker, Zerodha, Groww — whatever they use).',
+          'Demat / BO ID or client ID if visible; never store trading passwords in chat.',
+          'Mutual fund folios: AMC name + folio number (or screenshot stored securely in the vault).',
+          'Consolidated account statement (CAS) email address and which inbox receives it.',
+          'PAN under which holdings sit; any second PAN in the household.',
+          'Nominee name(s) as shown in the app — note if “not updated.”',
+          'Who holds the OTP SIM and the email used for KYC.',
+        ],
+      },
+      {
+        h: 'Transmission vs everyday ops (high level)',
+        paras: [
+          'Everyday ops are premiums, SIPs, and KYC. Transmission / nomination payout paths start when an account holder dies or is incapacitated. Exact documents differ by broker and AMC. Your map should tell the family which doors to knock on first.',
+        ],
+        body: [
+          'Keep death certificate / succession documents ready when a claim path starts (multiple certified copies).',
+          'Expect each broker / RTA to ask for their own forms — the Life Map is the directory, not the form.',
+          'If holdings may have gone dormant or toward IEPF timelines, note “old / unused demat” as a flag for later search.',
+          'Optional: retain counsel when estates are large or contested — the vault can hold the engagement context.',
+        ],
+      },
+      {
+        h: 'Security hygiene for investment secrets',
+        paras: [
+          'Treat demat and folio identifiers as sensitive. HeirReady’s vault encryption is designed so account references and notes can stay locked on your device. Do not paste full login passwords into WhatsApp “for convenience.”',
+        ],
+        body: [
+          'Prefer labels + last-four / folio in the map; keep passwords in a proper password manager if at all.',
+          'Invite a sibling unlocker so one NRI is not the only person who can open the map with proof.',
+          'Turn on authenticator 2FA on HeirReady; save the recovery key offline if you enable vault encryption.',
+        ],
+      },
+      {
+        h: 'How HeirReady fits',
+        body: [
+          'Add investments as Life Map items during housewarming or later review.',
+          'Attach scans of CAS / folio pages if parents allow.',
+          'Share the vault with siblings; keep parents off the app if they prefer.',
+          'Not investment advice — continuity admin for the family.',
+        ],
+      },
+    ],
+    cta: 'Add demat & folios to a free Life Map',
+  },
+  {
+    slug: 'property-papers-society-noc-nri-parents',
+    title: 'Property papers & society NOC: an NRI checklist for parents’ homes',
+    description:
+      'Where title papers live, who the society secretary is, and what adult children abroad should map before a sale, mutation, or emergency — practical, not legal advice.',
+    updated: '16 July 2026',
+    lead:
+      'A flat in Pune or a house in Lucknow is often the largest asset in an Indian parent’s Life Map — and the least documented in any shared sibling note. Society offices move slowly. Lockers hold originals. An NRI child discovers the gap when someone needs an NOC, a mutation, or proof of ownership after a crisis. This checklist is about capturing locations and contacts early, not about drafting deeds yourself.',
+    sections: [
+      {
+        h: 'What usually goes missing',
+        paras: [
+          'Parents know “the papers are safe.” Siblings abroad do not know whether that means a bank locker, a relative’s almirah, or a builder’s pending registration. Society WhatsApp admins change. The person who “always handled society work” moves cities.',
+        ],
+        body: [
+          'Sale deed / allotment letter / share certificate — physical location unknown to children.',
+          'Society maintenance account and secretary phone only on one sibling’s contact list.',
+          'Parking, storage, or servant-room rights never written down.',
+          'Loan / home-loan closure papers mixed with old insurance files.',
+          'Municipal / property tax login in an email nobody monitors.',
+        ],
+      },
+      {
+        h: 'Map these fields while parents can answer',
+        paras: [
+          'Use a calm framing: “So I can help with society bills and repairs from abroad.” You are building an operations map, not announcing a will discussion.',
+        ],
+        body: [
+          'Property nickname + city + society / builder name.',
+          'How title is held (single / joint / company) — only if parents volunteer; do not cross-examine.',
+          'Where originals live (home cupboard / bank locker / CA office) and who has locker keys.',
+          'Society secretary / manager phone; maintenance payment method (cheque / UPI / portal).',
+          'Electricity / water / gas account names and consumer numbers if known.',
+          'Any tenant, caretaker, or relative with informal access.',
+          'Pending disputes, society dues, or “builder still has papers” flags — one honest line is enough.',
+        ],
+      },
+      {
+        h: 'NOC, mutation, and why contacts matter',
+        paras: [
+          'Many society and municipal steps are contact-driven. If the only person who knew the secretary retires, you lose weeks. Exact legal steps for sale, gift, or inheritance depend on state law and documents — use a lawyer when the stakes are high. Your Life Map should still hold the phone numbers and paper locations.',
+        ],
+        body: [
+          'Keep society and advocate contacts in the vault’s care / contacts categories.',
+          'Photograph index pages of deed packets (not every stamp) if parents allow — store encrypted.',
+          'Note which sibling is local enough to visit the society office.',
+          'Fridge QR can show caregiver / society phones without exposing title details.',
+        ],
+      },
+      {
+        h: 'NRI-specific friction',
+        body: [
+          'Time zones: society offices close before your evening abroad — map a local unlocker.',
+          'Power of attorney conversations are separate from the Life Map; do not force them on day one.',
+          'If parents travel between India and abroad, note which address receives society post.',
+          'Diaspora plan on HeirReady exists for families who need more vaults / capacity — start free if you are testing the habit.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'This is family admin guidance for continuity, not a property-law opinion. Registration, stamp duty, succession, and society bylaws need local professional advice when you act on a transaction.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map one property into a free Life Map',
+  },
+  {
+    slug: 'caregiver-maid-nurse-contacts-family-vault',
+    title: 'Maid, nurse, attendant: the care contacts NRI families forget to write down',
+    description:
+      'Shifts, phones, who pays salary, and backup carers — how adult children abroad should map home-care people into a shared vault before a hospital week.',
+    updated: '16 July 2026',
+    lead:
+      'When a parent falls ill, the first call is often not the bank. It is the maid who has a key, the nurse who knows the night medicines, or the neighbour who paid the cook last month. Adult children abroad frequently have those numbers only in a parent’s phone — or nowhere. Mapping care contacts is the highest-leverage “boring” work you can do in a twenty-minute video call.',
+    sections: [
+      {
+        h: 'Why care contacts beat a perfect bank list on day one',
+        paras: [
+          'Papers matter. People unlock the house. If you cannot reach the person with the spare key, you cannot start half the India checklist. Hospitals also ask who has been giving medicines at home.',
+        ],
+        body: [
+          'Maid / cook / driver — name, phone, usual shift, weekly off.',
+          'Nurse / attendant / agency — rate band if known, who hired them, backup name.',
+          'Neighbour / society security / watchman who will open for family.',
+          'Who pays cash vs UPI (parent, you, local sibling).',
+          'Medical: GP, chemist shop, any home-care agency WhatsApp.',
+        ],
+      },
+      {
+        h: 'How to ask without sounding like a takeover',
+        paras: [
+          'Frame it as logistics: “If my flight is delayed, who should I call for the morning medicines?” Parents usually answer that more easily than “list all your assets.”',
+        ],
+        body: [
+          'Type while they speak; confirm spellings of names.',
+          'Ask for a backup person for each critical role.',
+          'Note languages spoken if carers and NRI kids do not share one.',
+          'Stop after care + one bank if they are tired — resume next Sunday.',
+        ],
+      },
+      {
+        h: 'What belongs on the fridge QR vs inside the vault',
+        paras: [
+          'Public emergency cards should help a neighbour or unlocker act fast. They should not publish salary gossip or private medical narratives. Put rich notes in the vault; put phones you are willing to expose on the card.',
+        ],
+        body: [
+          'Fridge / emergency QR: subject name, unlocker path, selected care phones.',
+          'Vault notes: shift patterns, payment habits, allergies, “does not open door after 9pm.”',
+          'Never put UPI PINs or bank passwords on a printed card.',
+        ],
+      },
+      {
+        h: 'Sibling coordination',
+        body: [
+          'Invite a sibling so care updates are not stuck in one NRI’s Notes app.',
+          'When a carer changes, update the Life Map the same week — stale phones are worse than none.',
+          'Light review nudges on HeirReady exist so you re-check “same maid / nurse phone?” periodically.',
+        ],
+      },
+      {
+        h: 'How HeirReady models this',
+        body: [
+          'Care category items with phone in the account/contact field.',
+          'Housewarming steps that push you to capture attendants early.',
+          'Optional care network features for families who want verified help later — mapping your existing people comes first.',
+        ],
+      },
+    ],
+    cta: 'Add care phones to a free vault',
+  },
+  {
+    slug: 'sim-otp-upi-digital-access-parents-india',
+    title: 'SIM, OTP & UPI: digital access your parents’ banks actually depend on',
+    description:
+      'Which phone receives bank OTPs, whose UPI is linked, and how NRI families should document digital access without dumping passwords into WhatsApp.',
+    updated: '16 July 2026',
+    lead:
+      'Indian banking is phone-shaped. Reset a netbanking password and the OTP lands on a SIM. Pay a hospital deposit and UPI asks for a device that may be at home with a parent who cannot unlock it. Adult children abroad often have photocopies of passbooks and zero clarity on which mobile number is still KYC-linked. Fix that map early.',
+    sections: [
+      {
+        h: 'The digital stack that quietly runs the household',
+        paras: [
+          'You do not need every app password on day one. You need a dependency map: which SIM, which email, which UPI ID, and who can physically hold the phone.',
+        ],
+        body: [
+          'Primary mobile number for bank / demat / income-tax OTPs.',
+          'Secondary number if parents use two SIMs (India + travel).',
+          'Email inboxes that receive KYC and CAS — and who knows the password.',
+          'UPI apps (GPay / PhonePe / bank app) and which VPA is printed on the chemist’s “usual.”',
+          'DigiLocker / Aadhaar-linked mobile if they use it.',
+          'Broadband / JioFiber / DTH account phones for “house still running” ops.',
+        ],
+      },
+      {
+        h: 'Failure modes NRI kids hit',
+        body: [
+          'OTP SIM is with a parent in ICU; nobody else can complete a transfer.',
+          'Number was ported; banks still send OTP to the old MSISDN.',
+          'UPI PIN known only to one parent; spouse never set it up.',
+          'Email for bank alerts is an old Yahoo account nobody opens.',
+          'Family shares passwords on WhatsApp — then a phone is stolen.',
+        ],
+      },
+      {
+        h: 'What to write in the Life Map',
+        paras: [
+          'Prefer operational facts over secrets. Where a secret is required, use vault encryption and unlock rules — not a sibling group chat.',
+        ],
+        body: [
+          'Label: “HDFC OTP → Mum’s Airtel ending 1234 (phone in bedside drawer).”',
+          'Label: “SBI UPI on Papa’s Android; backup is sibling X in India.”',
+          'Note device locations and screen-lock habits if relevant (“Face ID; sister knows passcode”).',
+          'Do not store full netbanking passwords in plain notes if you can avoid it.',
+          'Record recovery contacts at the bank (registered email / alternate number) if parents know them.',
+        ],
+      },
+      {
+        h: 'Security habits that match how HeirReady works',
+        body: [
+          'Enable authenticator 2FA on HeirReady so a stolen login is not enough.',
+          'Unusual device sign-in requires email confirmation.',
+          'Vault encryption keeps account refs and notes as ciphertext on the server.',
+          'Read /security for a plain-language split of what staff can and cannot see.',
+        ],
+      },
+      {
+        h: 'When incapacity or death starts',
+        paras: [
+          'OTP and UPI access become part of a larger India execution path — death certificate, bank visits, nominee claims. Your digital map tells unlockers which phone to secure first so fraud and lockouts do not compound grief.',
+        ],
+        body: [
+          'Secure the OTP handset physically when possible.',
+          'Use the vault checklist rather than inventing steps in a panic chat.',
+          'Involve counsel when accounts are contested or large — optional on HeirReady.',
+        ],
+      },
+    ],
+    cta: 'Map OTP phones on a free Life Map',
+  },
+  {
+    slug: 'talk-parents-life-admin-without-scare',
+    title: 'How to talk to parents about life admin without making it a death conversation',
+    description:
+      'Scripts and pacing for NRI adult children who need a parent Life Map — house admin framing, what to skip on call one, and how to bring siblings in.',
+    updated: '16 July 2026',
+    lead:
+      'The work is necessary. The tone is optional. Many families stall because the first message sounds like estate planning theatre. You can gather 80% of what matters — banks, care phones, keys, LIC labels — by talking about bills, travel cover, and “who I call if your phone is off.” This guide is about that conversation design.',
+    sections: [
+      {
+        h: 'Frames that usually work',
+        paras: [
+          'Lead with usefulness to them and to you as a remote helper. Avoid opening with wills, death, or “when you’re gone.” Those topics can come later if the family wants counsel — not as the price of entry for a Life Map.',
+        ],
+        body: [
+          '“I’m making a house admin note so I can pay society / electricity if I’m stuck at work abroad.”',
+          '“If I’m on a flight and the maid needs to confirm something, who is the backup?”',
+          '“Can we list LIC / banks so I’m not bothering you every time a premium SMS arrives?”',
+          '“Khushboo / Sunny and I want the same list — no more contradictory WhatsApps.”',
+        ],
+      },
+      {
+        h: 'Frames that usually backfire',
+        body: [
+          'Opening with “We need your will and nominations sorted this weekend.”',
+          'Interrogating net worth or implying they mismanage money.',
+          'Recording the call secretly or putting strangers (RMs) on the call without asking.',
+          'Making it a competition between siblings in front of parents.',
+        ],
+      },
+      {
+        h: 'A 20-minute call agenda',
+        paras: [
+          'HeirReady’s housewarming is built around short passes. Use the same pacing even if you are still on paper notes.',
+        ],
+        body: [
+          'Minutes 0–3: purpose (“admin map for bills / care”).',
+          'Minutes 3–10: care phones + spare keys + society.',
+          'Minutes 10–16: banks / UPI OTP phone / one LIC if energy remains.',
+          'Minutes 16–20: where paper packets live; schedule part two.',
+          'After call: invite a sibling to the vault so the labour is shared.',
+        ],
+      },
+      {
+        h: 'Culture and language tips',
+        body: [
+          'Use the parent’s preferred language for sensitive bits; keep the vault labels bilingual if siblings differ.',
+          'Let them save face — “we’ll finish later” is a valid outcome.',
+          'If one parent talks and the other withdraws, do not force a joint confession on call one.',
+          'Offer to type everything yourself; asking them to “fill a form” kills momentum.',
+        ],
+      },
+      {
+        h: 'After the first map exists',
+        body: [
+          'Celebrate the boring win: fridge QR, sibling invite, three real contacts.',
+          'Add investments / property on a second sitting.',
+          'Turn on security features (2FA, encryption recovery key) so trust matches the sensitivity of what you stored.',
+          'Revisit lightly every few months — carers and phone numbers change.',
+        ],
+      },
+      {
+        h: 'Where HeirReady helps the conversation',
+        paras: [
+          'The product gives you a structured housewarming and a shared vault so the talk has a container. It does not replace empathy, and it is not a script for inheritance law. Used well, it keeps the tone on continuity — not on fear.',
+        ],
+        body: [
+          'Start free → one parent map.',
+          'Solo path available if siblings are slow.',
+          'Read /security if parents ask “who can see this?”',
+        ],
+      },
+    ],
+    cta: 'Start the housewarming conversation — free',
+  },
 ];
 
 export function getGuide(slug) {
@@ -208,7 +628,7 @@ export function GuidesIndex() {
   usePageMeta({
     title: 'Guides for adult children abroad',
     description:
-      'Practical checklists for NRI families — parent documents, LIC, sibling unlockers, fridge QR. Start free on HeirReady.',
+      'Practical guides for NRI families — parent documents, LIC, demat, property, caregivers, OTP/UPI, unclaimed deposits, sibling unlockers. Start free on HeirReady.',
     path: '/guides',
   });
 
@@ -218,8 +638,8 @@ export function GuidesIndex() {
         Guides
       </h1>
       <p className="muted" style={{ marginTop: 0, lineHeight: 1.55 }}>
-        Short checklists for adult children abroad. Not legal advice — coordination so siblings aren’t
-        guessing on WhatsApp.
+        Short, practical guides for adult children abroad — written to be useful, not thin. Not legal
+        advice; coordination so siblings aren’t guessing on WhatsApp.
       </p>
       <div style={{ display: 'grid', gap: '0.85rem', marginTop: '1.25rem' }}>
         {GUIDES.map((g) => (
@@ -272,11 +692,18 @@ export function GuideArticle() {
           <h2 className="display" style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>
             {s.h}
           </h2>
-          <ul style={{ margin: 0, paddingLeft: '1.15rem', lineHeight: 1.55 }}>
-            {s.body.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+          {(s.paras || []).map((p) => (
+            <p key={p.slice(0, 48)} style={{ lineHeight: 1.6, color: 'var(--ink-soft)', margin: '0 0 0.65rem' }}>
+              {p}
+            </p>
+          ))}
+          {s.body?.length ? (
+            <ul style={{ margin: 0, paddingLeft: '1.15rem', lineHeight: 1.55 }}>
+              {s.body.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
         </section>
       ))}
 
