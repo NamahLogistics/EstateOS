@@ -240,6 +240,7 @@ export default function AuthPage() {
         setDevicePending({
           email: data.email || form.email,
           deviceLabel: data.deviceLabel || '',
+          smsAlertSent: Boolean(data.smsAlertSent),
         });
         setMfaPending(null);
         toast(data.message || 'Check your email to approve this device');
@@ -418,7 +419,7 @@ export default function AuthPage() {
             <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
               Check your email
             </h1>
-            <p className="muted" style={{ marginTop: '-0.3rem' }}>
+            <p className="small muted" style={{ marginTop: '-0.3rem' }}>
               We don’t recognise this device yet
               {devicePending.deviceLabel ? (
                 <>
@@ -427,8 +428,9 @@ export default function AuthPage() {
                 </>
               ) : null}
               . We sent a confirmation to{' '}
-              <strong>{devicePending.email}</strong>. Tap <em>Yes, it was me</em>, then sign in
-              again here.
+              <strong>{devicePending.email}</strong>
+              {devicePending.smsAlertSent ? ' and an SMS to your verified mobile' : ''}. Tap{' '}
+              <em>Yes, it was me</em>, then sign in again here.
             </p>
             <p className="small muted">Check spam if you don’t see it. The link expires in 30 minutes.</p>
             <button

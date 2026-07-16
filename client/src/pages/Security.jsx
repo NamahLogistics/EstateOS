@@ -1,16 +1,31 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
 
 export default function SecurityPage() {
   const { user, api, toast, setUser, token } = useAuth();
+  const location = useLocation();
   const [step, setStep] = useState('idle'); // idle | setup | backup | disable
   const [setup, setSetup] = useState(null);
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [backupCodes, setBackupCodes] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneStep, setPhoneStep] = useState('idle'); // idle | code
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneMaskedPending, setPhoneMaskedPending] = useState('');
+  const highlightPhone = location.hash === '#phone';
+
+  useEffect(() => {
+    if (location.hash !== '#phone') return;
+    const t = window.setTimeout(() => {
+      document.getElementById('phone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [location.hash]);
 
   if (!token) return <Navigate to="/auth" replace />;
   if (!user) return null;
@@ -89,6 +104,58 @@ export default function SecurityPage() {
       toast(err.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function startPhoneVerify(e) {
+    e.preventDefault();
+    setPhoneBusy(true);
+    try {
+      const res = await api('/api/me/phone/start', {
+        method: 'POST',
+        body: { phone: phoneInput },
+      });
+      setPhoneMaskedPending(res.phoneMasked || '');
+      setPhoneStep('code');
+      setPhoneCode(res.debugCode || '');
+      toast(res.message || 'Code sent');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
+
+  async function confirmPhone(e) {
+    e.preventDefault();
+    setPhoneBusy(true);
+    try {
+      const res = await api('/api/me/phone/confirm', {
+        method: 'POST',
+        body: { code: phoneCode },
+      });
+      if (res.user) setUser(res.user);
+      setPhoneStep('idle');
+      setPhoneInput('');
+      setPhoneCode('');
+      toast(res.message || 'Mobile verified');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
+
+  async function patchPhone(body) {
+    setPhoneBusy(true);
+    try {
+      const res = await api('/api/me/phone', { method: 'PATCH', body });
+      if (res.user) setUser(res.user);
+      toast(body.clear ? 'Mobile removed' : 'Saved');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setPhoneBusy(false);
     }
   }
 
@@ -201,7 +268,8 @@ export default function SecurityPage() {
         <p className="small muted" style={{ margin: '0 0 0.85rem' }}>
           Like Google or Facebook: if you sign in from a phone or laptop we don’t recognise, we
           email you first. Only after you tap “Yes, it was me” can that device finish signing in.
-          Stolen passwords alone aren’t enough on a new device.
+          Stolen passwords alone aren’t enough on a new device. Optional:{' '}
+          <a href="#phone">add a verified mobile</a> for an SMS alert too.
         </p>
 
         <p className="small muted" style={{ margin: 0 }}>
@@ -210,6 +278,129 @@ export default function SecurityPage() {
           <strong>the vault can stay locked forever</strong> — we have no back door. That’s what
           keeps family secrets private.
         </p>
+      </div>
+
+      <div
+        id="phone"
+        className="card"
+        style={{
+          padding: '1.15rem 1.25rem',
+          marginBottom: '1rem',
+          borderColor: highlightPhone
+            ? 'rgba(47, 107, 82, 0.55)'
+            : user.phoneVerified
+              ? 'rgba(47, 107, 82, 0.35)'
+              : undefined,
+          background: highlightPhone ? 'rgba(220, 232, 225, 0.35)' : undefined,
+        }}
+      >
+        <strong>SMS login alerts (optional)</strong>
+        <p className="small muted" style={{ margin: '0.35rem 0 0.75rem' }}>
+          Add your mobile so we can text you when someone tries to sign in from a new device — same
+          idea as Google. Used only for sign-in / security alerts unless you opt in to product
+          reminders below.
+        </p>
+
+        {user.phoneVerified ? (
+          <>
+            <p className="small" style={{ margin: '0 0 0.65rem' }}>
+              <strong>{user.phoneMasked || `+91••••••${user.phoneLast4 || ''}`}</strong>
+              {' · '}
+              {user.smsAlertsEnabled ? 'Alerts on' : 'Alerts off'}
+            </p>
+            <label
+              className="small"
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(user.smsAlertsEnabled)}
+                disabled={phoneBusy}
+                onChange={(e) => patchPhone({ smsAlertsEnabled: e.target.checked })}
+              />
+              Text me on SMS for new-device sign-ins
+            </label>
+            <label
+              className="small"
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(user.phoneMarketingOptIn)}
+                disabled={phoneBusy}
+                onChange={(e) => patchPhone({ phoneMarketingOptIn: e.target.checked })}
+              />
+              Also send light product reminders (off by default)
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={phoneBusy}
+              onClick={() => {
+                if (window.confirm('Remove this mobile number?')) patchPhone({ clear: true });
+              }}
+            >
+              Remove mobile
+            </button>
+          </>
+        ) : phoneStep === 'code' ? (
+          <form onSubmit={confirmPhone}>
+            <p className="small muted" style={{ marginTop: 0 }}>
+              Code sent to {phoneMaskedPending || 'your phone'}. Expires in 10 minutes.
+            </p>
+            <div className="field">
+              <label>6-digit SMS code</label>
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={phoneCode}
+                onChange={(e) => setPhoneCode(e.target.value)}
+                placeholder="123456"
+                maxLength={8}
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="submit" className="btn btn-primary" disabled={phoneBusy}>
+                {phoneBusy ? '…' : 'Verify & turn on alerts'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setPhoneStep('idle');
+                  setPhoneCode('');
+                }}
+              >
+                Back
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={startPhoneVerify}>
+            {!user.smsConfigured ? (
+              <p className="small" style={{ marginTop: 0, color: 'var(--ink-soft)' }}>
+                SMS delivery isn’t fully set up on our side yet — you can still try; if it fails,
+                check back soon.
+              </p>
+            ) : null}
+            <div className="field">
+              <label>Indian mobile</label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="98XXXXXXXX"
+                required
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" disabled={phoneBusy}>
+              {phoneBusy ? 'Sending…' : 'Send verification code'}
+            </button>
+          </form>
+        )}
       </div>
 
       <div style={{ marginBottom: '1.25rem' }}>

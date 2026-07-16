@@ -63,6 +63,16 @@ import {
   clientIp,
 } from './devices.js';
 import {
+  normalizeIndianPhone,
+  phoneOwnerFields,
+  maskPhone,
+  smsConfigured,
+  hashPhoneCode,
+  generatePhoneOtp,
+  sendPhoneVerifyOtp,
+  sendNewDeviceSms,
+} from './sms.js';
+import {
   ensureVapidKeys,
   getVapidPublicKey,
   notifyUsers,
@@ -395,6 +405,7 @@ function publicUser(user) {
         }
       : null,
     ...mfaPublicFields(user),
+    ...phoneOwnerFields(user),
   };
 }
 
@@ -612,12 +623,30 @@ app.post('/api/auth/login', async (req, res) => {
       console.error('new device email failed', err.message);
     }
 
+    if (refreshed.phoneVerifiedAt && refreshed.phone && refreshed.smsAlertsEnabled) {
+      try {
+        await sendNewDeviceSms({
+          to: refreshed.phone,
+          name: refreshed.name,
+          deviceLabel: label,
+          link,
+        });
+      } catch (err) {
+        console.error('new device sms failed', err.message);
+      }
+    }
+
     return res.json({
       deviceConfirmRequired: true,
       email: refreshed.email,
       deviceLabel: label,
+      smsAlertSent: Boolean(
+        refreshed.phoneVerifiedAt && refreshed.phone && refreshed.smsAlertsEnabled
+      ),
       message:
-        'New device — check your email and tap “Yes, it was me”, then sign in again here.',
+        refreshed.phoneVerifiedAt && refreshed.smsAlertsEnabled
+          ? 'New device — check your email and SMS, tap “Yes, it was me”, then sign in again here.'
+          : 'New device — check your email and tap “Yes, it was me”, then sign in again here.',
     });
   }
 
@@ -936,6 +965,139 @@ app.get('/api/me', authRequired, (req, res) => {
     user: publicUser(user || req.user),
     unreadNotifications: unreadCountFor(req.user.id),
   });
+});
+
+const phoneStartHits = new Map(); // userId -> { count, resetAt }
+
+function phoneStartAllowed(userId) {
+  const now = Date.now();
+  const row = phoneStartHits.get(userId);
+  if (!row || row.resetAt < now) {
+    phoneStartHits.set(userId, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (row.count >= 5) return false;
+  row.count += 1;
+  return true;
+}
+
+/** Start voluntary phone verify — SMS OTP. Body: { phone } */
+app.post('/api/me/phone/start', authRequired, async (req, res) => {
+  if (!smsConfigured()) {
+    return res.status(503).json({
+      error:
+        'SMS alerts aren’t set up on the server yet. Check back soon, or email support@heirready.com.',
+      smsConfigured: false,
+    });
+  }
+  if (!phoneStartAllowed(req.user.id)) {
+    return res.status(429).json({ error: 'Too many SMS codes. Try again in an hour.' });
+  }
+  const e164 = normalizeIndianPhone(req.body?.phone);
+  if (!e164) {
+    return res.status(400).json({ error: 'Enter a valid Indian mobile (10 digits)' });
+  }
+  const code = generatePhoneOtp();
+  const codeHash = hashPhoneCode(code);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === req.user.id);
+    if (!u) return;
+    u.phonePending = e164;
+    u.phoneVerifyCodeHash = codeHash;
+    u.phoneVerifyExpiresAt = expiresAt;
+    u.phoneVerifyRequestedAt = new Date().toISOString();
+  });
+  await flushPersist();
+
+  try {
+    const sent = await sendPhoneVerifyOtp({ to: e164, code });
+    const out = {
+      ok: true,
+      phoneMasked: maskPhone(e164),
+      message: 'We sent a 6-digit code by SMS. Enter it below.',
+      expiresInMinutes: 10,
+    };
+    if (sent.mode === 'logged') out.debugCode = code; // local/log provider only
+    res.json(out);
+  } catch (err) {
+    console.error('phone verify sms failed', err.message);
+    res.status(err.code === 'SMS_NOT_CONFIGURED' ? 503 : 502).json({
+      error: err.message || 'Could not send SMS',
+      smsConfigured: smsConfigured(),
+    });
+  }
+});
+
+/** Confirm SMS OTP. Body: { code } */
+app.post('/api/me/phone/confirm', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const code = String(req.body?.code || '').replace(/\s+/g, '');
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: 'Enter the 6-digit SMS code' });
+  }
+  if (
+    !user.phonePending ||
+    !user.phoneVerifyCodeHash ||
+    !user.phoneVerifyExpiresAt ||
+    new Date(user.phoneVerifyExpiresAt).getTime() < Date.now()
+  ) {
+    return res.status(400).json({ error: 'Code expired — request a new one' });
+  }
+  if (hashPhoneCode(code) !== user.phoneVerifyCodeHash) {
+    return res.status(401).json({ error: 'Invalid code' });
+  }
+
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === req.user.id);
+    if (!u) return;
+    u.phone = u.phonePending;
+    u.phoneVerifiedAt = new Date().toISOString();
+    u.smsAlertsEnabled = true;
+    if (u.phoneMarketingOptIn == null) u.phoneMarketingOptIn = false;
+    u.phonePending = null;
+    u.phoneVerifyCodeHash = null;
+    u.phoneVerifyExpiresAt = null;
+  });
+  await flushPersist();
+  const refreshed = readStore().users.find((u) => u.id === req.user.id);
+  res.json({
+    ok: true,
+    user: publicUser(refreshed),
+    message: 'Mobile verified — SMS login alerts are on',
+  });
+});
+
+/** Update alerts / marketing / remove phone. Body: { smsAlertsEnabled?, phoneMarketingOptIn?, clear? } */
+app.patch('/api/me/phone', authRequired, async (req, res) => {
+  const { smsAlertsEnabled, phoneMarketingOptIn, clear } = req.body || {};
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === req.user.id);
+    if (!u) return;
+    if (clear) {
+      u.phone = null;
+      u.phoneVerifiedAt = null;
+      u.smsAlertsEnabled = false;
+      u.phoneMarketingOptIn = false;
+      u.phonePending = null;
+      u.phoneVerifyCodeHash = null;
+      u.phoneVerifyExpiresAt = null;
+      u.phoneClearedAt = new Date().toISOString();
+      return;
+    }
+    if (!u.phoneVerifiedAt || !u.phone) return;
+    if (typeof smsAlertsEnabled === 'boolean') u.smsAlertsEnabled = smsAlertsEnabled;
+    if (typeof phoneMarketingOptIn === 'boolean') u.phoneMarketingOptIn = phoneMarketingOptIn;
+  });
+  await flushPersist();
+  const refreshed = readStore().users.find((u) => u.id === req.user.id);
+  if (!refreshed?.phoneVerifiedAt && !clear) {
+    return res.status(400).json({ error: 'Verify a mobile number first' });
+  }
+  res.json({ ok: true, user: publicUser(refreshed) });
 });
 
 /** Store client-generated E2EE key bundle (public key + wrapped private key). */
