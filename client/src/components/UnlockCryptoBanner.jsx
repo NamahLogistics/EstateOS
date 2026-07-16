@@ -88,6 +88,32 @@ export default function UnlockCryptoBanner({ compact = false }) {
             </button>
             <button
               type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                const blob = new Blob(
+                  [
+                    'HeirReady vault recovery key\n',
+                    '============================\n\n',
+                    'Save this offline. We will never show it again.\n',
+                    'If you reset your password and lose this key, the vault can stay locked forever.\n\n',
+                    `Account: ${user.email || ''}\n`,
+                    `Key: ${recoveryKeyOnce}\n`,
+                    `Saved: ${new Date().toISOString()}\n`,
+                  ].join(''),
+                  { type: 'text/plain;charset=utf-8' }
+                );
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'heirready-recovery-key.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download .txt
+            </button>
+            <button
+              type="button"
               className="btn btn-primary"
               disabled={!savedOffline}
               onClick={() => {
