@@ -16,6 +16,7 @@ export default function UnlockCryptoBanner({ compact = false }) {
   } = useVaultCrypto();
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  const [savedOffline, setSavedOffline] = useState(false);
 
   if (!user || unlocked) {
     if (recoveryKeyOnce) {
@@ -23,40 +24,80 @@ export default function UnlockCryptoBanner({ compact = false }) {
         <div
           className="card"
           style={{
-            padding: '1rem 1.15rem',
+            padding: '1.1rem 1.2rem',
             marginBottom: '1rem',
-            borderColor: 'rgba(180, 83, 9, 0.5)',
-            background: 'rgba(254, 243, 199, 0.5)',
+            borderColor: 'rgba(180, 83, 9, 0.65)',
+            background: 'rgba(254, 243, 199, 0.65)',
           }}
+          role="alertdialog"
+          aria-labelledby="recovery-key-title"
         >
-          <strong>Save your recovery key</strong>
-          <p className="small muted" style={{ margin: '0.35rem 0' }}>
-            If you reset your password, you need this key to open old encrypted vaults. We cannot
-            recover it for you.
+          <strong id="recovery-key-title">Write this recovery key down — one time only</strong>
+          <p className="small" style={{ margin: '0.45rem 0 0.35rem' }}>
+            This is <em>not</em> your login password. It is a spare key for your encrypted vault.
           </p>
+          <ul className="small" style={{ margin: '0 0 0.65rem', paddingLeft: '1.1rem', lineHeight: 1.5 }}>
+            <li>Save it offline (paper, password manager, or a safe) — not WhatsApp or email</li>
+            <li>We will never show this key again</li>
+            <li>
+              <strong>If you reset your password and lose this key, your vault stays locked forever</strong>{' '}
+              — even HeirReady cannot open it
+            </li>
+          </ul>
           <code
             style={{
               display: 'block',
               wordBreak: 'break-all',
-              padding: '0.65rem',
+              padding: '0.75rem',
               background: '#fff',
               borderRadius: 8,
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              letterSpacing: '0.02em',
             }}
           >
             {recoveryKeyOnce}
           </code>
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginTop: '0.65rem' }}
-            onClick={() => {
-              navigator.clipboard?.writeText(recoveryKeyOnce).catch(() => {});
-              clearRecoveryKeyOnce();
+          <label
+            className="small"
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              alignItems: 'flex-start',
+              marginTop: '0.75rem',
+              cursor: 'pointer',
             }}
           >
-            Copied — hide
-          </button>
+            <input
+              type="checkbox"
+              checked={savedOffline}
+              onChange={(e) => setSavedOffline(e.target.checked)}
+              style={{ marginTop: '0.2rem' }}
+            />
+            <span>I have saved this recovery key somewhere safe offline</span>
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.65rem' }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                navigator.clipboard?.writeText(recoveryKeyOnce).catch(() => {});
+              }}
+            >
+              Copy key
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!savedOffline}
+              onClick={() => {
+                clearRecoveryKeyOnce();
+                setSavedOffline(false);
+              }}
+            >
+              I’ve saved it — hide
+            </button>
+          </div>
         </div>
       );
     }
@@ -88,8 +129,8 @@ export default function UnlockCryptoBanner({ compact = false }) {
       <strong>{hasKeys ? 'Unlock vault encryption' : 'Turn on end-to-end encryption'}</strong>
       <p className="small muted" style={{ margin: '0.3rem 0 0.65rem' }}>
         {hasKeys
-          ? 'Enter your HeirReady password so this device can decrypt Life Map secrets. Keys never leave your browser.'
-          : 'Bank / LIC numbers and notes will be encrypted on your device before they reach our servers. Even HeirReady staff cannot read them.'}
+          ? 'Enter your HeirReady password so this device can open Life Map secrets.'
+          : 'Bank / LIC numbers and notes will be locked on your device before they reach us. After you turn this on, we’ll show a recovery key once — save it offline, or a password reset could lock the vault forever.'}
       </p>
       <form onSubmit={submit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <input
@@ -103,7 +144,7 @@ export default function UnlockCryptoBanner({ compact = false }) {
           required
         />
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? '…' : hasKeys ? 'Unlock' : 'Enable E2EE'}
+          {busy ? '…' : hasKeys ? 'Unlock' : 'Enable encryption'}
         </button>
       </form>
       {err ? (

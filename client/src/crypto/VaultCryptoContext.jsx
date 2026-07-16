@@ -65,7 +65,7 @@ export function VaultCryptoProvider({ children }) {
         setPublicKeyJwk(created.publicKeyJwk);
         setUnlocked(true);
         setRecoveryKeyOnce(created.recoveryKey);
-        toast('End-to-end encryption is on — save your recovery key');
+        toast('Encryption on — save your recovery key offline or the vault can lock forever');
         return created;
       } finally {
         setBusy(false);

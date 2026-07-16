@@ -205,9 +205,10 @@ export default function SecurityPage() {
         </p>
 
         <p className="small muted" style={{ margin: 0 }}>
-          Turn on vault encryption below and write down the recovery key somewhere safe. If you
-          forget your password and lose that key, nobody can open the vault — including us. That’s
-          the trade-off that keeps your family data truly private.
+          When you turn on vault encryption, we’ll show a <strong>recovery key once</strong>. Write
+          it down offline. If you later reset your password and that key is gone,{' '}
+          <strong>the vault can stay locked forever</strong> — we have no back door. That’s what
+          keeps family secrets private.
         </p>
       </div>
 
