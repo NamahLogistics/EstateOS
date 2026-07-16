@@ -1,6 +1,6 @@
 /**
  * SMS helpers — Twilio, MSG91, or log mode for local testing.
- * Used for phone verification OTP and new-device login alerts.
+ * Supports Indian and NRI / international mobiles (Twilio for non-+91).
  */
 import crypto from 'crypto';
 import { mutate } from './db.js';
@@ -18,7 +18,6 @@ export function smsConfigured() {
   if (provider === 'msg91') {
     return Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_SENDER_ID);
   }
-  // Auto-detect
   if (
     process.env.TWILIO_ACCOUNT_SID &&
     process.env.TWILIO_AUTH_TOKEN &&
@@ -30,35 +29,66 @@ export function smsConfigured() {
   return false;
 }
 
-function resolveProvider() {
-  const explicit = String(process.env.SMS_PROVIDER || '').toLowerCase();
-  if (explicit) return explicit;
-  if (
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_FROM
-  ) {
-    return 'twilio';
+/** Common dial codes for India + diaspora. */
+export const PHONE_COUNTRY_OPTIONS = [
+  { code: 'IN', dial: '91', label: 'India (+91)' },
+  { code: 'US', dial: '1', label: 'US / Canada (+1)' },
+  { code: 'GB', dial: '44', label: 'UK (+44)' },
+  { code: 'AE', dial: '971', label: 'UAE (+971)' },
+  { code: 'SG', dial: '65', label: 'Singapore (+65)' },
+  { code: 'AU', dial: '61', label: 'Australia (+61)' },
+  { code: 'DE', dial: '49', label: 'Germany (+49)' },
+  { code: 'OTHER', dial: '', label: 'Other (full number with +)' },
+];
+
+/**
+ * Normalize to E.164.
+ * - Full international with + (e.g. +14155552671)
+ * - Local digits + countryDial (e.g. 4155552671 + 1)
+ * - Bare 10-digit Indian mobile defaults to +91
+ */
+export function normalizePhone(raw, countryDial = '91') {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('+')) {
+    const digits = trimmed.slice(1).replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) return null;
+    if (!/^[1-9]\d{7,14}$/.test(digits)) return null;
+    return `+${digits}`;
   }
-  if (process.env.MSG91_AUTH_KEY && process.env.MSG91_SENDER_ID) return 'msg91';
+
+  let digits = trimmed.replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+
+  const dial = String(countryDial || '').replace(/\D/g, '');
+
+  if (dial) {
+    if (digits.startsWith(dial) && digits.length >= dial.length + 7) {
+      if (digits.length > 15) return null;
+      return `+${digits}`;
+    }
+    if (dial === '91' && digits.length === 11 && digits.startsWith('0')) {
+      digits = digits.slice(1);
+    }
+    const full = `${dial}${digits}`;
+    if (full.length < 8 || full.length > 15) return null;
+    if (dial === '91' && !/^91[6-9]\d{9}$/.test(full)) return null;
+    return `+${full}`;
+  }
+
+  if (digits.length === 10 && /^[6-9]\d{9}$/.test(digits)) {
+    return `+91${digits}`;
+  }
+  if (digits.length >= 8 && digits.length <= 15 && /^[1-9]/.test(digits)) {
+    return `+${digits}`;
+  }
   return null;
 }
 
-/** Normalize Indian mobiles to E.164 (+91…). Returns null if invalid. */
+/** @deprecated use normalizePhone */
 export function normalizeIndianPhone(raw) {
-  let digits = String(raw || '').replace(/\D/g, '');
-  if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.length === 12 && digits.startsWith('91')) {
-    /* keep */
-  } else if (digits.length === 11 && digits.startsWith('0')) {
-    digits = `91${digits.slice(1)}`;
-  } else if (digits.length === 10) {
-    digits = `91${digits}`;
-  } else {
-    return null;
-  }
-  if (!/^91[6-9]\d{9}$/.test(digits)) return null;
-  return `+${digits}`;
+  return normalizePhone(raw, '91');
 }
 
 export function phoneLast4(phone) {
@@ -69,9 +99,40 @@ export function phoneLast4(phone) {
 
 export function maskPhone(phone) {
   const e164 = String(phone || '');
+  const digits = e164.replace(/\D/g, '');
   const last = phoneLast4(e164);
-  if (!last) return null;
-  return `+91••••••${last}`;
+  if (!last || digits.length < 6) return e164 ? `${e164.slice(0, 3)}••••` : null;
+  const cc = digits.slice(0, Math.max(1, digits.length - 10));
+  return `+${cc}••••${last}`;
+}
+
+function twilioReady() {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_FROM
+  );
+}
+
+function msg91Ready() {
+  return Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_SENDER_ID);
+}
+
+function resolveProvider(toE164) {
+  const explicit = String(process.env.SMS_PROVIDER || '').toLowerCase();
+  const isIndia = String(toE164 || '').startsWith('+91');
+
+  if (explicit === 'log') return 'log';
+  if (!isIndia) {
+    if (twilioReady()) return 'twilio';
+    if (explicit === 'msg91' || msg91Ready()) return 'intl_unsupported';
+    return null;
+  }
+  if (explicit === 'twilio' && twilioReady()) return 'twilio';
+  if (explicit === 'msg91' && msg91Ready()) return 'msg91';
+  if (msg91Ready()) return 'msg91';
+  if (twilioReady()) return 'twilio';
+  return null;
 }
 
 export function phonePublicFields(user) {
@@ -86,7 +147,6 @@ export function phonePublicFields(user) {
   };
 }
 
-/** Full phone only for the account owner on /api/me. */
 export function phoneOwnerFields(user) {
   const base = phonePublicFields(user);
   if (!user?.phoneVerifiedAt || !user?.phone) {
@@ -156,7 +216,15 @@ async function sendViaMsg91({ to, body }) {
 }
 
 export async function sendSms({ to, body, tag }) {
-  const provider = resolveProvider();
+  if (!smsConfigured()) {
+    const err = new Error(
+      'SMS alerts aren’t set up on the server yet. You can try again after we finish setup.'
+    );
+    err.code = 'SMS_NOT_CONFIGURED';
+    throw err;
+  }
+
+  const provider = resolveProvider(to);
   const payload = {
     id: crypto.randomUUID(),
     to,
@@ -167,7 +235,18 @@ export async function sendSms({ to, body, tag }) {
     provider,
   };
 
-  if (!provider || !smsConfigured()) {
+  if (provider === 'intl_unsupported') {
+    payload.status = 'failed';
+    payload.error = 'International SMS needs Twilio';
+    recordSmsOutbox(payload);
+    const err = new Error(
+      'International / NRI numbers need Twilio SMS. Indian (+91) numbers work with MSG91. Email confirm still protects new-device logins.'
+    );
+    err.code = 'SMS_INTL_UNSUPPORTED';
+    throw err;
+  }
+
+  if (!provider) {
     payload.status = 'failed';
     payload.error = 'SMS not configured';
     recordSmsOutbox(payload);
@@ -188,9 +267,7 @@ export async function sendSms({ to, body, tag }) {
     let result;
     if (provider === 'twilio') result = await sendViaTwilio({ to, body });
     else if (provider === 'msg91') result = await sendViaMsg91({ to, body });
-    else {
-      throw new Error(`Unknown SMS_PROVIDER: ${provider}`);
-    }
+    else throw new Error(`Unknown SMS_PROVIDER: ${provider}`);
     payload.status = 'sent';
     payload.providerId = result.providerId;
     recordSmsOutbox(payload);

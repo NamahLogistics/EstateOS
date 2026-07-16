@@ -13,11 +13,23 @@ export default function SecurityPage() {
   const [backupCodes, setBackupCodes] = useState([]);
   const [busy, setBusy] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
+  const [phoneCountry, setPhoneCountry] = useState('91'); // dial code; '' = other/+
   const [phoneStep, setPhoneStep] = useState('idle'); // idle | code
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneMaskedPending, setPhoneMaskedPending] = useState('');
   const highlightPhone = location.hash === '#phone';
+
+  const phoneCountries = [
+    { dial: '91', label: 'India (+91)' },
+    { dial: '1', label: 'US / Canada (+1)' },
+    { dial: '44', label: 'UK (+44)' },
+    { dial: '971', label: 'UAE (+971)' },
+    { dial: '65', label: 'Singapore (+65)' },
+    { dial: '61', label: 'Australia (+61)' },
+    { dial: '49', label: 'Germany (+49)' },
+    { dial: '', label: 'Other (include +country)' },
+  ];
 
   useEffect(() => {
     if (location.hash !== '#phone') return;
@@ -113,7 +125,7 @@ export default function SecurityPage() {
     try {
       const res = await api('/api/me/phone/start', {
         method: 'POST',
-        body: { phone: phoneInput },
+        body: { phone: phoneInput, countryDial: phoneCountry },
       });
       setPhoneMaskedPending(res.phoneMasked || '');
       setPhoneStep('code');
@@ -296,9 +308,9 @@ export default function SecurityPage() {
       >
         <strong>SMS login alerts (optional)</strong>
         <p className="small muted" style={{ margin: '0.35rem 0 0.75rem' }}>
-          Add your mobile so we can text you when someone tries to sign in from a new device — same
-          idea as Google. Used only for sign-in / security alerts unless you opt in to product
-          reminders below.
+          Add your mobile — India or abroad (US, UK, UAE, Singapore, etc.) — so we can text you when
+          someone tries to sign in from a new device. Used only for sign-in / security alerts unless
+          you opt in to product reminders below.
         </p>
 
         {user.phoneVerified ? (
@@ -385,14 +397,36 @@ export default function SecurityPage() {
               </p>
             ) : null}
             <div className="field">
-              <label>Indian mobile</label>
+              <label>Country</label>
+              <select
+                value={phoneCountry}
+                onChange={(e) => setPhoneCountry(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                {phoneCountries.map((c) => (
+                  <option key={c.label} value={c.dial}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>{phoneCountry === '' ? 'Full number with +' : 'Mobile number'}</label>
               <input
                 type="tel"
-                inputMode="numeric"
+                inputMode="tel"
                 autoComplete="tel"
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
-                placeholder="98XXXXXXXX"
+                placeholder={
+                  phoneCountry === '91'
+                    ? '98XXXXXXXX'
+                    : phoneCountry === '1'
+                      ? '4155552671'
+                      : phoneCountry === ''
+                        ? '+14155552671'
+                        : 'National number'
+                }
                 required
               />
             </div>

@@ -63,7 +63,7 @@ import {
   clientIp,
 } from './devices.js';
 import {
-  normalizeIndianPhone,
+  normalizePhone,
   phoneOwnerFields,
   maskPhone,
   smsConfigured,
@@ -71,6 +71,7 @@ import {
   generatePhoneOtp,
   sendPhoneVerifyOtp,
   sendNewDeviceSms,
+  PHONE_COUNTRY_OPTIONS,
 } from './sms.js';
 import {
   ensureVapidKeys,
@@ -981,7 +982,7 @@ function phoneStartAllowed(userId) {
   return true;
 }
 
-/** Start voluntary phone verify — SMS OTP. Body: { phone } */
+/** Start voluntary phone verify — SMS OTP. Body: { phone, countryDial? } */
 app.post('/api/me/phone/start', authRequired, async (req, res) => {
   if (!smsConfigured()) {
     return res.status(503).json({
@@ -993,9 +994,19 @@ app.post('/api/me/phone/start', authRequired, async (req, res) => {
   if (!phoneStartAllowed(req.user.id)) {
     return res.status(429).json({ error: 'Too many SMS codes. Try again in an hour.' });
   }
-  const e164 = normalizeIndianPhone(req.body?.phone);
+  const dialRaw = req.body?.countryDial;
+  const countryDial =
+    dialRaw === '' || dialRaw == null
+      ? req.body?.phone && String(req.body.phone).trim().startsWith('+')
+        ? ''
+        : '91'
+      : String(dialRaw);
+  const e164 = normalizePhone(req.body?.phone, countryDial);
   if (!e164) {
-    return res.status(400).json({ error: 'Enter a valid Indian mobile (10 digits)' });
+    return res.status(400).json({
+      error:
+        'Enter a valid mobile with country code (India, US, UK, UAE, etc. — or full number starting with +)',
+    });
   }
   const code = generatePhoneOtp();
   const codeHash = hashPhoneCode(code);
@@ -1023,7 +1034,13 @@ app.post('/api/me/phone/start', authRequired, async (req, res) => {
     res.json(out);
   } catch (err) {
     console.error('phone verify sms failed', err.message);
-    res.status(err.code === 'SMS_NOT_CONFIGURED' ? 503 : 502).json({
+    const status =
+      err.code === 'SMS_NOT_CONFIGURED'
+        ? 503
+        : err.code === 'SMS_INTL_UNSUPPORTED'
+          ? 400
+          : 502;
+    res.status(status).json({
       error: err.message || 'Could not send SMS',
       smsConfigured: smsConfigured(),
     });
