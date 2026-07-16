@@ -80,6 +80,25 @@ export default function Dashboard() {
   return (
     <section style={{ paddingBottom: '2rem' }}>
       <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
+      {user && !user.mfaEnabled && (
+        <div
+          className="card"
+          style={{
+            padding: '0.95rem 1.15rem',
+            marginBottom: '1rem',
+            borderColor: 'rgba(180, 83, 9, 0.4)',
+            background: 'rgba(254, 243, 199, 0.4)',
+          }}
+        >
+          <strong>Turn on 2FA</strong>
+          <p className="small muted" style={{ margin: '0.3rem 0 0.65rem' }}>
+            Add an authenticator app so a stolen password alone can’t open your Life Maps.
+          </p>
+          <Link className="btn btn-primary" to="/app/security" style={{ display: 'inline-block' }}>
+            Open Security
+          </Link>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
         <div>
           <h1 className="display" style={{ fontSize: '2.2rem', marginBottom: 0 }}>

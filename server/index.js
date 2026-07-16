@@ -25,8 +25,22 @@ import {
   hashPassword,
   verifyPassword,
   signToken,
+  signMfaPendingToken,
+  verifyMfaPendingToken,
   isAppAdmin,
 } from './auth.js';
+import {
+  generateTotpSecret,
+  verifyTotpCode,
+  generateBackupCodes,
+  consumeBackupCode,
+  mfaPublicFields,
+} from './mfa.js';
+import {
+  verifyFileAccessToken,
+  userCanAccessFile,
+  signItemFiles,
+} from './fileAccess.js';
 import {
   ITEM_CATEGORIES,
   CARE_ROLES,
@@ -192,11 +206,42 @@ const upload = multer({
 });
 
 app.get('/uploads/:fileId', async (req, res) => {
-  const file = await readUpload(req.params.fileId);
+  const fileId = String(req.params.fileId || '').trim();
+  const sig = String(req.query.sig || '').trim();
+  const store = readStore();
+
+  let allowed = false;
+  const signed = verifyFileAccessToken(sig, fileId);
+  if (signed?.sub && userCanAccessFile(store, signed.sub, fileId, canAccessEstate)) {
+    allowed = true;
+  } else {
+    // Fallback: Bearer session for authenticated fetches
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (token) {
+      try {
+        const jwt = await import('jsonwebtoken');
+        const SECRET = process.env.JWT_SECRET || 'estate-os-dev-secret';
+        const payload = jwt.default.verify(token, SECRET);
+        if (payload?.sub && !payload.mfaPending && userCanAccessFile(store, payload.sub, fileId, canAccessEstate)) {
+          allowed = true;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (!allowed) {
+    return res.status(401).send('Sign in required to view this document');
+  }
+
+  const file = await readUpload(fileId);
   if (!file) return res.status(404).send('Not found');
   const safeName = encodeURIComponent(file.name || 'document');
   const asDownload = String(req.query.download || '') === '1';
   res.setHeader('Content-Type', file.mime || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader(
     'Content-Disposition',
     `${asDownload ? 'attachment' : 'inline'}; filename="${safeName}"`
@@ -313,6 +358,7 @@ function publicUser(user) {
     isAdmin: isAppAdmin(user),
     referralCode: user.referralCode || null,
     referralDiscountCredits: user.referralDiscountCredits || 0,
+    ...mfaPublicFields(user),
   };
 }
 
@@ -476,8 +522,168 @@ app.post('/api/auth/login', async (req, res) => {
     if (u) ensureUserReferralFields(u, s);
   });
   const refreshed = readStore().users.find((u) => u.id === user.id) || user;
+
+  if (refreshed.mfaEnabled && refreshed.mfaSecret) {
+    const mfaToken = signMfaPendingToken(refreshed);
+    return res.json({
+      mfaRequired: true,
+      mfaToken,
+      email: refreshed.email,
+      message: 'Enter the 6-digit code from your authenticator app',
+    });
+  }
+
   const token = signToken(refreshed);
   res.json({ token, user: publicUser(refreshed) });
+});
+
+/** Complete login after password when MFA is enabled. Body: { mfaToken, code } */
+app.post('/api/auth/mfa/verify-login', async (req, res) => {
+  const pending = verifyMfaPendingToken(req.body?.mfaToken);
+  if (!pending) {
+    return res.status(401).json({ error: 'MFA session expired — sign in again' });
+  }
+  const store = readStore();
+  const user = store.users.find((u) => u.id === pending.sub);
+  if (!user?.mfaEnabled || !user.mfaSecret) {
+    return res.status(400).json({ error: 'MFA is not enabled on this account' });
+  }
+  const code = String(req.body?.code || '').trim();
+  let ok = verifyTotpCode(user.mfaSecret, code);
+  if (!ok) {
+    const fresh = readStore().users.find((u) => u.id === user.id);
+    const usedBackup = await consumeBackupCode(fresh, code);
+    if (usedBackup) {
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === user.id);
+        if (!u) return;
+        u.mfaBackupCodeHashes = fresh.mfaBackupCodeHashes;
+      });
+      await flushPersist();
+      ok = true;
+    }
+  }
+  if (!ok) {
+    return res.status(401).json({ error: 'Invalid authenticator or backup code' });
+  }
+  const token = signToken(user);
+  res.json({ token, user: publicUser(user) });
+});
+
+/** Start MFA setup — returns secret + otpauth URL (confirm before enabling). */
+app.post('/api/auth/mfa/setup', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.mfaEnabled) {
+    return res.status(400).json({ error: 'MFA is already on — turn it off first to reset' });
+  }
+  const { secret, otpauthUrl } = generateTotpSecret(user.email);
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.mfaPendingSecret = secret;
+    u.mfaPendingAt = new Date().toISOString();
+  });
+  await flushPersist();
+  res.json({
+    secret,
+    otpauthUrl,
+    qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}`,
+  });
+});
+
+/** Confirm MFA with a live TOTP code — enables MFA + returns backup codes once. */
+app.post('/api/auth/mfa/confirm', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user?.mfaPendingSecret) {
+    return res.status(400).json({ error: 'Start MFA setup first' });
+  }
+  if (!verifyTotpCode(user.mfaPendingSecret, req.body?.code)) {
+    return res.status(400).json({ error: 'That code is wrong or expired — try the next one' });
+  }
+  const { plain, hashes } = await generateBackupCodes(8);
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.mfaSecret = u.mfaPendingSecret;
+    u.mfaEnabled = true;
+    u.mfaEnabledAt = new Date().toISOString();
+    u.mfaPendingSecret = null;
+    u.mfaPendingAt = null;
+    u.mfaBackupCodeHashes = hashes;
+  });
+  await flushPersist();
+  const refreshed = readStore().users.find((u) => u.id === user.id);
+  res.json({
+    ok: true,
+    user: publicUser(refreshed),
+    backupCodes: plain,
+    message: 'Save these backup codes somewhere safe — they won’t be shown again',
+  });
+});
+
+/** Disable MFA — requires password + current TOTP (or backup code). */
+app.post('/api/auth/mfa/disable', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user?.mfaEnabled) {
+    return res.status(400).json({ error: 'MFA is not enabled' });
+  }
+  if (!(await verifyPassword(req.body?.password || '', user.passwordHash))) {
+    return res.status(401).json({ error: 'Password incorrect' });
+  }
+  let ok = verifyTotpCode(user.mfaSecret, req.body?.code);
+  if (!ok) {
+    const fresh = { ...user, mfaBackupCodeHashes: [...(user.mfaBackupCodeHashes || [])] };
+    ok = await consumeBackupCode(fresh, req.body?.code);
+    if (ok) {
+      mutate((s) => {
+        const u = s.users.find((x) => x.id === user.id);
+        if (u) u.mfaBackupCodeHashes = fresh.mfaBackupCodeHashes;
+      });
+    }
+  }
+  if (!ok) {
+    return res.status(401).json({ error: 'Invalid authenticator or backup code' });
+  }
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.mfaEnabled = false;
+    u.mfaSecret = null;
+    u.mfaPendingSecret = null;
+    u.mfaBackupCodeHashes = [];
+    u.mfaDisabledAt = new Date().toISOString();
+  });
+  await flushPersist();
+  const refreshed = readStore().users.find((u) => u.id === user.id);
+  res.json({ ok: true, user: publicUser(refreshed) });
+});
+
+/** Regenerate backup codes — requires TOTP. */
+app.post('/api/auth/mfa/backup-codes', authRequired, async (req, res) => {
+  const store = readStore();
+  const user = store.users.find((u) => u.id === req.user.id);
+  if (!user?.mfaEnabled || !user.mfaSecret) {
+    return res.status(400).json({ error: 'Turn on MFA first' });
+  }
+  if (!verifyTotpCode(user.mfaSecret, req.body?.code)) {
+    return res.status(401).json({ error: 'Invalid authenticator code' });
+  }
+  const { plain, hashes } = await generateBackupCodes(8);
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    u.mfaBackupCodeHashes = hashes;
+  });
+  await flushPersist();
+  res.json({
+    ok: true,
+    backupCodes: plain,
+    message: 'Save these backup codes — previous codes no longer work',
+  });
 });
 
 /** Always 200 — don’t reveal whether email exists. */
@@ -892,7 +1098,9 @@ app.get('/api/estates/:id', authRequired, (req, res) => {
     if (e) ensureEstateDefaults(e);
   });
   const estate = readStore().estates.find((e) => e.id === access.estate.id);
-  const items = store.items.filter((i) => i.estateId === access.estate.id);
+  const items = store.items
+    .filter((i) => i.estateId === access.estate.id)
+    .map((i) => signItemFiles(i, req.user.id));
   const members = store.members.filter((m) => m.estateId === access.estate.id);
   const memberViews = members.map((m) => {
     const u = store.users.find((x) => x.id === m.userId);
@@ -1210,7 +1418,7 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
     category: item.category,
     type: 'item_added',
   }).catch((err) => console.error('vault notify', err.message));
-  res.status(201).json({ item });
+  res.status(201).json({ item: signItemFiles(item, req.user.id) });
 });
 
 app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), async (req, res) => {
@@ -1274,7 +1482,7 @@ app.post('/api/estates/:id/items/scan', authRequired, upload.single('photo'), as
     category: item.category,
     type: 'item_added',
   }).catch((err) => console.error('vault notify', err.message));
-  res.status(201).json({ item, draftSource: draft.source });
+  res.status(201).json({ item: signItemFiles(item, req.user.id), draftSource: draft.source });
 });
 
 app.patch('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
@@ -1318,7 +1526,7 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
     category: item.category,
     type: 'item_updated',
   }).catch((err) => console.error('vault notify', err.message));
-  res.json({ item });
+  res.json({ item: signItemFiles(item, req.user.id) });
 });
 
 app.delete('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {

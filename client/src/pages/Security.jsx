@@ -1,0 +1,282 @@
+import { useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../auth.jsx';
+
+export default function SecurityPage() {
+  const { user, api, toast, setUser, token } = useAuth();
+  const [step, setStep] = useState('idle'); // idle | setup | backup | disable
+  const [setup, setSetup] = useState(null);
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [backupCodes, setBackupCodes] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  if (!token) return <Navigate to="/auth" replace />;
+  if (!user) return null;
+
+  async function startSetup() {
+    setBusy(true);
+    try {
+      const res = await api('/api/auth/mfa/setup', { method: 'POST', body: {} });
+      setSetup(res);
+      setStep('setup');
+      setCode('');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmSetup(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api('/api/auth/mfa/confirm', {
+        method: 'POST',
+        body: { code },
+      });
+      setUser(res.user);
+      setBackupCodes(res.backupCodes || []);
+      setStep('backup');
+      setCode('');
+      toast('Two-factor authentication is on');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disableMfa(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api('/api/auth/mfa/disable', {
+        method: 'POST',
+        body: { password, code },
+      });
+      setUser(res.user);
+      setStep('idle');
+      setPassword('');
+      setCode('');
+      toast('Two-factor authentication turned off');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshBackup(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api('/api/auth/mfa/backup-codes', {
+        method: 'POST',
+        body: { code },
+      });
+      setBackupCodes(res.backupCodes || []);
+      setStep('backup');
+      setCode('');
+      setUser({
+        ...user,
+        mfaBackupCodesRemaining: res.backupCodes?.length || 0,
+      });
+      toast('New backup codes ready — save them now');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section style={{ padding: '1.5rem 0 3rem', maxWidth: 640 }}>
+      <p
+        className="small muted"
+        style={{ margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}
+      >
+        Account
+      </p>
+      <h1 className="display" style={{ fontSize: '2rem', margin: '0.35rem 0 0.5rem' }}>
+        Security
+      </h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Banking-style sign-in: password plus a code from your phone. Even if someone gets your
+        password, they still need your authenticator.
+      </p>
+
+      <div
+        className="card"
+        style={{
+          padding: '1.15rem 1.25rem',
+          marginBottom: '1rem',
+          borderColor: user.mfaEnabled ? 'rgba(47, 107, 82, 0.45)' : 'rgba(180, 83, 9, 0.4)',
+          background: user.mfaEnabled
+            ? 'rgba(220, 232, 225, 0.45)'
+            : 'rgba(254, 243, 199, 0.35)',
+        }}
+      >
+        <strong>{user.mfaEnabled ? '2FA is on' : '2FA is off — turn it on'}</strong>
+        <p className="small muted" style={{ margin: '0.35rem 0 0' }}>
+          {user.mfaEnabled
+            ? `Authenticator app required at every sign-in. ${user.mfaBackupCodesRemaining || 0} backup code${
+                (user.mfaBackupCodesRemaining || 0) === 1 ? '' : 's'
+              } left.`
+            : 'Recommended for every family account that holds Life Map documents.'}
+        </p>
+      </div>
+
+      <div className="card" style={{ padding: '1.15rem 1.25rem', marginBottom: '1rem' }}>
+        <strong>What we protect</strong>
+        <ul className="small" style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>Passwords hashed with scrypt (never stored in plain text)</li>
+          <li>Vault documents require a signed link — not a guessable public URL</li>
+          <li>HTTPS in production · session tokens expire</li>
+          <li>Optional authenticator 2FA (TOTP — Google Authenticator, Authy, 1Password)</li>
+        </ul>
+        <p className="small muted" style={{ margin: '0.75rem 0 0' }}>
+          We are not yet zero-knowledge / end-to-end encrypted like 1Password. We never claim we
+          “cannot read” vault data. Full client-side encryption is on the roadmap.
+        </p>
+      </div>
+
+      {!user.mfaEnabled && step === 'idle' && (
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={startSetup}>
+          {busy ? 'Preparing…' : 'Turn on authenticator 2FA'}
+        </button>
+      )}
+
+      {step === 'setup' && setup && (
+        <form className="card" style={{ padding: '1.15rem 1.25rem', marginTop: '1rem' }} onSubmit={confirmSetup}>
+          <strong>1. Scan this QR</strong>
+          <p className="small muted">Open Google Authenticator, Authy, or 1Password → Add account → Scan.</p>
+          <img
+            src={setup.qrUrl}
+            alt="MFA QR code"
+            width={200}
+            height={200}
+            style={{ display: 'block', margin: '0.75rem 0', borderRadius: 8 }}
+          />
+          <p className="small">
+            Or enter key manually:{' '}
+            <code style={{ wordBreak: 'break-all' }}>{setup.secret}</code>
+          </p>
+          <div className="field" style={{ marginTop: '0.85rem' }}>
+            <label>2. Enter the 6-digit code</label>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="123456"
+              maxLength={8}
+              required
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? 'Checking…' : 'Confirm & enable'}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setStep('idle')}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {step === 'backup' && backupCodes.length > 0 && (
+        <div className="card" style={{ padding: '1.15rem 1.25rem', marginTop: '1rem' }}>
+          <strong>Save these backup codes</strong>
+          <p className="small muted">
+            Each code works once if you lose your phone. Store them offline — we won’t show them
+            again.
+          </p>
+          <ul
+            style={{
+              fontFamily: 'ui-monospace, monospace',
+              letterSpacing: '0.06em',
+              margin: '0.75rem 0',
+              paddingLeft: '1.1rem',
+            }}
+          >
+            {backupCodes.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              navigator.clipboard?.writeText(backupCodes.join('\n')).catch(() => {});
+              toast('Backup codes copied');
+              setStep('idle');
+            }}
+          >
+            Copied — done
+          </button>
+        </div>
+      )}
+
+      {user.mfaEnabled && step === 'idle' && (
+        <div style={{ display: 'grid', gap: '0.65rem', marginTop: '0.25rem' }}>
+          <button type="button" className="btn btn-ghost" onClick={() => setStep('refresh')}>
+            Get new backup codes
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setStep('disable')}>
+            Turn off 2FA
+          </button>
+        </div>
+      )}
+
+      {step === 'refresh' && (
+        <form className="card" style={{ padding: '1.15rem 1.25rem', marginTop: '1rem' }} onSubmit={refreshBackup}>
+          <strong>New backup codes</strong>
+          <p className="small muted">Enter a current authenticator code. Old backup codes will stop working.</p>
+          <div className="field">
+            <label>Authenticator code</label>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? '…' : 'Generate'}
+          </button>
+        </form>
+      )}
+
+      {step === 'disable' && (
+        <form className="card" style={{ padding: '1.15rem 1.25rem', marginTop: '1rem' }} onSubmit={disableMfa}>
+          <strong>Turn off 2FA</strong>
+          <p className="small muted">Requires your password and a current authenticator (or backup) code.</p>
+          <div className="field">
+            <label>Password</label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label>Authenticator or backup code</label>
+            <input value={code} onChange={(e) => setCode(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? '…' : 'Disable 2FA'}
+          </button>
+        </form>
+      )}
+
+      <p className="small" style={{ marginTop: '1.5rem' }}>
+        <Link to="/app">← Back to vaults</Link>
+      </p>
+    </section>
+  );
+}

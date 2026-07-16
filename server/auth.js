@@ -23,9 +23,28 @@ export function isAppAdmin(user) {
 }
 
 export function signToken(user) {
-  return jwt.sign({ sub: user.id, email: user.email, name: user.name }, SECRET, {
+  return jwt.sign({ sub: user.id, email: user.email, name: user.name, mfa: true }, SECRET, {
     expiresIn: '30d',
   });
+}
+
+/** Short-lived token after password — must complete MFA before full session. */
+export function signMfaPendingToken(user) {
+  return jwt.sign(
+    { sub: user.id, email: user.email, mfaPending: true },
+    SECRET,
+    { expiresIn: '10m' }
+  );
+}
+
+export function verifyMfaPendingToken(token) {
+  try {
+    const payload = jwt.verify(String(token || ''), SECRET);
+    if (!payload?.mfaPending || !payload.sub) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 export function authRequired(req, res, next) {
@@ -34,6 +53,9 @@ export function authRequired(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Sign in required' });
   try {
     const payload = jwt.verify(token, SECRET);
+    if (payload.mfaPending) {
+      return res.status(401).json({ error: 'Complete two-factor authentication first' });
+    }
     const store = readStore();
     const user = store.users.find((u) => u.id === payload.sub);
     if (!user) return res.status(401).json({ error: 'User not found' });

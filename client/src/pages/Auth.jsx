@@ -28,7 +28,7 @@ function modeFromParams(params) {
 }
 
 export default function AuthPage() {
-  const { user, login, register, toast } = useAuth();
+  const { user, login, register, completeMfaLogin, toast } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -61,6 +61,8 @@ export default function AuthPage() {
   });
   const [busy, setBusy] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [mfaPending, setMfaPending] = useState(null); // { mfaToken, email }
+  const [mfaCode, setMfaCode] = useState('');
 
   useEffect(() => {
     try {
@@ -192,6 +194,31 @@ export default function AuthPage() {
       }
 
       const data = await login({ email: form.email, password: form.password });
+      if (data.mfaRequired) {
+        setMfaPending({ mfaToken: data.mfaToken, email: data.email || form.email });
+        setMfaCode('');
+        toast(data.message || 'Enter your authenticator code');
+        return;
+      }
+      toast(t('welcome'));
+      navigate(homeFor(data.user?.accountType));
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitMfa(e) {
+    e.preventDefault();
+    if (!mfaPending?.mfaToken) return;
+    setBusy(true);
+    try {
+      const data = await completeMfaLogin({
+        mfaToken: mfaPending.mfaToken,
+        code: mfaCode,
+      });
+      setMfaPending(null);
       toast(t('welcome'));
       navigate(homeFor(data.user?.accountType));
     } catch (err) {
@@ -234,6 +261,52 @@ export default function AuthPage() {
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
       <div className="card" style={{ padding: '1.5rem' }}>
+        {mfaPending ? (
+          <>
+            <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
+              Two-factor check
+            </h1>
+            <p className="muted" style={{ marginTop: '-0.3rem' }}>
+              Enter the 6-digit code from your authenticator app
+              {mfaPending.email ? (
+                <>
+                  {' '}
+                  for <strong>{mfaPending.email}</strong>
+                </>
+              ) : null}
+              . A backup code also works.
+            </p>
+            <form onSubmit={submitMfa}>
+              <div className="field">
+                <label>Authenticator code</label>
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  placeholder="123456"
+                  required
+                />
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={busy} style={{ width: '100%' }}>
+                {busy ? '…' : 'Verify & sign in'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ width: '100%', marginTop: '0.5rem' }}
+                onClick={() => {
+                  setMfaPending(null);
+                  setMfaCode('');
+                }}
+              >
+                Back
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
         <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
           {title}
         </h1>
@@ -438,6 +511,8 @@ export default function AuthPage() {
               {mode === 'register' || mode === 'forgot' ? t('signIn') : t('createAccount')}
             </button>
           </p>
+        )}
+          </>
         )}
       </div>
     </div>

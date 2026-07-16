@@ -5,12 +5,14 @@ import { requestSoftPushPrompt } from '../push.js';
 
 export default function InvitePage() {
   const { token } = useParams();
-  const { user, api, toast, login, register, logout } = useAuth();
+  const { user, api, toast, login, register, logout, completeMfaLogin } = useAuth();
   const navigate = useNavigate();
   const [info, setInfo] = useState(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [mfaPending, setMfaPending] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   useEffect(() => {
     fetch(`/api/invites/${token}`)
@@ -72,6 +74,33 @@ export default function InvitePage() {
     try {
       const email = (form.email || info.email || '').trim().toLowerCase();
       const session = await login({ email, password: form.password });
+      if (session.mfaRequired) {
+        setMfaPending({ mfaToken: session.mfaToken, email });
+        setMfaCode('');
+        toast('Enter your authenticator code');
+        return;
+      }
+      const res = await acceptWithToken(session.token);
+      toast(res.message || 'Invite accepted');
+      requestSoftPushPrompt('invite');
+      navigate(`/app/estates/${res.estateId}`);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitMfa(e) {
+    e.preventDefault();
+    if (!mfaPending?.mfaToken) return;
+    setBusy(true);
+    try {
+      const session = await completeMfaLogin({
+        mfaToken: mfaPending.mfaToken,
+        code: mfaCode,
+      });
+      setMfaPending(null);
       const res = await acceptWithToken(session.token);
       toast(res.message || 'Invite accepted');
       requestSoftPushPrompt('invite');
@@ -137,6 +166,24 @@ export default function InvitePage() {
             </button>
           </div>
         )
+      ) : mfaPending ? (
+        <form onSubmit={submitMfa}>
+          <p className="muted">Enter your authenticator code for {mfaPending.email}</p>
+          <div className="field">
+            <label>Authenticator code</label>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
+            Verify & accept
+          </button>
+        </form>
       ) : (
         <>
           <form onSubmit={registerAndAccept}>

@@ -94,6 +94,20 @@ export function AuthProvider({ children }) {
       },
       async login(payload) {
         const data = await api('/api/auth/login', { method: 'POST', body: payload });
+        if (data.mfaRequired) {
+          return data;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        setToken(data.token);
+        setUserState(data.user);
+        identifyUser(data.user);
+        return data;
+      },
+      async completeMfaLogin({ mfaToken, code }) {
+        const data = await api('/api/auth/mfa/verify-login', {
+          method: 'POST',
+          body: { mfaToken, code },
+        });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         setToken(data.token);
         setUserState(data.user);
