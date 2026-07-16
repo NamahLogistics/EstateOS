@@ -582,6 +582,389 @@ export const GUIDES = [
     ],
     cta: 'Start the housewarming conversation — free',
   },
+  {
+    slug: 'parent-hospitalized-india-nri-what-to-do',
+    title: 'Parent hospitalized in India while you’re abroad: what to do in the first 48 hours',
+    description:
+      'NRI checklist when a parent is admitted in India — who to call, which documents matter, OTP phones, money for deposits, and how a shared Life Map stops WhatsApp chaos.',
+    updated: '16 July 2026',
+    lead:
+      'The call usually comes at a bad timezone. A neighbour, a sibling, or the hospital desk says your parent is admitted. You open WhatsApp and invent a plan under stress: who has the insurance card, which phone gets bank OTPs, who can sign consent, how to pay the deposit from abroad. Families that already mapped care contacts and papers move faster. Families that did not lose the first night to hunting. This is an operations guide for adult children abroad — not medical or legal advice.',
+    sections: [
+      {
+        h: 'Hour 0–2: people and access, not paperwork perfection',
+        paras: [
+          'Before you book a flight, lock a human chain. Hospitals run on consent, payment, and someone who can answer the ward phone. Your Life Map should already name the maid, neighbour, local sibling, and GP. If it does not, build that list now in one shared place — not five private chats.',
+        ],
+        body: [
+          'Confirm hospital name, ward, and admitting doctor phone — write it in the family vault / shared note once.',
+          'Identify who is physically closest and can reach the bedside (sibling, cousin, trusted neighbour).',
+          'Secure the parent’s phone if possible — OTP SIMs unlock insurance apps, UPI, and DigiLocker.',
+          'Ask for admission type (emergency / planned) and whether an attendant bed is allowed.',
+          'Appoint one abroad sibling as “comms lead” so the ward is not receiving six overlapping calls.',
+        ],
+      },
+      {
+        h: 'Documents hospitals and insurers commonly ask for',
+        paras: [
+          'Exact lists vary by hospital and policy. The point of mapping early is knowing where cards and IDs live — steel cupboard, wallet, DigiLocker — before midnight.',
+        ],
+        body: [
+          'Aadhaar / PAN photocopies (multiple).',
+          'Health insurance card / TPA details / corporate cover letter if any.',
+          'Prior prescriptions and allergy list if known.',
+          'Emergency contact list with India numbers.',
+          'Payment method for deposits: UPI on whose phone, card, or local relative.',
+        ],
+      },
+      {
+        h: 'Money movement from abroad without making it worse',
+        body: [
+          'Prefer a local sibling or trusted person for same-day hospital deposits when possible.',
+          'Know which UPI / netbanking OTP phone is active — see our SIM & OTP guide.',
+          'Avoid pasting full banking passwords into the family group; use the vault for account labels.',
+          'Keep a running ledger of who paid what so siblings do not argue later.',
+        ],
+      },
+      {
+        h: 'Insurance: cashless vs reimbursement (high level)',
+        paras: [
+          'Whether cashless works depends on network hospitals, waiting periods, and how updated the policy is. Do not assume “Papa has insurance” means the desk will approve instantly. Your map should include policy number, insurer, and TPA phone if known.',
+        ],
+        body: [
+          'Call the insurer / TPA helpline early with policy number and hospital details.',
+          'Ask the hospital billing desk what they need for cashless pre-auth.',
+          'If cashless fails, track bills for reimbursement — photograph every receipt.',
+          'Map LIC / health policies in peacetime so you are not searching PDFs mid-crisis.',
+        ],
+      },
+      {
+        h: 'What to prepare before the next scare',
+        body: [
+          'Run a calm housewarming: care phones, OTP SIM, insurance labels, spare keys.',
+          'Invite a sibling unlocker so one NRI is not the single point of failure.',
+          'Print or WhatsApp a fridge QR for neighbours — contacts only, not bank secrets.',
+          'Agree a default “comms lead” for medical emergencies.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps here',
+        paras: [
+          'HeirReady stores the Life Map and unlock path so siblings share one source of truth. It does not treat patients, approve claims, or replace doctors and counsel. Used well, it cuts the chaos that turns a hospital night into a second emergency.',
+        ],
+        body: [
+          'Free: map one parent + invite siblings.',
+          'Care category for maid / nurse / neighbour phones.',
+          'Execution checklists later if incapacity or death starts — optional path with proof.',
+        ],
+      },
+    ],
+    cta: 'Map care + insurance before the next call — free',
+  },
+  {
+    slug: 'nomination-vs-will-india-nri-guide',
+    title: 'Nomination vs will in India: what NRI children should actually understand',
+    description:
+      'Clear explainer for adult children abroad — how nomination on banks, LIC, and demat differs from a will, what to map now, and when to talk to a lawyer. Not legal advice.',
+    updated: '16 July 2026',
+    lead:
+      'NRI siblings often hear two sentences that conflict: “Everything is nominated, so we’re fine,” and “Without a will nothing moves.” Both oversimplify. Nomination and wills do different jobs across banks, insurance, demat, and property. You do not need to become an estate lawyer on a Sunday call — but you should know which nominations exist, whether they are outdated, and when the family needs counsel. This guide is educational continuity planning, not a substitute for licensed legal advice.',
+    sections: [
+      {
+        h: 'Nomination in plain language',
+        paras: [
+          'A nomination tells an institution who they may pay or transfer to on death for that specific product — subject to that product’s rules. It is usually easier to update than drafting a full will. It is not always the final word on who owns the asset under succession law.',
+        ],
+        body: [
+          'Banks, post office, LIC, EPFO, and demat all have nomination fields — they may not match each other.',
+          'An outdated nominee (ex-spouse, deceased relative, wrong spelling) creates friction even when the family agrees.',
+          'Joint accounts and nominations interact differently depending on “either or survivor” style mandates — verify with the bank.',
+          'Mapping “nominee as recorded” in a Life Map beats arguing from memory.',
+        ],
+      },
+      {
+        h: 'Wills in plain language',
+        paras: [
+          'A will expresses how a person wants assets distributed and who should execute that wish. Validity, registration, probate, and challenges depend on facts and state practice. HeirReady is not a will product. If parents want a will, they should use a qualified professional.',
+        ],
+        body: [
+          'Do not force a will conversation on the first Life Map call — it kills trust.',
+          'If a will exists, map where the original is kept and who the executor is — location matters.',
+          'A will that nobody can find is almost as bad as no will.',
+          'For contested or large estates, retain counsel early rather than crowdsourcing law on WhatsApp.',
+        ],
+      },
+      {
+        h: 'Where families get confused',
+        body: [
+          'Assuming bank nomination automatically overrides every succession claim.',
+          'Assuming a will is required before you can even list accounts.',
+          'Updating a will but never updating LIC / demat nominees.',
+          'Treating property mutation / society transfer as “the same as nomination.”',
+          'NRI children rewriting parents’ wishes without the parents in the room.',
+        ],
+      },
+      {
+        h: 'What to capture in a Life Map (calm day)',
+        body: [
+          'For each bank / LIC / demat item: nominee name as shown, or “unknown / not updated.”',
+          'Whether parents say a will exists — yes / no / won’t discuss — without interrogation.',
+          'Where important packets live (locker / cupboard / CA).',
+          'Advocate or CA contact if the family already has one.',
+          'Sibling unlockers so discovery is shared.',
+        ],
+      },
+      {
+        h: 'When to involve a lawyer',
+        paras: [
+          'Use counsel when there is conflict, cross-border assets, unclear title, or parents ask for formal estate documents. HeirReady can keep the Life Map and optional counsel engagement in one family context — the lawyer still gives the legal advice.',
+        ],
+        body: [
+          'Disagreement among siblings or between nominee and legal heirs.',
+          'Property in multiple states or countries.',
+          'Business ownership / partnership interests.',
+          'Parents requesting will / trust / POA drafting.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Succession, nomination enforceability, and probate rules are fact-specific. This article helps families organise information. It is not legal advice and should not be relied on as a substitute for a licensed advocate.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map nominees on a free Life Map',
+  },
+  {
+    slug: 'power-of-attorney-india-nri-parents',
+    title: 'Power of attorney in India for NRI families: when it helps, when it doesn’t',
+    description:
+      'Practical overview for adult children abroad considering POA for parents’ banking or property — risks, alternatives, and what to map first. Not legal advice.',
+    updated: '16 July 2026',
+    lead:
+      '“Just make a POA” is common advice in NRI WhatsApp groups. Sometimes a power of attorney is the right tool for a specific bank or property task. Sometimes it is overkill, outdated, or dangerous in the wrong hands. Before anyone drafts anything, map what problem you are solving — hospital deposits, society paperwork, selling a flat — and talk to a qualified professional. HeirReady helps with the Life Map and sibling coordination around that decision; it does not create a POA for you.',
+    sections: [
+      {
+        h: 'What people usually mean by POA',
+        paras: [
+          'A power of attorney authorises someone to act for another in defined matters. Banks and registrars care about form, attestation, and whether the document is accepted for that transaction. General internet templates are a common source of rejection and regret.',
+        ],
+        body: [
+          'Specific POA (one bank, one sale) vs general POA — scope should match the job.',
+          'Who holds the POA matters as much as the stamp paper — pick a trusted person, often a local sibling.',
+          'Revocation and expiry are real operational issues; families forget to cancel old POAs.',
+          'NRI execution / embassy attestation requirements depend on where the document is signed — get local advice.',
+        ],
+      },
+      {
+        h: 'Problems a POA does not magically solve',
+        body: [
+          'Not knowing which accounts exist — map first.',
+          'OTP SIMs and UPI still needing the physical phone.',
+          'Society or bank refusing a document that does not meet their checklist.',
+          'Family conflict — a POA can intensify disputes if siblings disagree.',
+          'Medical consent rules — do not assume a financial POA covers clinical decisions.',
+        ],
+      },
+      {
+        h: 'Safer sequence for most NRI families',
+        paras: [
+          'Do continuity admin before legal instruments. Many “we need a POA” moments are actually “we never wrote down the maid’s number or the OTP phone.”',
+        ],
+        body: [
+          'Build the Life Map: banks, insurance, property location, care contacts, OTP SIM.',
+          'Invite sibling unlockers; agree who is local ops.',
+          'Identify the concrete task (close FD, collect papers, attend society).',
+          'Then consult an advocate / bank about whether POA, joint mandate, or in-person visit is required.',
+          'Store the final POA location and scope in the vault if one is executed.',
+        ],
+      },
+      {
+        h: 'Risk checklist if you proceed',
+        body: [
+          'Prefer narrow scope and time limits where appropriate.',
+          'Keep originals safe; note who holds copies.',
+          'Tell all adult siblings what was signed — secrecy breeds conflict.',
+          'Revisit after major life events (death, divorce, moving countries).',
+          'Never combine “full financial POA” with weak digital security on the attorney’s devices.',
+        ],
+      },
+      {
+        h: 'How HeirReady fits',
+        body: [
+          'Capture why a POA was discussed and what task it targets.',
+          'Keep advocate contacts and document locations in the vault.',
+          'Optional counsel desk for families who want an advocate on the same continuity file.',
+          'Not a POA drafting service — continuity + coordination.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'POA formalities, stamp duty, and acceptance by banks/registrars vary. Take advice from a licensed professional for your facts before signing or relying on any power of attorney.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map the problem first — start a free Life Map',
+  },
+  {
+    slug: 'after-parent-dies-india-nri-first-steps',
+    title: 'After a parent dies in India: first steps for NRI sons and daughters',
+    description:
+      'A practical first-week continuity checklist for NRIs — certificates, bank/insurance maps, phones, rituals coordination, and sibling roles. Not legal or religious advice.',
+    updated: '16 July 2026',
+    lead:
+      'Grief does not wait for paperwork — and paperwork does not pause for flights. Adult children abroad need a calm order of operations: secure the home and phones, obtain certificates, notify key institutions using a list that should already exist, and keep siblings aligned. This is a continuity checklist so you are not inventing steps while exhausted. It is not legal, tax, or religious advice. Rituals and succession law need your family’s practices and, when required, professionals.',
+    sections: [
+      {
+        h: 'Immediate practical priorities',
+        paras: [
+          'Focus on safety, certificates, and communications. Large asset transfers can wait for the right documents; preventing lockouts and fraud cannot.',
+        ],
+        body: [
+          'Confirm who is on the ground for hospital / home / society access.',
+          'Secure phones that receive bank and DigiLocker OTPs.',
+          'Begin death certificate process as guided by the hospital / local authority — keep multiple copies later.',
+          'Notify closest family with one agreed message; avoid contradictory broadcasts.',
+          'If a Life Map / fridge QR exists, open it — that is your directory.',
+        ],
+      },
+      {
+        h: 'Documents families typically gather (varies by case)',
+        body: [
+          'Death certificate copies (ask how many certified copies you may need).',
+          'ID proofs of deceased and claimants.',
+          'Marriage certificate / proof of relationship when institutions ask.',
+          'Will location if one exists; nomination screenshots from the Life Map.',
+          'Insurance policy numbers; bank list; employer / pension contacts if any.',
+        ],
+      },
+      {
+        h: 'Institutions to notify using your map',
+        paras: [
+          'Do not start with random branch visits. Use the Life Map inventory: banks, LIC, demat, employer, pension, society. Each has its own claim / transmission path.',
+        ],
+        body: [
+          'Banks and post office — survivor / nominee / claim forms as applicable.',
+          'Insurers — death claim intimation early.',
+          'Broker / AMC — demat and folio transmission paths.',
+          'Society / property tax — when ready; not always day-one.',
+          'Digital: email, UPI, subscriptions — prevent misuse.',
+        ],
+      },
+      {
+        h: 'Sibling roles that reduce conflict',
+        body: [
+          'One local ops lead; one abroad paperwork/comms lead.',
+          'Shared checklist in the vault — not parallel Excel sheets.',
+          'Transparent money log for funeral and travel costs.',
+          'Unlock-with-proof on HeirReady exists so the vault opens with agreed evidence — not with a password fight.',
+        ],
+      },
+      {
+        h: 'When to get professional help',
+        body: [
+          'Disputed nominations or sibling conflict.',
+          'Business assets, large property, or cross-border estate questions.',
+          'Tax filing / NRI repatriation questions — use a CA / counsel.',
+          'Anything you do not understand on a bank form — ask the institution or an advocate, not a forward.',
+        ],
+      },
+      {
+        h: 'What HeirReady is for in this moment',
+        paras: [
+          'If the family mapped early, Execution Mode and checklists help sequence India tasks after unlock. If they did not, start capturing what you learn now so the second wave of claims is easier. HeirReady is not a funeral service, bank, or law firm.',
+        ],
+        body: [
+          'Shared Life Map and sibling access.',
+          'Encrypted storage for sensitive refs and scans.',
+          'Optional counsel engagement when you need an advocate.',
+        ],
+      },
+    ],
+    cta: 'Build the map before you need it — start free',
+  },
+  {
+    slug: 'find-parents-bank-accounts-india-nri',
+    title: 'How to find your parents’ bank accounts in India (NRI guide)',
+    description:
+      'Step-by-step for adult children abroad: what to ask parents, where statements hide, unclaimed deposit tools, and how a Life Map prevents starting from zero.',
+    updated: '16 July 2026',
+    lead:
+      '“How do I find all my parents’ bank accounts in India?” is one of the most common NRI searches — usually after a hospital week or a death certificate. There is no single national popup that lists every account. You combine conversation, paper trails, email/SMS archaeology, institution search tools, and patience. The winning move is to do most of that mapping while parents can still answer. This guide covers both timelines.',
+    sections: [
+      {
+        h: 'If parents can still help (best path)',
+        paras: [
+          'Schedule a short video call. You type; they open apps or passbooks. Frame it as bill-pay admin from abroad, not an interrogation.',
+        ],
+        body: [
+          'List every bank app on their phones — including ones they “don’t use.”',
+          'Photograph passbook first pages / cheque books for bank name + account hints.',
+          'Check email for “statement,” “OTP,” “KYC,” “FD receipt” from bank domains.',
+          'Ask about post office, cooperative banks, and salary accounts from old employers.',
+          'Note OTP SIM and registered email for each bank.',
+          'Enter each into a shared Life Map the same day.',
+        ],
+      },
+      {
+        h: 'If you are searching after a crisis',
+        paras: [
+          'Start with what you can touch: phones, email, cupboards, CA files, known branches. Then use public unclaimed-deposit and institution processes. Expect incomplete results — that is why peacetime mapping matters.',
+        ],
+        body: [
+          'Secure devices; check SMS threads for bank senders.',
+          'Ask the local sibling / neighbour which branches parents visited.',
+          'Check Form 26AS / AIS with a CA if you have legal access — tax trails reveal interest credits.',
+          'Use bank unclaimed / dormant search flows where available (rules differ).',
+          'Visit or write to likely branches with death certificate / claim docs when applicable.',
+          'Track every lead in one checklist so siblings do not duplicate visits.',
+        ],
+      },
+      {
+        h: 'Clues people overlook',
+        body: [
+          'Auto-debit SMS for SIPs and insurance premiums naming a bank.',
+          'Society maintenance cheques or UPI history.',
+          'Old FD advice slips in diaries.',
+          'Joint accounts with a spouse still active under a different nickname.',
+          'Bank lockers — often imply a relationship account at that branch.',
+        ],
+      },
+      {
+        h: 'What not to do',
+        body: [
+          'Do not post Aadhaar / full account numbers in large WhatsApp groups.',
+          'Do not pay random “recovery agents” who message on Instagram.',
+          'Do not assume one bank’s “no account found” means no accounts exist elsewhere.',
+          'Do not delay securing the OTP phone — fraud spikes when families are distracted.',
+        ],
+      },
+      {
+        h: 'Make the next search unnecessary',
+        body: [
+          'Finish a housewarming Life Map: banks, FDs, OTP phones, locker notes.',
+          'Invite siblings so knowledge is not trapped abroad.',
+          'Revisit yearly — accounts get opened quietly.',
+          'Read our unclaimed / IEPF guide if old investments may have gone dormant.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady is the shared inventory and sibling coordination layer. It will not scrape RBI databases for you. It will make sure the accounts you do find are not lost again in a chat scroll.',
+        ],
+        body: [
+          'Free parent Life Map + sibling invite.',
+          'Encrypted notes for account refs.',
+          'Checklists when execution starts after unlock-with-proof.',
+        ],
+      },
+    ],
+    cta: 'Start listing banks on a free Life Map',
+  },
 ];
 
 export function getGuide(slug) {

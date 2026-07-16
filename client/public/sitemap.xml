@@ -76,6 +76,31 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://heirready.com/guides/parent-hospitalized-india-nri-what-to-do</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/nomination-vs-will-india-nri-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/power-of-attorney-india-nri-parents</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/after-parent-dies-india-nri-first-steps</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/find-parents-bank-accounts-india-nri</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://heirready.com/auth?mode=register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
