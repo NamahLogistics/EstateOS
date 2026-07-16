@@ -54,7 +54,14 @@ import {
   attachLawyerAccess,
 } from './lawyers.routes.js';
 import { registerCareRoutes } from './care.routes.js';
-import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, sendVaultChangeEmail, mailConfigured } from './mail.js';
+import { sendInviteEmail, sendEmail, sendPasswordResetEmail, sendNewDeviceEmail, sendEstateThreadNotify, sendHousewarmingCompleteEmail, sendSiblingJoinedEmail, sendVaultChangeEmail, mailConfigured } from './mail.js';
+import {
+  hashDeviceId,
+  deviceLabelFromUa,
+  isTrustedDevice,
+  trustDeviceOnUser,
+  clientIp,
+} from './devices.js';
 import {
   ensureVapidKeys,
   getVapidPublicKey,
@@ -534,12 +541,27 @@ app.post('/api/auth/register', async (req, res) => {
   } catch (err) {
     console.error('activity signup failed', err.message);
   }
+  // Trust the browser that just created the account
+  const regFp = hashDeviceId(req.body?.deviceId);
+  if (regFp) {
+    mutate((s) => {
+      const u = s.users.find((x) => x.id === user.id);
+      if (!u) return;
+      trustDeviceOnUser(u, {
+        fingerprintHash: regFp,
+        label: deviceLabelFromUa(req.get('user-agent')),
+        ip: clientIp(req),
+      });
+    });
+    await flushPersist();
+  }
   const token = signToken(user);
-  res.json({ token, user: publicUser(user) });
+  const registered = readStore().users.find((u) => u.id === user.id) || user;
+  res.json({ token, user: publicUser(registered) });
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, deviceId } = req.body || {};
   const normalized = (email || '').trim().toLowerCase();
   const store = readStore();
   const user = store.users.find((u) => u.email === normalized);
@@ -551,6 +573,59 @@ app.post('/api/auth/login', async (req, res) => {
     if (u) ensureUserReferralFields(u, s);
   });
   const refreshed = readStore().users.find((u) => u.id === user.id) || user;
+  const fingerprintHash = hashDeviceId(deviceId);
+  const label = deviceLabelFromUa(req.get('user-agent'));
+  const ip = clientIp(req);
+
+  if (!fingerprintHash) {
+    return res.status(400).json({
+      error: 'Update your browser or clear site data, then try again (device check required)',
+    });
+  }
+
+  if (!isTrustedDevice(refreshed, fingerprintHash)) {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    mutate((s) => {
+      const u = s.users.find((x) => x.id === refreshed.id);
+      if (!u) return;
+      u.deviceConfirmTokenHash = tokenHash;
+      u.deviceConfirmExpiresAt = expiresAt;
+      u.deviceConfirmFingerprintHash = fingerprintHash;
+      u.deviceConfirmLabel = label;
+      u.deviceConfirmIp = ip;
+      u.deviceConfirmRequestedAt = new Date().toISOString();
+    });
+    await flushPersist();
+
+    const base = (process.env.APP_URL || 'https://heirready.com').replace(/\/$/, '');
+    const link = `${base}/auth?mode=device-confirm&token=${rawToken}`;
+    try {
+      await sendNewDeviceEmail({
+        to: refreshed.email,
+        name: refreshed.name,
+        link,
+        deviceLabel: label,
+      });
+    } catch (err) {
+      console.error('new device email failed', err.message);
+    }
+
+    return res.json({
+      deviceConfirmRequired: true,
+      email: refreshed.email,
+      deviceLabel: label,
+      message:
+        'New device — check your email and tap “Yes, it was me”, then sign in again here.',
+    });
+  }
+
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === refreshed.id);
+    if (!u) return;
+    trustDeviceOnUser(u, { fingerprintHash, label, ip });
+  });
 
   if (refreshed.mfaEnabled && refreshed.mfaSecret) {
     const mfaToken = signMfaPendingToken(refreshed);
@@ -564,6 +639,52 @@ app.post('/api/auth/login', async (req, res) => {
 
   const token = signToken(refreshed);
   res.json({ token, user: publicUser(refreshed) });
+});
+
+/** Approve unusual device from email link. Then sign in again on that device. */
+app.post('/api/auth/device/confirm', async (req, res) => {
+  const raw = String(req.body?.token || '').trim();
+  if (!raw) return res.status(400).json({ error: 'Confirmation token required' });
+  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+  const store = readStore();
+  const now = Date.now();
+  const user = store.users.find(
+    (u) =>
+      u.deviceConfirmTokenHash === tokenHash &&
+      u.deviceConfirmExpiresAt &&
+      new Date(u.deviceConfirmExpiresAt).getTime() > now
+  );
+  if (!user) {
+    return res.status(400).json({
+      error: 'This link is invalid or expired. Sign in again to get a new email.',
+    });
+  }
+  const fingerprintHash = user.deviceConfirmFingerprintHash;
+  if (!fingerprintHash) {
+    return res.status(400).json({ error: 'Nothing to approve — try signing in again' });
+  }
+  const label = user.deviceConfirmLabel || 'Approved device';
+  const ip = user.deviceConfirmIp || clientIp(req);
+
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === user.id);
+    if (!u) return;
+    trustDeviceOnUser(u, { fingerprintHash, label, ip });
+    u.deviceConfirmTokenHash = null;
+    u.deviceConfirmExpiresAt = null;
+    u.deviceConfirmFingerprintHash = null;
+    u.deviceConfirmLabel = null;
+    u.deviceConfirmIp = null;
+    u.deviceConfirmApprovedAt = new Date().toISOString();
+  });
+  await flushPersist();
+
+  res.json({
+    ok: true,
+    email: user.email,
+    deviceLabel: label,
+    message: 'Device approved. Go back and sign in on that device.',
+  });
 });
 
 /** Complete login after password when MFA is enabled. Body: { mfaToken, code } */
@@ -594,6 +715,19 @@ app.post('/api/auth/mfa/verify-login', async (req, res) => {
   }
   if (!ok) {
     return res.status(401).json({ error: 'Invalid authenticator or backup code' });
+  }
+  const fp = hashDeviceId(req.body?.deviceId);
+  if (fp) {
+    mutate((s) => {
+      const u = s.users.find((x) => x.id === user.id);
+      if (!u) return;
+      trustDeviceOnUser(u, {
+        fingerprintHash: fp,
+        label: deviceLabelFromUa(req.get('user-agent')),
+        ip: clientIp(req),
+      });
+    });
+    await flushPersist();
   }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });

@@ -195,6 +195,15 @@ export default function SecurityPage() {
           attack still leaves your vault shut.
         </p>
 
+        <p className="small" style={{ margin: '0 0 0.25rem', fontWeight: 700 }}>
+          New device = confirm by email
+        </p>
+        <p className="small muted" style={{ margin: '0 0 0.85rem' }}>
+          Like Google or Facebook: if you sign in from a phone or laptop we don’t recognise, we
+          email you first. Only after you tap “Yes, it was me” can that device finish signing in.
+          Stolen passwords alone aren’t enough on a new device.
+        </p>
+
         <p className="small muted" style={{ margin: 0 }}>
           Turn on vault encryption below and write down the recovery key somewhere safe. If you
           forget your password and lose that key, nobody can open the vault — including us. That’s

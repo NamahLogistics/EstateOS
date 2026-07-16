@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { identifyUser } from './analytics.js';
+import { getOrCreateDeviceId } from './deviceId.js';
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = 'estate_os_session';
@@ -85,7 +86,10 @@ export function AuthProvider({ children }) {
       ready,
       toast: (message, type = 'info') => setToast({ message, type }),
       async register(payload) {
-        const data = await api('/api/auth/register', { method: 'POST', body: payload });
+        const data = await api('/api/auth/register', {
+          method: 'POST',
+          body: { ...payload, deviceId: getOrCreateDeviceId() },
+        });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         setToken(data.token);
         setUserState(data.user);
@@ -93,8 +97,11 @@ export function AuthProvider({ children }) {
         return data;
       },
       async login(payload) {
-        const data = await api('/api/auth/login', { method: 'POST', body: payload });
-        if (data.mfaRequired) {
+        const data = await api('/api/auth/login', {
+          method: 'POST',
+          body: { ...payload, deviceId: getOrCreateDeviceId() },
+        });
+        if (data.deviceConfirmRequired || data.mfaRequired) {
           return data;
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -106,13 +113,19 @@ export function AuthProvider({ children }) {
       async completeMfaLogin({ mfaToken, code }) {
         const data = await api('/api/auth/mfa/verify-login', {
           method: 'POST',
-          body: { mfaToken, code },
+          body: { mfaToken, code, deviceId: getOrCreateDeviceId() },
         });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         setToken(data.token);
         setUserState(data.user);
         identifyUser(data.user);
         return data;
+      },
+      async confirmDeviceLogin(token) {
+        return api('/api/auth/device/confirm', {
+          method: 'POST',
+          body: { token },
+        });
       },
       logout() {
         localStorage.removeItem(STORAGE_KEY);

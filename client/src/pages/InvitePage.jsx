@@ -74,6 +74,13 @@ export default function InvitePage() {
     try {
       const email = (form.email || info.email || '').trim().toLowerCase();
       const session = await login({ email, password: form.password });
+      if (session.deviceConfirmRequired) {
+        toast(
+          session.message ||
+            'New device — check your email, tap Yes it was me, then sign in again here.'
+        );
+        return;
+      }
       if (session.mfaRequired) {
         setMfaPending({ mfaToken: session.mfaToken, email });
         setMfaCode('');

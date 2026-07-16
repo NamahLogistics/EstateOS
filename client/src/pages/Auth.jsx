@@ -24,19 +24,23 @@ function homeFor(accountType) {
 
 function modeFromParams(params) {
   const m = params.get('mode');
-  if (m === 'login' || m === 'forgot' || m === 'reset') return m;
+  if (m === 'login' || m === 'forgot' || m === 'reset' || m === 'device-confirm') return m;
   return 'register';
 }
 
 export default function AuthPage() {
-  const { user, login, register, completeMfaLogin, toast } = useAuth();
+  const { user, login, register, completeMfaLogin, confirmDeviceLogin, toast } = useAuth();
   const { unlockCrypto, setupCrypto, hasKeys } = useVaultCrypto();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const resetToken = (params.get('token') || '').trim();
+  const deviceConfirmToken =
+    params.get('mode') === 'device-confirm' ? (params.get('token') || '').trim() : '';
   const [mode, setMode] = useState(() => {
-    if (resetToken) return 'reset';
+    if (deviceConfirmToken) return 'device-confirm';
+    if (resetToken && params.get('mode') === 'reset') return 'reset';
+    if (resetToken && !params.get('mode')) return 'reset';
     return modeFromParams(params);
   });
   const refFromUrl = (params.get('ref') || '').trim().toUpperCase();
@@ -65,6 +69,8 @@ export default function AuthPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [mfaPending, setMfaPending] = useState(null); // { mfaToken, email }
   const [mfaCode, setMfaCode] = useState('');
+  const [devicePending, setDevicePending] = useState(null); // { email, deviceLabel }
+  const [deviceConfirmResult, setDeviceConfirmResult] = useState(null); // { ok, message, error }
 
   useEffect(() => {
     try {
@@ -87,7 +93,8 @@ export default function AuthPage() {
       const saved = localStorage.getItem(CITY_KEY) || '';
       if (saved) setForm((f) => (f.city ? f : { ...f, city: saved }));
     }
-    if (resetToken) setMode('reset');
+    if (deviceConfirmToken) setMode('device-confirm');
+    else if (resetToken) setMode('reset');
     else if (params.get('mode') === 'forgot') setMode('forgot');
     else if (params.get('mode') === 'login') setMode('login');
     if (planFromUrl) {
@@ -97,9 +104,36 @@ export default function AuthPage() {
         /* ignore */
       }
     }
-  }, [refFromUrl, typeFromUrl, cityFromUrl, resetToken, params, planFromUrl]);
+  }, [refFromUrl, typeFromUrl, cityFromUrl, resetToken, deviceConfirmToken, params, planFromUrl]);
 
-  if (user) {
+  useEffect(() => {
+    if (mode !== 'device-confirm' || !deviceConfirmToken || deviceConfirmResult) return;
+    let cancelled = false;
+    (async () => {
+      setBusy(true);
+      try {
+        const res = await confirmDeviceLogin(deviceConfirmToken);
+        if (cancelled) return;
+        setDeviceConfirmResult({
+          ok: true,
+          message: res.message || 'Device approved. Sign in on the device you used.',
+          email: res.email,
+        });
+        toast(res.message || 'Device approved');
+      } catch (err) {
+        if (cancelled) return;
+        setDeviceConfirmResult({ ok: false, error: err.message });
+        toast(err.message);
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, deviceConfirmToken, deviceConfirmResult, confirmDeviceLogin, toast]);
+
+  if (user && mode !== 'device-confirm') {
     const pendingPlan = planFromUrl || (() => {
       try {
         return sessionStorage.getItem(PLAN_KEY) || '';
@@ -202,6 +236,15 @@ export default function AuthPage() {
       }
 
       const data = await login({ email: form.email, password: form.password });
+      if (data.deviceConfirmRequired) {
+        setDevicePending({
+          email: data.email || form.email,
+          deviceLabel: data.deviceLabel || '',
+        });
+        setMfaPending(null);
+        toast(data.message || 'Check your email to approve this device');
+        return;
+      }
       if (data.mfaRequired) {
         setMfaPending({
           mfaToken: data.mfaToken,
@@ -288,7 +331,45 @@ export default function AuthPage() {
   return (
     <div style={{ maxWidth: 420, margin: '2rem auto 3rem' }}>
       <div className="card" style={{ padding: '1.5rem' }}>
-        {mfaPending ? (
+        {mode === 'device-confirm' ? (
+          <>
+            <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
+              {deviceConfirmResult?.ok ? 'Device approved' : busy ? 'Checking…' : 'Confirm sign-in'}
+            </h1>
+            <p className="muted" style={{ marginTop: '-0.3rem' }}>
+              {deviceConfirmResult?.ok
+                ? deviceConfirmResult.message
+                : deviceConfirmResult?.error
+                  ? deviceConfirmResult.error
+                  : 'Approving this device…'}
+            </p>
+            {deviceConfirmResult?.ok ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  setMode('login');
+                  navigate('/auth?mode=login', { replace: true });
+                }}
+              >
+                Sign in now
+              </button>
+            ) : deviceConfirmResult?.error ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  setMode('login');
+                  navigate('/auth?mode=login', { replace: true });
+                }}
+              >
+                Back to sign in
+              </button>
+            ) : null}
+          </>
+        ) : mfaPending ? (
           <>
             <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
               Two-factor check
@@ -331,6 +412,41 @@ export default function AuthPage() {
                 Back
               </button>
             </form>
+          </>
+        ) : devicePending ? (
+          <>
+            <h1 className="display" style={{ fontSize: '1.8rem', marginTop: 0 }}>
+              Check your email
+            </h1>
+            <p className="muted" style={{ marginTop: '-0.3rem' }}>
+              We don’t recognise this device yet
+              {devicePending.deviceLabel ? (
+                <>
+                  {' '}
+                  (<strong>{devicePending.deviceLabel}</strong>)
+                </>
+              ) : null}
+              . We sent a confirmation to{' '}
+              <strong>{devicePending.email}</strong>. Tap <em>Yes, it was me</em>, then sign in
+              again here.
+            </p>
+            <p className="small muted">Check spam if you don’t see it. The link expires in 30 minutes.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => setDevicePending(null)}
+            >
+              I’ve approved — sign in again
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ width: '100%', marginTop: '0.5rem' }}
+              onClick={() => setDevicePending(null)}
+            >
+              Back
+            </button>
           </>
         ) : (
           <>

@@ -108,6 +108,32 @@ export async function sendPasswordResetEmail({ to, name, link }) {
   });
 }
 
+/** New / unusual device sign-in — approve before that device can log in. */
+export async function sendNewDeviceEmail({ to, name, link, deviceLabel, approxTime }) {
+  const subject = 'New sign-in to HeirReady — confirm it’s you';
+  const when = approxTime || new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const device = deviceLabel || 'A new device';
+  const text = `Hi ${name || 'there'},\n\nSomeone tried to sign in to HeirReady from a device we don’t recognise:\n\n${device}\nTime: ${when} (IST)\n\nIf this was you, approve it here:\n${link}\n\nThen go back and sign in again on that device.\n\nIf this wasn’t you, ignore this email and change your password.\n\nHeirReady`;
+  const html = `
+    <div style="font-family:Georgia,serif;line-height:1.5;color:#14201a">
+      <h2 style="font-weight:600;margin:0 0 12px">New sign-in attempt</h2>
+      <p style="margin:0 0 12px">Hi ${name || 'there'}, someone tried to sign in from a device we don’t recognise yet:</p>
+      <p style="margin:0 0 8px"><strong>${device}</strong><br/><span style="color:#3a4a42;font-size:14px">${when} (IST)</span></p>
+      <p style="margin:16px 0">If this was you, tap below. Then return to that device and sign in again.</p>
+      <p><a href="${link}" style="display:inline-block;background:#2c4d3c;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none">Yes, it was me</a></p>
+      <p style="font-size:13px;color:#3a4a42">Or open: ${link}</p>
+      <p style="font-size:12px;color:#3a4a42;margin:16px 0 0">Link expires in 30 minutes. If this wasn’t you, ignore this email and change your password.</p>
+    </div>
+  `;
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tags: [{ name: 'category', value: 'device_confirm' }],
+  });
+}
+
 /** Checkout failed — give the customer a durable pay link + alternate ways to finish. */
 export async function sendPaymentRecoveryEmail({
   to,
