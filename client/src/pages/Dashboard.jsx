@@ -4,6 +4,7 @@ import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
 import ReferralCard from '../components/ReferralCard.jsx';
+import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 
 function statusBadge(status, t) {
@@ -80,6 +81,7 @@ export default function Dashboard() {
   return (
     <section style={{ paddingBottom: '2rem' }}>
       <UpgradeGate open={upgradeOpen} onClose={() => setUpgradeOpen(false)} reason={upgradeReason} />
+      <UnlockCryptoBanner />
       {user && !user.mfaEnabled && (
         <div
           className="card"

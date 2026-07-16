@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './auth.jsx';
 import { I18nProvider } from './i18n.jsx';
+import { VaultCryptoProvider } from './crypto/VaultCryptoContext.jsx';
 import { registerServiceWorker } from './pwa.js';
 import { initAnalytics, track } from './analytics.js';
 import { captureEmailClickAttribution } from './emailClick.js';
@@ -19,7 +20,9 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <I18nProvider>
         <AuthProvider>
-          <App />
+          <VaultCryptoProvider>
+            <App />
+          </VaultCryptoProvider>
         </AuthProvider>
       </I18nProvider>
     </BrowserRouter>

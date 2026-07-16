@@ -337,6 +337,22 @@ async function notifyVaultChange({
   );
 }
 
+function stripSensitiveIfE2ee(body) {
+  const e2ee = Boolean(body?.e2ee && body?.enc);
+  if (!e2ee) return body;
+  return {
+    ...body,
+    institution: '',
+    accountRef: '',
+    notes: '',
+    shift: null,
+    paidBy: null,
+    backupContact: null,
+    e2ee: true,
+    enc: body.enc,
+  };
+}
+
 function publicUser(user) {
   applyPlanExpiryInPlace(user);
   const plan = planPublicFields(user);
@@ -358,6 +374,19 @@ function publicUser(user) {
     isAdmin: isAppAdmin(user),
     referralCode: user.referralCode || null,
     referralDiscountCredits: user.referralDiscountCredits || 0,
+    cryptoEnabled: Boolean(user.cryptoBundle?.publicKeyJwk),
+    cryptoBundle: user.cryptoBundle
+      ? {
+          version: user.cryptoBundle.version,
+          kdf: user.cryptoBundle.kdf,
+          iterations: user.cryptoBundle.iterations,
+          salt: user.cryptoBundle.salt,
+          privateKeyWrapped: user.cryptoBundle.privateKeyWrapped,
+          publicKeyJwk: user.cryptoBundle.publicKeyJwk,
+          recoverySalt: user.cryptoBundle.recoverySalt,
+          privateKeyWrappedRecovery: user.cryptoBundle.privateKeyWrappedRecovery,
+        }
+      : null,
     ...mfaPublicFields(user),
   };
 }
@@ -773,6 +802,136 @@ app.get('/api/me', authRequired, (req, res) => {
     user: publicUser(user || req.user),
     unreadNotifications: unreadCountFor(req.user.id),
   });
+});
+
+/** Store client-generated E2EE key bundle (public key + wrapped private key). */
+app.put('/api/me/crypto', authRequired, async (req, res) => {
+  const bundle = req.body?.cryptoBundle;
+  if (!bundle?.publicKeyJwk || !bundle?.privateKeyWrapped || !bundle?.salt) {
+    return res.status(400).json({ error: 'cryptoBundle with publicKeyJwk, salt, privateKeyWrapped required' });
+  }
+  mutate((s) => {
+    const u = s.users.find((x) => x.id === req.user.id);
+    if (!u) return;
+    u.cryptoBundle = {
+      version: 1,
+      kdf: bundle.kdf || 'PBKDF2-SHA256',
+      iterations: bundle.iterations || 310000,
+      salt: bundle.salt,
+      privateKeyWrapped: bundle.privateKeyWrapped,
+      publicKeyJwk: bundle.publicKeyJwk,
+      recoverySalt: bundle.recoverySalt || null,
+      privateKeyWrappedRecovery: bundle.privateKeyWrappedRecovery || null,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  await flushPersist();
+  const user = readStore().users.find((u) => u.id === req.user.id);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+/** Get this user's wrapped estate vault key (ciphertext only). */
+app.get('/api/estates/:id/vault-key', authRequired, (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  const estate = store.estates.find((e) => e.id === access.estate.id);
+  const wraps = estate?.vaultKeyWraps || [];
+  const mine = wraps.find((w) => w.userId === req.user.id);
+  const membersNeedingKey = (store.members || [])
+    .filter((m) => m.estateId === estate.id && m.status === 'active')
+    .map((m) => {
+      const u = store.users.find((x) => x.id === m.userId);
+      return {
+        userId: m.userId,
+        name: u?.name,
+        hasWrap: wraps.some((w) => w.userId === m.userId),
+        cryptoPublicKeyJwk: u?.cryptoBundle?.publicKeyJwk || null,
+      };
+    });
+  const owner = store.users.find((u) => u.id === estate.ownerId);
+  res.json({
+    e2ee: Boolean(estate?.e2eeEnabled),
+    wrappedKey: mine?.wrappedKey || null,
+    members: [
+      {
+        userId: estate.ownerId,
+        name: owner?.name,
+        hasWrap: wraps.some((w) => w.userId === estate.ownerId),
+        cryptoPublicKeyJwk: owner?.cryptoBundle?.publicKeyJwk || null,
+      },
+      ...membersNeedingKey,
+    ],
+  });
+});
+
+/** Create / replace vault key wraps (client generated). */
+app.put('/api/estates/:id/vault-key', authRequired, async (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (!['owner', 'manager'].includes(access.role)) {
+    return res.status(403).json({ error: 'Only owner/manager can set vault keys' });
+  }
+  const wraps = Array.isArray(req.body?.wraps) ? req.body.wraps : [];
+  if (!wraps.length) return res.status(400).json({ error: 'wraps[] required' });
+  mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    if (!e) return;
+    if (!e.vaultKeyWraps) e.vaultKeyWraps = [];
+    for (const w of wraps) {
+      if (!w.userId || !w.wrappedKey) continue;
+      const idx = e.vaultKeyWraps.findIndex((x) => x.userId === w.userId);
+      const row = {
+        userId: w.userId,
+        wrappedKey: w.wrappedKey,
+        grantedBy: req.user.id,
+        at: new Date().toISOString(),
+      };
+      if (idx >= 0) e.vaultKeyWraps[idx] = row;
+      else e.vaultKeyWraps.push(row);
+    }
+    e.e2eeEnabled = true;
+    e.updatedAt = new Date().toISOString();
+  });
+  await flushPersist();
+  res.json({ ok: true, e2ee: true });
+});
+
+/** Grant vault key wrap to one member (after invite). */
+app.post('/api/estates/:id/vault-key/grant', authRequired, async (req, res) => {
+  const store = readStore();
+  const access = canAccessEstate(store, req.user.id, req.params.id);
+  if (!access.ok) return res.status(access.status).json({ error: access.error });
+  if (!['owner', 'manager'].includes(access.role)) {
+    return res.status(403).json({ error: 'Only owner/manager can grant vault keys' });
+  }
+  const userId = String(req.body?.userId || '').trim();
+  const wrappedKey = String(req.body?.wrappedKey || '').trim();
+  if (!userId || !wrappedKey) {
+    return res.status(400).json({ error: 'userId and wrappedKey required' });
+  }
+  const targetAccess = canAccessEstate(store, userId, req.params.id);
+  if (!targetAccess.ok) {
+    return res.status(400).json({ error: 'Target user is not on this vault' });
+  }
+  mutate((s) => {
+    const e = s.estates.find((x) => x.id === access.estate.id);
+    if (!e) return;
+    if (!e.vaultKeyWraps) e.vaultKeyWraps = [];
+    const idx = e.vaultKeyWraps.findIndex((x) => x.userId === userId);
+    const row = {
+      userId,
+      wrappedKey,
+      grantedBy: req.user.id,
+      at: new Date().toISOString(),
+    };
+    if (idx >= 0) e.vaultKeyWraps[idx] = row;
+    else e.vaultKeyWraps.push(row);
+    e.e2eeEnabled = true;
+  });
+  await flushPersist();
+  res.json({ ok: true });
 });
 
 app.get('/api/notifications', authRequired, (req, res) => {
@@ -1369,8 +1528,18 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
       upgradePlan: err.upgradePlan || (err.status === 402 ? 'family' : undefined),
     });
   }
+  const rawBody = req.body || {};
+  let enc = rawBody.enc || null;
+  if (typeof enc === 'string' && enc.trim()) {
+    try {
+      enc = JSON.parse(enc);
+    } catch {
+      enc = null;
+    }
+  }
+  const e2ee = String(rawBody.e2ee || '') === 'true' || rawBody.e2ee === true || Boolean(enc);
   const { category, title, institution, accountRef, notes, shift, paidBy, backupContact } =
-    req.body || {};
+    stripSensitiveIfE2ee({ ...rawBody, e2ee, enc });
   if (!category || !title?.trim()) {
     return res.status(400).json({ error: 'Category and title required' });
   }
@@ -1381,20 +1550,25 @@ app.post('/api/estates/:id/items', authRequired, upload.array('files', 5), async
       mime: f.mimetype,
       buffer: f.buffer,
     });
-    files.push(saved);
+    files.push({
+      ...saved,
+      e2ee: e2ee || String(f.originalname || '').endsWith('.e2ee.json'),
+    });
   }
   const item = {
     id: uuid(),
     estateId: access.estate.id,
     category,
     title: title.trim(),
-    institution: (institution || '').trim(),
-    accountRef: (accountRef || '').trim(),
-    notes: (notes || '').trim(),
-    shift: shift ? String(shift).trim() : null,
-    paidBy: paidBy ? String(paidBy).trim() : null,
-    backupContact: backupContact ? String(backupContact).trim() : null,
-    expiresOn: req.body?.expiresOn ? String(req.body.expiresOn).trim() : null,
+    institution: e2ee ? '' : (institution || '').trim(),
+    accountRef: e2ee ? '' : (accountRef || '').trim(),
+    notes: e2ee ? '' : (notes || '').trim(),
+    shift: e2ee ? null : shift ? String(shift).trim() : null,
+    paidBy: e2ee ? null : paidBy ? String(paidBy).trim() : null,
+    backupContact: e2ee ? null : backupContact ? String(backupContact).trim() : null,
+    expiresOn: rawBody.expiresOn ? String(rawBody.expiresOn).trim() : null,
+    e2ee: Boolean(e2ee && enc),
+    enc: e2ee && enc ? enc : null,
     files,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1494,6 +1668,24 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
       (i) => i.id === req.params.itemId && i.estateId === req.params.id
     );
     if (!row) return null;
+    let enc = req.body?.enc;
+    if (typeof enc === 'string' && enc.trim()) {
+      try {
+        enc = JSON.parse(enc);
+      } catch {
+        enc = undefined;
+      }
+    }
+    if (req.body?.e2ee && enc) {
+      row.e2ee = true;
+      row.enc = enc;
+      row.institution = '';
+      row.accountRef = '';
+      row.notes = '';
+      row.shift = null;
+      row.paidBy = null;
+      row.backupContact = null;
+    }
     const fields = [
       'category',
       'title',
@@ -1506,7 +1698,12 @@ app.patch('/api/estates/:id/items/:itemId', authRequired, async (req, res) => {
       'backupContact',
     ];
     for (const f of fields) {
-      if (req.body?.[f] != null) row[f] = String(req.body[f]).trim() || null;
+      if (req.body?.[f] != null) {
+        if (row.e2ee && ['institution', 'accountRef', 'notes', 'shift', 'paidBy', 'backupContact'].includes(f)) {
+          continue;
+        }
+        row[f] = String(req.body[f]).trim() || null;
+      }
     }
     row.updatedAt = new Date().toISOString();
     audit(s, {
@@ -2633,16 +2830,31 @@ app.get('/api/public/emergency/:token', (req, res) => {
   const contacts = store.items
     .filter((i) => i.estateId === estate.id && (i.category === 'contacts' || i.category === 'care'))
     .slice(0, 8)
-    .map((i) => ({
-      title: i.title,
-      role: i.institution || (i.category === 'care' ? 'Caregiver' : null),
-      phone: i.accountRef || null,
-      notes: i.notes,
-      shift: i.shift || null,
-      paidBy: i.paidBy || null,
-      backupContact: i.backupContact || null,
-      kind: i.category,
-    }));
+    .map((i) => {
+      if (i.e2ee && i.enc) {
+        return {
+          title: i.title,
+          role: i.category === 'care' ? 'Caregiver' : 'Contact',
+          phone: null,
+          notes: 'Encrypted — open HeirReady with vault unlock to see phone / details',
+          shift: null,
+          paidBy: null,
+          backupContact: null,
+          kind: i.category,
+          e2ee: true,
+        };
+      }
+      return {
+        title: i.title,
+        role: i.institution || (i.category === 'care' ? 'Caregiver' : null),
+        phone: i.accountRef || null,
+        notes: i.notes,
+        shift: i.shift || null,
+        paidBy: i.paidBy || null,
+        backupContact: i.backupContact || null,
+        kind: i.category,
+      };
+    });
   const familyInvite = findActiveFamilyInvite(store, estate.id, 'manager');
   const ownerFirst =
     String(owner?.name || '')

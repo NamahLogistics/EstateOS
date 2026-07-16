@@ -4,6 +4,7 @@ import { useAuth } from '../auth.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
 import { captureEmailClickAttribution, clearEmailClickCode, getEmailClickCode } from '../emailClick.js';
+import { useVaultCrypto } from '../crypto/VaultCryptoContext.jsx';
 
 const REF_KEY = 'estate_os_ref';
 const CITY_KEY = 'heirready_invite_city_v2';
@@ -29,6 +30,7 @@ function modeFromParams(params) {
 
 export default function AuthPage() {
   const { user, login, register, completeMfaLogin, toast } = useAuth();
+  const { unlockCrypto, setupCrypto, hasKeys } = useVaultCrypto();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -162,6 +164,12 @@ export default function AuthPage() {
           phone: form.phone || undefined,
           emailClickCode: getEmailClickCode() || undefined,
         });
+        try {
+          if (hasKeys) await unlockCrypto(form.password);
+          else await setupCrypto(form.password);
+        } catch {
+          /* user can unlock later from banner */
+        }
         localStorage.removeItem(REF_KEY);
         clearEmailClickCode();
         if (form.city) localStorage.setItem(CITY_KEY, form.city);
@@ -195,10 +203,20 @@ export default function AuthPage() {
 
       const data = await login({ email: form.email, password: form.password });
       if (data.mfaRequired) {
-        setMfaPending({ mfaToken: data.mfaToken, email: data.email || form.email });
+        setMfaPending({
+          mfaToken: data.mfaToken,
+          email: data.email || form.email,
+          password: form.password,
+        });
         setMfaCode('');
         toast(data.message || 'Enter your authenticator code');
         return;
+      }
+      try {
+        if (hasKeys || data.user?.cryptoEnabled) await unlockCrypto(form.password);
+        else await setupCrypto(form.password);
+      } catch {
+        /* unlock later */
       }
       toast(t('welcome'));
       navigate(homeFor(data.user?.accountType));
@@ -218,6 +236,15 @@ export default function AuthPage() {
         mfaToken: mfaPending.mfaToken,
         code: mfaCode,
       });
+      try {
+        const pw = mfaPending.password || form.password;
+        if (pw) {
+          if (data.user?.cryptoEnabled || hasKeys) await unlockCrypto(pw);
+          else await setupCrypto(pw);
+        }
+      } catch {
+        /* unlock later */
+      }
       setMfaPending(null);
       toast(t('welcome'));
       navigate(homeFor(data.user?.accountType));

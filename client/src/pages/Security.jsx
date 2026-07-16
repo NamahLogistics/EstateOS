@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
 
 export default function SecurityPage() {
   const { user, api, toast, setUser, token } = useAuth();
@@ -131,15 +132,24 @@ export default function SecurityPage() {
       <div className="card" style={{ padding: '1.15rem 1.25rem', marginBottom: '1rem' }}>
         <strong>What we protect</strong>
         <ul className="small" style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.55 }}>
+          <li>
+            <strong>End-to-end encryption</strong> — bank/LIC numbers, notes, and documents are
+            encrypted on your device (AES-256-GCM). Our servers only store ciphertext.
+          </li>
           <li>Passwords hashed with scrypt (never stored in plain text)</li>
           <li>Vault documents require a signed link — not a guessable public URL</li>
+          <li>Authenticator 2FA (TOTP — Google Authenticator, Authy, 1Password)</li>
           <li>HTTPS in production · session tokens expire</li>
-          <li>Optional authenticator 2FA (TOTP — Google Authenticator, Authy, 1Password)</li>
         </ul>
         <p className="small muted" style={{ margin: '0.75rem 0 0' }}>
-          We are not yet zero-knowledge / end-to-end encrypted like 1Password. We never claim we
-          “cannot read” vault data. Full client-side encryption is on the roadmap.
+          Category and item titles stay visible so the Life Map UI works. Secrets (account refs,
+          notes, files) are E2EE. Save your recovery key when you enable encryption — password reset
+          without it cannot decrypt old vaults.
         </p>
+      </div>
+
+      <div style={{ marginBottom: '1.25rem' }}>
+        <UnlockCryptoBanner />
       </div>
 
       {!user.mfaEnabled && step === 'idle' && (

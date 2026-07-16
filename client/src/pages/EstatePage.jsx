@@ -6,6 +6,8 @@ import CarePanel from '../components/CarePanel.jsx';
 import FamilyThread from '../components/FamilyThread.jsx';
 import HousewarmingGuide from '../components/HousewarmingGuide.jsx';
 import HousewarmingDone, { SiblingInviteCard } from '../components/HousewarmingDone.jsx';
+import UnlockCryptoBanner from '../components/UnlockCryptoBanner.jsx';
+import { useVaultCrypto } from '../crypto/VaultCryptoContext.jsx';
 import UpgradeGate, { isPlanLimitError, upgradeReasonFromError } from '../components/UpgradeGate.jsx';
 import { useI18n } from '../i18n.jsx';
 import { track } from '../analytics.js';
@@ -134,6 +136,14 @@ export default function EstatePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { api, toast, user } = useAuth();
+  const {
+    unlocked,
+    decryptItems,
+    prepareItemForUpload,
+    encryptFileForUpload,
+    grantVaultKeyToMember,
+    ensureEstateVaultKey,
+  } = useVaultCrypto();
   const { t, lang } = useI18n();
   const [data, setData] = useState(null);
   const [vaultMeta, setVaultMeta] = useState({ number: null, total: 0 });
@@ -178,7 +188,27 @@ export default function EstatePage() {
       api(`/api/estates/${id}`),
       api('/api/estates').catch(() => ({ estates: [] })),
     ]);
-    setData(res);
+    let next = res;
+    if (unlocked && res.items?.length) {
+      try {
+        const items = await decryptItems(id, res.items);
+        next = { ...res, items };
+        // Grant vault key to siblings who have crypto keys but no wrap yet
+        const keyInfo = await api(`/api/estates/${id}/vault-key`).catch(() => null);
+        if (keyInfo?.members) {
+          await ensureEstateVaultKey(id, keyInfo.members);
+          for (const m of keyInfo.members) {
+            if (m.userId === user?.id) continue;
+            if (!m.hasWrap && m.cryptoPublicKeyJwk) {
+              await grantVaultKeyToMember(id, m.userId, m.cryptoPublicKeyJwk).catch(() => {});
+            }
+          }
+        }
+      } catch {
+        /* leave ciphertext if unlock failed mid-load */
+      }
+    }
+    setData(next);
     const estates = list.estates || [];
     const idx = estates.findIndex((e) => e.id === id);
     setVaultMeta({
@@ -226,7 +256,7 @@ export default function EstatePage() {
 
   useEffect(() => {
     load().catch((e) => toast(e.message));
-  }, [id]);
+  }, [id, unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!justAddedId) return;
@@ -415,14 +445,29 @@ export default function EstatePage() {
       openUpgrade('items');
       return;
     }
+    if (!unlocked) {
+      toast('Unlock encryption first (banner above)');
+      return;
+    }
     const addedCategory = itemForm.category;
     setBusy(true);
     try {
+      const { body } = await prepareItemForUpload(id, itemForm);
       const fd = new FormData();
-      Object.entries(itemForm).forEach(([k, v]) => fd.append(k, v));
-      if (files) [...files].forEach((f) => fd.append('files', f));
+      Object.entries(body).forEach(([k, v]) => {
+        if (v == null) return;
+        if (k === 'enc') fd.append(k, JSON.stringify(v));
+        else fd.append(k, typeof v === 'boolean' ? String(v) : v);
+      });
+      if (files) {
+        for (const f of [...files]) {
+          const enc = await encryptFileForUpload(id, f);
+          fd.append('files', enc.file, enc.file.name);
+        }
+      }
       const res = await api(`/api/estates/${id}/items`, { method: 'POST', body: fd });
-      mergeItemIntoData(res.item);
+      const decrypted = (await decryptItems(id, [res.item]))[0] || res.item;
+      mergeItemIntoData(decrypted);
       setItemForm({
         category: addedCategory === 'care' ? 'care' : 'bank',
         title: '',
@@ -437,11 +482,10 @@ export default function EstatePage() {
       setFiles(null);
       toast(
         addedCategory === 'care'
-          ? 'Attendant / care contact added — showing in Care at home'
-          : 'Item added to Life Map'
+          ? 'Attendant / care contact added — encrypted on your device'
+          : 'Item added — encrypted on your device'
       );
       setTab('map');
-      // Refresh in background; list already updated
       load().catch(() => {});
     } catch (err) {
       if (!handleLimitError(err, 'items')) toast(err.message);
@@ -725,6 +769,7 @@ export default function EstatePage() {
 
   return (
     <section style={{ paddingBottom: '2.5rem' }}>
+      <UnlockCryptoBanner />
       <Link to="/app" className="small muted">
         {t('allEstates')}
       </Link>
