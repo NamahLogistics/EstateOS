@@ -965,6 +965,420 @@ export const GUIDES = [
     ],
     cta: 'Start listing banks on a free Life Map',
   },
+  {
+    slug: 'legal-heir-vs-succession-certificate-india-nri',
+    title: 'Legal heir certificate vs succession certificate in India: what NRI families need',
+    description:
+      'Plain-English guide for adult children abroad — when banks ask for a legal heir certificate vs succession certificate, what to prepare, and what to map first. Not legal advice.',
+    updated: '17 July 2026',
+    lead:
+      'After a parent dies, bank desks and brokers often say: “Bring a legal heir certificate” or “We need a succession certificate.” Those are not the same document, and the wrong chase costs weeks. NRI siblings flying in on short leave need a clear picture of what institutions typically ask for, what your Life Map should already hold, and when to hire an advocate. This is an educational continuity guide — not legal advice for your facts.',
+    sections: [
+      {
+        h: 'Legal heir certificate — what it usually is',
+        paras: [
+          'A legal heir certificate (sometimes issued by a revenue / tehsildar / municipal authority depending on state practice) lists the legal heirs of the deceased for certain administrative purposes. Families often need it for employer benefits, some local offices, and as supporting ID of relationship. Exact issuing authority and format vary by state — do not assume one PDF template works nationwide.',
+        ],
+        body: [
+          'Used to show who the heirs are for many government / employer / local processes.',
+          'Often faster than court processes when the local office’s checklist is clear.',
+          'Not a universal substitute for every bank claim or every property transfer.',
+          'Spellings of names must match Aadhaar / passports — mismatches stall everything.',
+        ],
+      },
+      {
+        h: 'Succession certificate — what it usually is',
+        paras: [
+          'A succession certificate is typically a court-issued document used to establish authority to collect debts and securities of the deceased (for example certain bank deposits, shares, or debts). Banks and companies sometimes insist on it when nomination is missing, disputed, or insufficient for their internal rules. Getting one involves court process, time, and usually a lawyer.',
+        ],
+        body: [
+          'More formal and slower than a local legal heir certificate in most cases.',
+          'Often relevant for movable assets / securities when institutions demand court authority.',
+          'Not automatically the same as full probate of a will — different tracks.',
+          'If nominations are clean and uncontested, some institutions may not need this — ask in writing.',
+        ],
+      },
+      {
+        h: 'Where NRI families get stuck',
+        body: [
+          'Assuming “legal heir = succession” and applying for the wrong thing twice.',
+          'Sibling conflict — any certificate path slows or fails when heirs disagree.',
+          'Missing death certificate copies and relationship proofs before the first branch visit.',
+          'Outdated nominees on LIC / demat while chasing court papers for a simple nominated payout.',
+          'Paying “agents” who promise same-week succession certificates online — high fraud risk.',
+        ],
+      },
+      {
+        h: 'Practical sequence before you book court time',
+        paras: [
+          'Inventory first. Many “we need succession” moments dissolve when you find a valid nomination, a joint survivor mandate, or the right claim form for that product.',
+        ],
+        body: [
+          'Open the Life Map: list banks, FDs, LIC, demat, employer, pension.',
+          'For each item, note nominee / joint holder status as recorded.',
+          'Ask each institution in writing what document they accept for your case.',
+          'Gather death certificate copies, IDs, and relationship proofs in one folder.',
+          'If conflict or large estate — retain an advocate early rather than DIY forums.',
+        ],
+      },
+      {
+        h: 'What to capture in peacetime (so crisis week is shorter)',
+        body: [
+          'Nominee name on each bank / LIC / demat item — or “unknown.”',
+          'Whether parents say a will exists and where the original is.',
+          'CA / family advocate phone if any.',
+          'Sibling unlockers so one NRI is not holding every PDF alone.',
+          'Passport / OCI name spellings for every adult child who may appear on certificates.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps — and what it does not',
+        paras: [
+          'HeirReady stores the shared inventory, scans, and sibling roles. It does not issue certificates, file petitions, or replace an advocate. Used early, it stops you from discovering on day three that nobody knows which bank even needs which paper.',
+        ],
+        body: [
+          'Free Life Map + sibling invite.',
+          'Encrypted notes for claim reference numbers.',
+          'Optional counsel path when you need a lawyer on the same continuity file.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Certificate names, issuing authorities, and bank acceptance rules are state- and fact-specific. Confirm with the relevant office or a licensed advocate before relying on any path described here.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map nominees and papers on a free Life Map',
+  },
+  {
+    slug: 'bank-locker-after-death-india-nri',
+    title: 'Bank locker after death in India: what NRI families should know and map',
+    description:
+      'How families typically approach a deceased parent’s bank safe deposit locker — nomination, inventory, documents, and what to record now. Practical guide, not legal advice.',
+    updated: '17 July 2026',
+    lead:
+      'A steel bank locker is one of the most stressful finds after a parent dies: jewellery, property papers, wills, cash, and old passbooks may all be inside — and the bank will not casually open it for a WhatsApp forward. NRI children often learn a locker exists only when a passbook shows rent or a neighbour mentions “Papa’s locker at SBI.” Map the branch and nomination while parents can still answer. This guide covers the usual operational path families face; exact bank rules differ.',
+    sections: [
+      {
+        h: 'Why lockers are different from savings accounts',
+        paras: [
+          'A locker is a bailment / custody relationship with the bank, not “just another account balance.” Access after death usually follows nomination (if registered), survivor mandates for joint hirers, or a formal claim / inventory process. Banks care about who is authorised to be present when the locker is opened.',
+        ],
+        body: [
+          'Locker nomination is separate from account nomination — check both.',
+          'Joint locker hirers may have “either or survivor” style access — verify the mandate.',
+          'Banks often prepare an inventory of contents in the presence of heirs / nominees / officials as per their procedure.',
+          'Losing the key or forgetting the branch wastes precious leave days.',
+        ],
+      },
+      {
+        h: 'What to ask parents on a calm video call',
+        body: [
+          'Which bank and which branch (full address, not “the one near the temple”).',
+          'Locker number if known — or at least the customer ID / account linked to rent.',
+          'Who is the nominee / joint hirer on the locker agreement.',
+          'Where the keys are kept at home (and whether there is a spare).',
+          'Rough contents category: jewellery only, papers, mixed — without photographing valuables into group chats.',
+          'Annual rent debit account — that SMS trail often proves a locker exists.',
+        ],
+      },
+      {
+        h: 'After death: typical operational steps (varies by bank)',
+        paras: [
+          'Do not force the locker open at home lore. Go through the bank’s deceased-hirer process. Bring death certificate, IDs, and whatever nomination / claim forms they specify. If there is conflict among heirs, expect delay — that is when counsel matters.',
+        ],
+        body: [
+          'Notify the branch; ask for the written checklist for deceased locker hirers.',
+          'Secure keys; do not leave them with unverified helpers.',
+          'Attend inventory appointment if required — plan NRI travel around that date.',
+          'Photograph the bank’s inventory list for the family vault after the visit.',
+          'Separately start claim paths for accounts / FDs at the same branch if linked.',
+        ],
+      },
+      {
+        h: 'Fraud and conflict risks',
+        body: [
+          'Unsupervised “relative opens locker first” stories — insist on bank procedure.',
+          'Jewellery disputes among siblings — inventory under bank process reduces later accusations.',
+          'WhatsApp photos of contents leaking outside the family.',
+          'Fake “locker recovery consultants” asking for advance fees online.',
+        ],
+      },
+      {
+        h: 'Map it in HeirReady before you need it',
+        body: [
+          'Life Map item: bank + branch + “locker: yes” + nominee note + key location.',
+          'Do not store full jewellery valuations in insecure chats.',
+          'Invite a sibling unlocker who can attend the branch if you cannot fly.',
+          'Link related property paper locations if the locker holds title deeds.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Locker access after death is governed by the bank’s terms, nomination rules, and applicable law for your facts. Confirm the checklist with the branch or an advocate. HeirReady does not open lockers or mediate jewellery disputes.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Add bank locker details to a free Life Map',
+  },
+  {
+    slug: 'epf-claim-after-death-nominee-nri',
+    title: 'EPF claim after death: what NRI nominees and heirs should prepare',
+    description:
+      'Practical checklist for claiming Employees’ Provident Fund / EPS benefits when a parent or spouse dies — UAN, nominee, documents, and what to map early. Not official EPFO advice.',
+    updated: '17 July 2026',
+    lead:
+      'EPF balances and EPS pensions are easy to forget when a parent’s last private-sector job ended years ago — until someone finds an old UAN SMS or Form 26AS shows PF interest. For NRI children, the claim path is document-heavy and slow if the nominee is wrong or the UAN is unknown. Map UAN, employer, and nominee while the member can still log in. This is a family-operations guide based on common claim friction; always follow current EPFO / employer instructions for your case.',
+    sections: [
+      {
+        h: 'What you are usually claiming',
+        paras: [
+          'Depending on the member’s status, families may deal with provident fund accumulations, EPS-related benefits, or employer-specific gratuity / insurance that sits beside EPF. Treat “Papa had PF” as a label — verify UAN, member ID, and which benefit applies after death.',
+        ],
+        body: [
+          'UAN (Universal Account Number) is the key search handle when known.',
+          'Nominee registered in EPFO may differ from bank / LIC nominees.',
+          'EPS widow/widower or children pensions have separate eligibility rules — check official guidance.',
+          'Old exempted trusts / company PF may not be on the same portal as EPFO — ask the last employer HR.',
+        ],
+      },
+      {
+        h: 'Peacetime capture (best ROI for NRIs)',
+        body: [
+          'UAN and registered mobile / email on the member account.',
+          'Last employer name and HR / payroll contact if any.',
+          'Nominee name as shown in the passbook / portal.',
+          'Aadhaar / PAN seed status — KYC mismatches block claims.',
+          'Whether the member still has the UAN app OTP phone.',
+          'Store these as a Life Map item under retirement / employment.',
+        ],
+      },
+      {
+        h: 'After death: documents families commonly gather',
+        paras: [
+          'Exact forms change; EPFO and employers publish current checklists. Expect identity, death, and relationship proofs. NRI claimants should plan bank account details that can receive the credit and name-matching across passports.',
+        ],
+        body: [
+          'Death certificate.',
+          'Claimant ID and bank details for payout.',
+          'Proof of relationship / nominee status as required.',
+          'Member’s UAN / PF details from the Life Map.',
+          'Any employer NOC or forms if the trust is company-managed.',
+        ],
+      },
+      {
+        h: 'Where claims stall',
+        body: [
+          'Unknown UAN — search via employer, old salary slips, or member’s email.',
+          'Nominee is deceased or never updated after remarriage / divorce.',
+          'Aadhaar name mismatch with bank account.',
+          'Multiple UANs never merged.',
+          'Family filing overlapping claims without coordination.',
+        ],
+      },
+      {
+        h: 'NRI-specific practical tips',
+        body: [
+          'Appoint a local sibling or trusted person for physical form submission if required.',
+          'Keep one shared checklist — do not run parallel claims from two countries.',
+          'Do not share UAN passwords in large groups; use the vault for refs.',
+          'Track acknowledgement / claim numbers in the Life Map notes.',
+        ],
+      },
+      {
+        h: 'How HeirReady fits',
+        paras: [
+          'HeirReady is where the UAN, employer, and nominee facts live for every sibling. It does not file EPFO claims or replace the member portal. Combined with unlock-with-proof later, it stops the “which UAN was it?” week.',
+        ],
+        body: [
+          'Map PF / EPS as a vault item with encrypted refs.',
+          'Invite sibling managers for shared follow-up.',
+          'Link related insurance / gratuity items from the same employer.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'EPFO rules, forms, and EPS eligibility change. Use official EPFO / employer channels for filing. This article helps families organise information; it is not official EPFO guidance or legal advice.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Add UAN and nominee to a free Life Map',
+  },
+  {
+    slug: 'property-mutation-after-death-india-nri',
+    title: 'Property mutation after death in India: an NRI heir’s practical checklist',
+    description:
+      'What adult children abroad should know about mutating / transferring a deceased parent’s property records — papers to gather, society vs municipal steps, and what to map early. Not legal advice.',
+    updated: '17 July 2026',
+    lead:
+      '“Mutation” is the administrative updating of land / property records to reflect a new owner after death or transfer. It is not the same as a sale deed, and it is not automatic when a will exists. NRI heirs often face society NOCs, municipal / revenue offices, name mismatches, and sibling disagreements — usually while still hunting the original sale deed. Map title papers and society contacts before the crisis. This guide is operational orientation, not conveyancing advice.',
+    sections: [
+      {
+        h: 'Mutation vs ownership — keep them straight',
+        paras: [
+          'Title comes from registered documents and succession law / will processes as applicable. Mutation updates revenue or municipal records for tax and local administration. Families sometimes mutate without resolving disputes — or resolve succession but forget mutation and keep getting tax notices in the deceased’s name.',
+        ],
+        body: [
+          'Find the registered sale deed / gift deed / allotment letter first.',
+          'Check whether property is freehold, leasehold, society flat, or builder allotment — paths differ.',
+          'Society share certificate transfer is often a parallel track to municipal mutation.',
+          'Agricultural land and urban flats can have completely different offices.',
+        ],
+      },
+      {
+        h: 'Papers NRI families should locate early',
+        body: [
+          'Registered title deed and previous chain if available.',
+          'Society share certificate / allotment / maintenance account name.',
+          'Property tax receipts and assessment number.',
+          'Encumbrance certificate habits — know which Sub-Registrar covers the property.',
+          'Will / probate status if relevant; legal heir / succession docs when offices demand them.',
+          'Khata / property ID / survey numbers as used locally.',
+        ],
+      },
+      {
+        h: 'Typical friction points',
+        body: [
+          'Deed in a bank locker nobody mapped.',
+          'Name spelling differs across deed, Aadhaar, and passport.',
+          'Unpaid society dues blocking transfer.',
+          'Co-owners / siblings not signing required forms.',
+          'Power of attorney assumptions that the society or registrar rejects.',
+          'NRI heir unable to appear in person when the office insists.',
+        ],
+      },
+      {
+        h: 'Sensible order of operations',
+        paras: [
+          'Secure the home and papers, align siblings, then follow the society and local authority checklists. Do not start with random “mutation agents” on Instagram who ask for scans of every heir’s passport.',
+        ],
+        body: [
+          'Inventory documents into the Life Map (location + scan if parents agree).',
+          'Ask the society secretary for the written transfer checklist.',
+          'Ask the municipal / revenue office what they need for mutation after death.',
+          'Engage a local advocate / conveyancer when the file is non-standard or contested.',
+          'Track application numbers and receipts in one shared vault.',
+        ],
+      },
+      {
+        h: 'What to map while parents are well',
+        body: [
+          'Every property: city, society name, approximate value band optional, deed location.',
+          'Secretary / manager phone for the society.',
+          'Whether a will mentions the flat — without forcing the will talk on day one.',
+          'Who pays property tax and from which account.',
+          'Sibling unlocker who can visit offices if you cannot.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady holds the property inventory, contacts, and scans so heirs are not reconstructing a title chase from memory. It does not mutate records or replace a registrar. Optional counsel can sit on the same family file when you need an advocate.',
+        ],
+        body: [
+          'Property category on the Life Map.',
+          'Encrypted storage for deed scans.',
+          'Shared sibling checklist during transfer.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Mutation, stamp, registration, and succession requirements are fact- and state-specific. Take advice from a licensed professional before filing or paying anyone to “fast-track” mutation.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map property papers on a free Life Map',
+  },
+  {
+    slug: 'death-certificate-india-nri-how-to-get',
+    title: 'How to get a death certificate in India when you’re an NRI',
+    description:
+      'First-week guide for adult children abroad — hospital vs municipal registration, copies you’ll need, common delays, and what to prepare. Practical continuity, not legal advice.',
+    updated: '17 July 2026',
+    lead:
+      'Almost every bank, insurer, EPFO, and society process after a death starts with the death certificate. For NRI sons and daughters, the certificate is often obtained by a local sibling, hospital desk, or funeral organiser while you are still on a flight. Knowing who registers the death, how many copies to request, and which spellings must match Aadhaar saves a second trip. This is a practical continuity checklist — registration rules and portals differ by state and municipality.',
+    sections: [
+      {
+        h: 'Who typically starts the registration',
+        paras: [
+          'If the death occurred in a hospital, the facility often initiates medical documentation and guides the family toward municipal / local body registration. If the death occurred at home, the family usually works with the local registrar / municipal office with the required medical certificate. Confirm the local checklist — do not rely on a pan-India WhatsApp forward.',
+        ],
+        body: [
+          'Hospital deaths: ask the billing / medical records desk what they issue and what you must file next.',
+          'Home deaths: identify the correct local registrar early; wrong office = wasted day.',
+          'Appoint one local ops person; abroad siblings supply passport name spellings by scan.',
+          'Keep the deceased’s Aadhaar / voter / ration details handy for form fields.',
+        ],
+      },
+      {
+        h: 'How many copies and why',
+        paras: [
+          'Families underestimate copy count. Banks, LIC, demat, employer, society, and passport offices may each want a certified copy or attested photocopy. Ask the issuing office about additional certified copies while you are there — returning from abroad for one more stamp is painful.',
+        ],
+        body: [
+          'Request multiple certified copies up front when the office allows.',
+          'Scan one clear colour copy into the family vault immediately.',
+          'Never send the only original through unreliable couriers without tracking.',
+          'Note the registration number / certificate number in the Life Map.',
+        ],
+      },
+      {
+        h: 'Name and detail mismatches that block later claims',
+        body: [
+          'Deceased name spelling vs bank KYC / Aadhaar.',
+          'Wrong date or place of death vs hospital records.',
+          'Parent / spouse name fields that disagree with old passbooks.',
+          'Address that does not match society or bank records — fix via the proper correction process, not Tippex.',
+        ],
+      },
+      {
+        h: 'NRI coordination checklist',
+        body: [
+          'Share passport / OCI name strings for every heir who will appear on later certificates.',
+          'Use one shared folder for scans — not six WhatsApp threads.',
+          'If you need the certificate apostilled / attested for a foreign process, ask counsel which stamp path applies — it is separate from municipal issue.',
+          'Do not pay unknown “online certificate agents” your Aadhaar OTP.',
+        ],
+      },
+      {
+        h: 'After you have the certificate — what the Life Map unlocks',
+        paras: [
+          'The certificate is the key that starts institution notices. Your Life Map should already list banks, LIC, EPF, demat, and society contacts so you are not inventing the distribution list under grief.',
+        ],
+        body: [
+          'Open the inventory and tick who was notified.',
+          'Secure OTP phones and home access in parallel.',
+          'Start insurer intimations early where applicable.',
+          'See our after-parent-dies and bank-discovery guides for the next wave of tasks.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        body: [
+          'Store certificate scans and registration numbers encrypted in the vault.',
+          'Shared sibling checklist for who holds originals.',
+          'Fridge QR / unlockers so local helpers know who to call — not bank secrets.',
+          'Not a government registration portal — continuity and coordination.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Birth and death registration is governed by local law and municipal practice. Confirm steps with the hospital and the competent local authority. HeirReady does not issue death certificates.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Build the family map before you need certificates — free',
+  },
 ];
 
 export function getGuide(slug) {
@@ -1011,7 +1425,7 @@ export function GuidesIndex() {
   usePageMeta({
     title: 'Guides for adult children abroad',
     description:
-      'Practical guides for NRI families — parent documents, LIC, demat, property, caregivers, OTP/UPI, unclaimed deposits, sibling unlockers. Start free on HeirReady.',
+      'Practical guides for NRI families — parent documents, LIC, EPF, bank lockers, legal heir certificates, property mutation, death certificates, caregivers, OTP/UPI. Start free on HeirReady.',
     path: '/guides',
   });
 
