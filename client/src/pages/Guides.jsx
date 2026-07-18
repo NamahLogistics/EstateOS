@@ -1379,6 +1379,415 @@ export const GUIDES = [
     ],
     cta: 'Build the family map before you need certificates — free',
   },
+  {
+    slug: 'ppf-claim-after-death-india-nri',
+    title: 'PPF claim after death in India: what NRI nominees and heirs should prepare',
+    description:
+      'Practical checklist for claiming a deceased parent’s Public Provident Fund — account number, nominee, bank branch, documents, and what to map early. Not official bank advice.',
+    updated: '18 July 2026',
+    lead:
+      'PPF accounts often sit quietly for decades — then a passbook or annual interest credit is the only clue an NRI child has. Claiming after death is usually straightforward when a nominee is registered and KYC matches; it stalls when the account number is unknown, the nominee is outdated, or siblings file overlapping requests. Map the PPF bank/post office, account number, and nominee while parents can still open the passbook. This is a continuity guide, not a substitute for the bank’s or India Post’s current claim checklist.',
+    sections: [
+      {
+        h: 'What a PPF claim usually involves',
+        paras: [
+          'Public Provident Fund is held with a bank or post office. On the subscriber’s death, the nominee (or legal heirs if there is no valid nominee path) typically claims the balance with death and identity proofs. Exact forms and attestation differ by agency — always take the written list from that branch.',
+        ],
+        body: [
+          'Account number / passbook and which bank or post office holds it.',
+          'Nominee as registered — may differ from bank savings nominee.',
+          'Whether contributions were still active or the account was extended.',
+          'Linked savings account for interest credits — another trail to find the PPF.',
+        ],
+      },
+      {
+        h: 'Peacetime capture on a video call',
+        body: [
+          'Photograph the passbook first page (account no., agency, opening date).',
+          'Ask who is named as nominee and when it was last updated.',
+          'Note the branch / post office full address — “SBI near home” is not enough for an NRI sibling.',
+          'Confirm which phone/email receives OTP if online access exists.',
+          'Enter a Life Map item the same day under retirement / savings.',
+        ],
+      },
+      {
+        h: 'After death: documents families commonly need',
+        paras: [
+          'Expect death certificate, claimant ID, bank details for payout, and nominee / heir proofs as the agency specifies. NRI claimants should align passport name spellings with Aadhaar and the PPF record before the first visit.',
+        ],
+        body: [
+          'Death certificate copies.',
+          'Original passbook if available (or duplicate process if lost).',
+          'Claim form from that bank / post office.',
+          'Nominee ID and cancelled cheque / account proof for credit.',
+          'Legal heir / succession papers only if the agency demands them for your case.',
+        ],
+      },
+      {
+        h: 'Where PPF claims stall',
+        body: [
+          'Unknown which bank holds the account — search interest credits and old diaries.',
+          'Nominee deceased or never updated after family changes.',
+          'Name mismatch across passbook, Aadhaar, and claimant passport.',
+          'Lost passbook with no account number recorded anywhere.',
+          'Two siblings approaching two different branches with incomplete files.',
+        ],
+      },
+      {
+        h: 'NRI coordination tips',
+        body: [
+          'One local ops lead for the branch visit; one abroad lead for scans and name strings.',
+          'Track claim acknowledgement numbers in the shared vault.',
+          'Do not post full account numbers in large WhatsApp groups.',
+          'If the PPF is at a post office, confirm hours and ID rules before flying in.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady stores the PPF inventory and sibling checklist. It does not file claims or replace the bank/post office. Mapped early, it prevents a multi-week hunt for one passbook.',
+        ],
+        body: [
+          'Free Life Map item for PPF with encrypted account refs.',
+          'Sibling invite so knowledge is not trapped abroad.',
+          'Link related FDs / post office products on the same map.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'PPF claim rules and forms change. Confirm the current checklist with the holding bank or post office. This article is educational continuity planning, not official PPF or legal advice.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Add PPF details to a free Life Map',
+  },
+  {
+    slug: 'close-bank-account-after-death-india-nri',
+    title: 'How to close a bank account after death in India (NRI guide)',
+    description:
+      'Step-by-step continuity checklist for claiming or closing a deceased parent’s savings/FD accounts — nominee vs heir paths, documents, and what to map first. Not bank legal advice.',
+    updated: '18 July 2026',
+    lead:
+      '“How do we close Papa’s bank account?” is one of the first practical searches NRI families make after a death certificate arrives. There is no single national form — each bank has a deceased-constituent checklist, and the path differs if there is a nominee, a joint survivor, or neither. Your job is inventory, documents, and sibling coordination — not inventing law on WhatsApp. This guide covers the usual operational flow; confirm every step with the branch for your accounts.',
+    sections: [
+      {
+        h: 'First: know what kind of account it is',
+        paras: [
+          'Savings, current, FD, RD, and joint accounts are processed differently. A nominee on savings does not automatically settle every FD at the same customer ID. Map each product separately in the Life Map.',
+        ],
+        body: [
+          'Single-holder with nominee registered.',
+          'Joint “either or survivor” / “former or survivor” mandates.',
+          'Accounts with no nominee and no surviving joint holder.',
+          'Dormant / unclaimed balances that may need extra KYC or search tools.',
+        ],
+      },
+      {
+        h: 'Operational sequence most families follow',
+        paras: [
+          'Notify the bank, submit the death certificate, and ask for the written claim / closure checklist for that account type. Do not assume the first verbal answer from a junior clerk is final — get it in writing or on bank letterhead / email where possible.',
+        ],
+        body: [
+          'Secure the OTP phone and cheque books to reduce fraud risk.',
+          'List every account from the Life Map before the branch visit.',
+          'Submit death certificate + claimant IDs as required.',
+          'Complete nominee claim or survivor / heir forms per bank instructions.',
+          'Close or transfer; collect FD proceeds; update standing instructions and UPI linkages.',
+          'Keep acknowledgement numbers in one shared checklist.',
+        ],
+      },
+      {
+        h: 'Documents commonly requested',
+        body: [
+          'Death certificate (multiple copies).',
+          'Passbook / account numbers / customer ID.',
+          'Nominee form / claim form as provided by the bank.',
+          'Claimant PAN, Aadhaar / passport, and bank details for credit.',
+          'Legal heir or succession certificate when the bank’s rules require it for your fact pattern.',
+          'Indemnity / affidavit formats some banks still use — read before signing.',
+        ],
+      },
+      {
+        h: 'Mistakes that cost leave days',
+        body: [
+          'Visiting the wrong home branch without a transfer/claim routing plan.',
+          'Closing one savings account and forgetting FDs / locker rent mandates.',
+          'Sibling A submitting while sibling B already started at another branch.',
+          'Name spelling mismatches between death certificate and KYC.',
+          'Paying “account closure agents” who ask for netbanking passwords.',
+        ],
+      },
+      {
+        h: 'What to map while parents are alive',
+        body: [
+          'Every bank app, customer ID, and nominee status.',
+          'Which phone receives OTPs.',
+          'FD advice slips and maturity dates.',
+          'Locker and standing instructions linked to the same CIF.',
+          'Sibling unlockers who can attend branches if you cannot fly.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady is the shared inventory and task board for account closure. It does not close accounts with the bank. Families that mapped early spend the first week submitting forms — not discovering accounts.',
+        ],
+        body: [
+          'Bank items with encrypted refs and nominee notes.',
+          'Shared closure checklist across siblings.',
+          'Links to our bank-discovery and nomination guides.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Bank claim and closure procedures are institution- and fact-specific. Confirm with the bank or a licensed advocate. HeirReady is not a bank and does not process deceased-account claims.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'List every account on a free Life Map',
+  },
+  {
+    slug: 'joint-bank-account-survivor-nominee-india-nri',
+    title: 'Joint bank account after death in India: survivor vs nominee explained',
+    description:
+      'Clear guide for NRI families on either-or-survivor joint accounts, nominees, and what to verify with the bank — plus what to map now. Educational, not legal advice.',
+    updated: '18 July 2026',
+    lead:
+      'Many Indian parents hold joint accounts with a spouse or adult child. After a death, families argue from memory: “It’s joint so it just continues,” versus “The nominee gets everything.” Both can be wrong for your mandate. Banks look at the operating instructions (either or survivor, former or survivor, jointly) and at nomination fields — and those interact in ways that surprise NRIs. Verify the mandate in peacetime; do not litigate it in a queue. This explainer is educational continuity planning, not legal advice.',
+    sections: [
+      {
+        h: 'Joint operating mandates in plain language',
+        paras: [
+          '“Either or survivor” style mandates usually let either living holder operate, and often allow the survivor to continue after one death — subject to that bank’s deceased-holder process and KYC updates. “Jointly” may require all signatures. Exact labels and consequences differ by bank paperwork — read the account opening form or ask for a printout of the mandate.',
+        ],
+        body: [
+          'Either or survivor — common for spouse pairs; confirm in writing.',
+          'Former or survivor — order of names can matter; verify with the bank.',
+          'Jointly operated — both needed while alive; death path may need extra docs.',
+          'Do not assume WhatsApp lore matches your passbook’s fine print.',
+        ],
+      },
+      {
+        h: 'Where nomination fits',
+        paras: [
+          'Nomination on a joint account is easy to misunderstand. Families sometimes think a nominee overrides the surviving joint holder, or that a survivor mandate means no nomination is needed. Ask the bank how nomination applies to your specific mandate — then record the answer in the Life Map.',
+        ],
+        body: [
+          'Survivor joint holder vs nominee — clarify for each account.',
+          'Outdated nominees (ex-spouse, deceased relative) create friction even when survivors agree.',
+          'FDs booked under the same CIF may carry different nominations.',
+          'Mapping “mandate + nominee as recorded” beats sibling arguments later.',
+        ],
+      },
+      {
+        h: 'What to do after a joint holder dies',
+        body: [
+          'Notify the bank with the death certificate.',
+          'Ask for the checklist to delete the deceased holder / continue in survivor’s name.',
+          'Update KYC, cheque books, UPI, and standing instructions.',
+          'Review linked locker, demat, and loan EMIs on the same relationship.',
+          'If holders disagree or the mandate is unclear — get bank clarification in writing or counsel.',
+        ],
+      },
+      {
+        h: 'NRI-specific traps',
+        body: [
+          'NRI child is joint holder but lives abroad — OTP SIM and KYC updates still need a plan.',
+          'Assuming FEMA / NRE-NRO rules from a forward — confirm with the bank for your residential status.',
+          'Closing too fast and losing auto-debits for insurance or society maintenance.',
+          'Not telling other siblings that a joint account existed — trust damage is expensive.',
+        ],
+      },
+      {
+        h: 'Peacetime verification checklist',
+        body: [
+          'For each joint account: print or note the operating mandate.',
+          'Nominee name as on bank records.',
+          'Who holds the debit card and OTP phone.',
+          'Whether an NRI child should be joint holder, nominee only, or neither — family decision + bank rules.',
+          'Store the summary in HeirReady; invite sibling unlockers.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        body: [
+          'Capture mandate + nominee per account without dumping passwords into chat.',
+          'Shared truth for every sibling.',
+          'Not a substitute for bank confirmation or an advocate in disputes.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Rights of survivors and nominees depend on the account contract, banking practice, and applicable law for your facts. Confirm with the bank and, where needed, a licensed advocate. HeirReady does not adjudicate account disputes.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Record joint-account mandates on a free Life Map',
+  },
+  {
+    slug: 'health-insurance-cashless-parents-india-nri',
+    title: 'Cashless health insurance for parents in India: an NRI child’s checklist',
+    description:
+      'What adult children abroad should map before a hospital admission — policy numbers, TPA, network hospitals, cashless vs reimbursement, and documents. Not insurer advice.',
+    updated: '18 July 2026',
+    lead:
+      '“Does Papa have cashless?” is the wrong first question at 2 a.m. The right ones are: which insurer, which policy number, is the hospital in network, is KYC updated, and who can share the card and OTP phone at the billing desk. NRI families lose the first night of admission to hunting PDFs. Map health cover in peacetime the same way you map banks. This is an operations checklist — not a promise that any claim will be approved.',
+    sections: [
+      {
+        h: 'Cashless vs reimbursement (high level)',
+        paras: [
+          'Cashless means the insurer/TPA may settle eligible hospital bills directly with a network hospital after pre-authorisation — subject to policy terms, waiting periods, exclusions, and room-rent limits. Reimbursement means you pay and claim later with documents. Many “we have insurance” surprises are network or documentation failures, not missing policies.',
+        ],
+        body: [
+          'Network hospital list changes — verify for that admission, not from memory.',
+          'Pre-auth is not automatic approval of the final bill.',
+          'Exclusions, co-pay, and sub-limits still apply.',
+          'Corporate cover vs retail policy vs senior-citizen plan — know which is active.',
+        ],
+      },
+      {
+        h: 'What to capture while parents are well',
+        body: [
+          'Insurer name, policy number, and product type (retail / corporate / senior).',
+          'TPA name and helpline if separate from the insurer.',
+          'Member ID / e-card and where the physical card lives.',
+          'Registered mobile for insurer OTPs and app logins.',
+          'Whether AYUSH / daycare / domiciliary are relevant for your parents’ history.',
+          'Previous claim history notes if parents will share — helps avoid repeat documentation chaos.',
+        ],
+      },
+      {
+        h: 'At admission: first calls that matter',
+        body: [
+          'Hospital TPA / insurance desk with policy number and admitting diagnosis.',
+          'Insurer / TPA helpline for cashless pre-auth initiation.',
+          'Confirm who at the bedside holds ID copies and the e-card.',
+          'Photograph every estimate and pre-auth letter into the shared vault.',
+          'If cashless is denied or partial, switch mindset to reimbursement documentation immediately.',
+        ],
+      },
+      {
+        h: 'Documents that repeatedly unblock desks',
+        body: [
+          'Aadhaar / photo ID of patient and attendant.',
+          'Policy e-card / schedule.',
+          'Doctor’s advice for admission.',
+          'KYC updates if the insurer flags mismatches mid-stay.',
+          'Itemised bills, discharge summary, and investigation reports for reimbursement.',
+        ],
+      },
+      {
+        h: 'NRI coordination without making the ward worse',
+        body: [
+          'One abroad comms lead; one local attendant for desk visits.',
+          'Do not six-call the insurance helpline with contradictory stories.',
+          'Keep a money log if siblings pay deposits while cashless is pending.',
+          'Map caregiver phones so medicine pickup and food are not on the insurance thread.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady stores policy labels, TPA phones, and document locations for every sibling. It does not approve claims or replace the insurer. Paired with care contacts and OTP SIM notes, it shortens the worst night of the year.',
+        ],
+        body: [
+          'Insurance items on the Life Map with encrypted refs.',
+          'Hospital-night checklist shared with unlockers.',
+          'See also our parent-hospitalized guide for the wider 48-hour ops list.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Policy terms, network lists, and claim outcomes are insurer- and fact-specific. Confirm with your insurer/TPA. This article is not insurance advice or a guarantee of cashless approval.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map health policies on a free Life Map',
+  },
+  {
+    slug: 'nps-claim-after-death-nominee-nri',
+    title: 'NPS claim after death: what NRI nominees and heirs should know',
+    description:
+      'Practical guide to National Pension System death claims — PRAN, nominee, annuity vs lump sum basics, documents to prepare, and what to map early. Not official NPS advice.',
+    updated: '18 July 2026',
+    lead:
+      'NPS is easy to forget in a parent’s portfolio until someone finds a PRAN card or an annual statement email. After death, nominees deal with the CRA / NPS architecture, nominee records, and choices that depend on how the account was set up. NRI children need the PRAN, the POP or bank touchpoint, and the nominee status long before a claim form. This is a family-operations overview — always follow current NPS Trust / CRA instructions for your case.',
+    sections: [
+      {
+        h: 'What you need to identify first',
+        paras: [
+          'The PRAN (Permanent Retirement Account Number) is the handle. Without it, everything is archaeology. Nominee details sit in the NPS record and may not match bank or LIC nominees. Know whether the account was corporate or individual, and which Point of Presence (POP) or bank assisted the account.',
+        ],
+        body: [
+          'PRAN and where the PRAN card / welcome kit is kept.',
+          'Registered mobile and email for OTP.',
+          'Nominee name(s) and percentage if multiple.',
+          'POP / bank branch that serviced the account, if known.',
+          'Whether the subscriber was already drawing annuity / partial withdrawals.',
+        ],
+      },
+      {
+        h: 'Peacetime mapping for adult children abroad',
+        body: [
+          'Photograph PRAN card and latest statement into the vault (parents permitting).',
+          'Confirm nominee update after marriage / birth / death in the family.',
+          'Note eNPS or app login holder — usually the parent.',
+          'Add an NPS Life Map item under retirement alongside EPF / PPF.',
+          'Invite a sibling so one person is not the only PRAN holder.',
+        ],
+      },
+      {
+        h: 'After death: typical claim preparation',
+        paras: [
+          'Death claims go through the NPS process published by the CRA / NPS architecture for nominees and legal heirs. Exact forms, death certificate requirements, and settlement options (including rules around lump sum vs annuity for nominees) must be taken from official current instructions — do not rely on a 2019 forward.',
+        ],
+        body: [
+          'Death certificate and claimant KYC.',
+          'PRAN and subscriber details from the Life Map.',
+          'Nominee / heir relationship proofs as required.',
+          'Bank account details for settlement credit.',
+          'Any POP assistance forms if you are filing through a bank/POP.',
+        ],
+      },
+      {
+        h: 'Where NPS claims stall',
+        body: [
+          'Unknown PRAN — search email for “NSDL” / “CRA” / “NPS” statements.',
+          'Nominee never updated; legal heir documents then demanded.',
+          'KYC name mismatch with passport for NRI claimants.',
+          'Multiple family members opening tickets without a single ops lead.',
+          'Ignoring related employer superannuation or gratuity sitting beside NPS.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady keeps PRAN, nominee, and POP notes in one sibling-shared place. It does not file NPS claims or replace the CRA portal. Continuity beats password archaeology under grief.',
+        ],
+        body: [
+          'Encrypted refs for PRAN and claim acknowledgement numbers.',
+          'Checklist shared with unlockers.',
+          'Link EPF / PPF / insurance on the same retirement map.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'NPS death claim rules, tax treatment, and settlement options change. Use official NPS / CRA / POP channels. This article is educational continuity planning, not official NPS or legal advice.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Add PRAN and nominee to a free Life Map',
+  },
 ];
 
 export function getGuide(slug) {
@@ -1425,7 +1834,7 @@ export function GuidesIndex() {
   usePageMeta({
     title: 'Guides for adult children abroad',
     description:
-      'Practical guides for NRI families — parent documents, LIC, EPF, bank lockers, legal heir certificates, property mutation, death certificates, caregivers, OTP/UPI. Start free on HeirReady.',
+      'Practical guides for NRI families — parent documents, LIC, EPF, PPF, NPS, bank lockers, cashless health cover, joint accounts, legal heir certificates, property mutation. Start free on HeirReady.',
     path: '/guides',
   });
 
