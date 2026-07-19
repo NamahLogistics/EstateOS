@@ -151,6 +151,31 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://heirready.com/guides/iepf-claim-unclaimed-shares-india-nri</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/digilocker-parents-documents-nri-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/vehicle-rc-transfer-after-death-india-nri</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/post-office-savings-claim-after-death-nri</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://heirready.com/guides/itr-income-tax-after-parent-death-india-nri</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://heirready.com/auth?mode=register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

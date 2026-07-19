@@ -1788,6 +1788,374 @@ export const GUIDES = [
     ],
     cta: 'Add PRAN and nominee to a free Life Map',
   },
+  {
+    slug: 'iepf-claim-unclaimed-shares-india-nri',
+    title: 'IEPF claim for unclaimed shares in India: an NRI heir’s practical guide',
+    description:
+      'How adult children abroad approach IEPF / unclaimed shares and dividends — what to search, documents to gather, and what to map first. Not official IEPF filing advice.',
+    updated: '19 July 2026',
+    lead:
+      'Old demat holdings, unpaid dividends, and shares transferred to the Investor Education and Protection Fund (IEPF) are a classic NRI surprise — often discovered years after a parent stopped tracking paperwork. Claiming is document-heavy and slow if you lack folio numbers, company names, or a death certificate trail. Map demat and share certificates while parents can still answer. This guide is operational orientation for families; always follow current IEPF / MCA / RTA instructions for your claim.',
+    sections: [
+      {
+        h: 'What “IEPF” usually means for families',
+        paras: [
+          'When dividends stay unpaid or shares remain unclaimed for prescribed periods, companies may transfer amounts / shares to IEPF under the applicable framework. Heirs then use the official claim path (forms, entitlements, and verification through the company / RTA and IEPF process). It is not a shortcut for every forgotten investment — some assets are still with the broker or RTA and never reached IEPF.',
+        ],
+        body: [
+          'Unpaid dividend search vs shares already transferred to IEPF — different starting points.',
+          'Company name + folio / demat ID are the usual search keys.',
+          'Nomination on the old folio may not match today’s family reality.',
+          'Fraud sites that “fast-track IEPF” for an advance fee are common — use official portals only.',
+        ],
+      },
+      {
+        h: 'Peacetime discovery (before anyone needs a claim)',
+        body: [
+          'List every demat account, broker, and old physical share certificate packet.',
+          'Note company names from dividend emails / warrants / Form 26AS clues.',
+          'Capture folio numbers from certificates or Consolidated Account Statements.',
+          'Ask parents about ESOP / employer shares from decades ago.',
+          'Store the inventory in a Life Map under investments — not in a lost email folder.',
+        ],
+      },
+      {
+        h: 'After death or when you suspect IEPF holdings',
+        paras: [
+          'Start with what you can prove: death certificate, claimant KYC, and any folio / demat evidence. Then use official search and claim flows. Expect company / RTA verification steps; NRI claimants should plan name matching across passport and Aadhaar / PAN.',
+        ],
+        body: [
+          'Gather death certificate, PAN, ID, and relationship proofs as required.',
+          'Search unpaid dividend / IEPF entitlement tools with known company + folio hints.',
+          'File through the prescribed claim process — keep acknowledgement numbers.',
+          'Track parallel broker transmission if shares are still in demat, not IEPF.',
+          'One sibling ops lead so duplicate claims do not collide.',
+        ],
+      },
+      {
+        h: 'Where claims stall',
+        body: [
+          'No folio number and only a vague “Tata / Reliance shares” memory.',
+          'Name spelling mismatches on old certificates vs today’s KYC.',
+          'Missing succession / legal heir papers when the process demands them.',
+          'Physical certificates in a bank locker nobody mapped.',
+          'Paying middlemen who ask for OTPs and full demat passwords.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady holds the investment inventory and sibling checklist. It does not file IEPF claims or scrape MCA databases for you. Mapped early, it turns a multi-year mystery into a known folio list.',
+        ],
+        body: [
+          'Demat / shares items with encrypted folio refs.',
+          'Link to our demat & mutual fund mapping guide.',
+          'Shared claim tracker after unlock-with-proof when the family is ready.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'IEPF rules, forms, and verification steps change. Use official IEPF / MCA / company / RTA channels. This article is educational continuity planning, not official claim advice or legal counsel.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map demat and share folios on a free Life Map',
+  },
+  {
+    slug: 'digilocker-parents-documents-nri-guide',
+    title: 'DigiLocker for parents in India: what NRI children should set up and map',
+    description:
+      'How adult children abroad help parents use DigiLocker for Aadhaar, driving licence, and issued documents — access, OTP phones, and what never to share in WhatsApp. Practical guide.',
+    updated: '19 July 2026',
+    lead:
+      'DigiLocker is one of the fastest ways to pull issued documents in India — Aadhaar, driving licence, and other issuer-linked papers — if the account exists and the OTP phone still works. For NRI families, the failure mode is simple: nobody knows whether Mum has DigiLocker, which mobile is linked, or where the unlock PIN lives. Set this up as life admin, not a death project. This guide covers family continuity around DigiLocker; it is not a government how-to that replaces the official DigiLocker help pages.',
+    sections: [
+      {
+        h: 'Why DigiLocker matters for continuity',
+        paras: [
+          'Hospital desks, insurers, and some claim processes accept or request digital documents. When the steel cupboard is 14 hours away and you are abroad, a working DigiLocker (plus the OTP SIM) can save a day. It does not replace original registered deeds or every bank form — but it is a high-leverage piece of the Life Map.',
+        ],
+        body: [
+          'Know whether each parent has an account.',
+          'Know which mobile number receives DigiLocker OTPs.',
+          'Know issued documents already pulled vs only Aadhaar linked.',
+          'Never paste DigiLocker passwords into a 40-person family group.',
+        ],
+      },
+      {
+        h: 'Peacetime setup checklist (video call friendly)',
+        body: [
+          'Confirm DigiLocker login works with the parent’s mobile / Aadhaar flow.',
+          'Pull and save issued documents they already use (DL, Aadhaar, etc.).',
+          'Note linked mobile and alternate email if any.',
+          'Agree who abroad may help in a crisis — without sharing the PIN in chat history.',
+          'Record “DigiLocker: yes / no / unknown” on the Life Map with OTP SIM owner.',
+        ],
+      },
+      {
+        h: 'Crisis-week realities',
+        body: [
+          'If the OTP SIM is with a neighbour or switched off, DigiLocker is unreachable — fix SIM access first.',
+          'If the parent is incapacitated, you may need alternate legal / institutional paths — DigiLocker alone is not a POA.',
+          'Download critical PDFs to the encrypted vault when the parent consents in peacetime.',
+          'Hospital admissions still need physical ID copies often — DigiLocker is a backup, not a religion.',
+        ],
+      },
+      {
+        h: 'Security rules for NRI families',
+        body: [
+          'Prefer the HeirReady vault for document scans over WhatsApp media.',
+          'Do not grant random “helpers” remote access to the parent’s phone.',
+          'Revise access after caregiver changes.',
+          'Pair DigiLocker notes with our SIM / OTP guide — same failure domain.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        body: [
+          'Life Map flag for DigiLocker + OTP phone contact.',
+          'Encrypted storage for consented document scans.',
+          'Sibling unlockers so one NRI is not the only person who knows the setup.',
+          'Not a DigiLocker replacement — continuity layer around it.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'DigiLocker features and issuer document availability change. Follow official DigiLocker guidance for account creation and security. HeirReady does not operate DigiLocker or issue government documents.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map DigiLocker + OTP SIM on a free Life Map',
+  },
+  {
+    slug: 'vehicle-rc-transfer-after-death-india-nri',
+    title: 'Vehicle RC transfer after death in India: NRI heir checklist',
+    description:
+      'What to do with a deceased parent’s car or two-wheeler — RC, insurance, RTO transfer basics, documents to gather, and what to map early. Not RTO legal advice.',
+    updated: '19 July 2026',
+    lead:
+      'A parent’s car often sits in the society parking while heirs argue about who will drive it, sell it, or keep paying insurance. Transferring the Registration Certificate (RC) after death is an RTO process with its own forms, NOCs, and name-match traps — and NRI children usually need a local sibling or authorised person to appear. Map the RC, insurance policy, and where the vehicle keys live before anyone needs the RTO. This is a practical continuity checklist, not state-specific RTO advice.',
+    sections: [
+      {
+        h: 'What you are actually transferring',
+        paras: [
+          'The RC records the registered owner. After death, heirs typically apply for transfer of ownership under the motor vehicles framework applicable in that state, with death certificate and relationship / succession proofs as the RTO demands. Insurance must be updated or a claim path started if the vehicle was in an accident — do not assume the old policy silently covers a new driver forever.',
+        ],
+        body: [
+          'RC (smart card / digital) and registration number.',
+          'Chassis / engine numbers if RC is missing — from insurance or service records.',
+          'Valid insurance policy and PUC where required.',
+          'Hypothecation / loan status — bank NOC may be needed if financed.',
+        ],
+      },
+      {
+        h: 'Peacetime mapping',
+        body: [
+          'Photograph RC and insurance policy schedule into the vault.',
+          'Note where spare keys and the service booklet live.',
+          'Record insurer + policy number and whose phone gets renewals.',
+          'Ask whether the vehicle is solely owned or jointly noted.',
+          'Add a Life Map item under vehicles / assets.',
+        ],
+      },
+      {
+        h: 'After death: operational order',
+        paras: [
+          'Secure the vehicle and keys first. Then decide keep vs sell — that choice affects whether you transfer to an heir or toward a buyer. Get the current RTO checklist for that registration authority; forms and e-parivahan steps vary.',
+        ],
+        body: [
+          'Death certificate copies and claimant ID.',
+          'Original RC and insurance papers.',
+          'Legal heir / succession / NOC documents as the RTO requires for your case.',
+          'Form set for transfer of ownership on death — confirm locally.',
+          'Update insurance to the new registered owner after transfer.',
+          'Society parking / sticker updates if the flat changes occupants.',
+        ],
+      },
+      {
+        h: 'Common NRI failure modes',
+        body: [
+          'RC in a locker or “with the driver” and nobody knows.',
+          'Insurance lapsed while the family focused on banks.',
+          'Sibling drives on the deceased’s policy without checking validity.',
+          'Loan hypothecation ignored until sale falls through.',
+          'Paying agents who ask for blank signed forms and Aadhaar OTP.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady stores RC / insurance locations and sibling task owners. It does not file RTO transfers. Continuity means the car is on the map next to the flat and the LIC policy.',
+        ],
+        body: [
+          'Vehicle item with encrypted refs.',
+          'Shared checklist for RTO week.',
+          'Link insurance contacts beside the RC entry.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'RTO procedures, fees, and document lists are state- and fact-specific. Confirm with the registering authority or a licensed professional. HeirReady is not an RTO service.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Add vehicle RC + insurance to a free Life Map',
+  },
+  {
+    slug: 'post-office-savings-claim-after-death-nri',
+    title: 'Post office savings claim after death: NRI guide to MIS, RD, NSC & more',
+    description:
+      'Practical checklist for claiming India Post savings schemes after a parent dies — account types, nomination, documents, and what to map early. Not official India Post advice.',
+    updated: '19 July 2026',
+    lead:
+      'Parents often keep money in post office products that never appear in a bank app: Monthly Income Scheme (MIS), Recurring Deposit, NSC, KVP, savings accounts, and older certificates. NRI children discover them through a passbook in a drawer or an interest credit SMS from “DOP.” Claiming after death follows India Post’s deceased depositor process for that scheme — nomination helps, missing passbooks hurt. Map every post office relationship in peacetime. This is family continuity guidance; confirm forms at the home post office.',
+    sections: [
+      {
+        h: 'Schemes families commonly overlook',
+        body: [
+          'Post office savings account and recurring deposits.',
+          'MIS / SCSS-style senior income products (verify which product you actually hold).',
+          'NSC / KVP certificates — physical certificates matter.',
+          'Time deposit accounts booked at a specific SO / HO.',
+          'Old certificates in someone else’s custody “for safety.”',
+        ],
+      },
+      {
+        h: 'What to capture on a calm call',
+        paras: [
+          'You type; they open the passbook. Frame it as bill-pay admin. Photograph identifying pages — scheme name, account / certificate number, post office name, and nominee if printed.',
+        ],
+        body: [
+          'Which post office (full name / PIN, not “the one near the temple”).',
+          'Passbook or certificate numbers for each product.',
+          'Nominee name as recorded.',
+          'Whether interest is credited to a bank account — that bank trail helps discovery.',
+          'Enter each product as its own Life Map item.',
+        ],
+      },
+      {
+        h: 'After death: typical claim prep',
+        paras: [
+          'Take the death certificate and passbooks / certificates to the relevant post office and ask for the deceased claim checklist for that scheme. Procedures differ by product and nomination status. NRI heirs should align name spellings and appoint a local person for counter visits when possible.',
+        ],
+        body: [
+          'Death certificate copies.',
+          'Original passbooks / certificates.',
+          'Claimant ID and bank details for payout.',
+          'Nominee / legal heir proofs as required.',
+          'Application forms supplied by India Post for that case.',
+        ],
+      },
+      {
+        h: 'Where post office claims stall',
+        body: [
+          'Wrong post office — certificates belong to a different HO/SO.',
+          'Lost certificates with no numbers in the Life Map.',
+          'Outdated nominee vs disputing heirs.',
+          'Assuming bank nomination covers post office products automatically.',
+          'Courier of originals without tracking from abroad.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        body: [
+          'Inventory every DOP product beside banks and PPF.',
+          'Encrypted certificate numbers and branch notes.',
+          'Sibling checklist for counter visits.',
+          'Does not file India Post claims — continuity only.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'India Post scheme rules and claim forms change. Confirm at the post office or via official India Post channels. This article is not official postal or legal advice.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map post office accounts on a free Life Map',
+  },
+  {
+    slug: 'itr-income-tax-after-parent-death-india-nri',
+    title: 'Income tax after a parent dies in India: what NRI families should organise',
+    description:
+      'Continuity checklist for ITR, PAN, Form 26AS clues, and legal heir filing questions after a parent’s death — what to map and when to call a CA. Not tax advice.',
+    updated: '19 July 2026',
+    lead:
+      'Tax work does not pause for grief. Interest credits, property income, and capital gains can still appear in a deceased parent’s PAN trail — and Form 26AS / AIS is often how NRI heirs discover forgotten bank accounts and FDs. Families need the PAN, the CA’s number if any, and a calm split between “notify institutions” and “file what the law requires.” This guide helps you organise information and questions for a Chartered Accountant. It is not tax advice and must not be used to file returns on its own.',
+    sections: [
+      {
+        h: 'Why tax records matter beyond filing',
+        paras: [
+          'AIS / Form 26AS-style statements can reveal interest from banks, dividends, and TDS that point to accounts you have not mapped yet. That discovery value alone justifies locating the PAN and e-filing login holder early — preferably while the parent can still share access patterns.',
+        ],
+        body: [
+          'PAN of the deceased and where the PAN card lives.',
+          'Whether a CA or e-filing password manager was used.',
+          'Registered mobile / email for income-tax OTPs.',
+          'Property tax vs income tax — different offices; both belong on the Life Map.',
+        ],
+      },
+      {
+        h: 'Peacetime capture',
+        body: [
+          'Photograph PAN and note the CA’s phone.',
+          'Ask which email receives ITD / GST messages if any.',
+          'List properties that generate rent.',
+          'Note whether parents filed ITR last year — yes / no / unknown.',
+          'Store under a Life Map tax / compliance item; do not paste passwords into WhatsApp.',
+        ],
+      },
+      {
+        h: 'After death: organise before you DIY file',
+        paras: [
+          'Legal heir filing, representative assessee concepts, and due dates are fact-specific. Your job as an NRI sibling is to gather PAN, death certificate, account inventories, and prior returns — then retain a CA. Crowdsourced tax law in family groups is how people miss deadlines or file the wrong person.',
+        ],
+        body: [
+          'Death certificate and PAN.',
+          'Bank / FD / demat inventory from the Life Map.',
+          'Prior year ITR PDFs if available.',
+          'Property rent ledgers and TDS certificates (Form 16A etc.) if any.',
+          'Questions list for the CA: who files, for which period, which refunds / notices.',
+        ],
+      },
+      {
+        h: 'Common traps for NRI families',
+        body: [
+          'Ignoring tax notices mailed to the India address for months.',
+          'Assuming “no ITR needed” without a professional look at income sources.',
+          'Using tax portals to reverse-engineer accounts without securing OTP phones first.',
+          'Sibling A hiring CA1 while sibling B hires CA2 with partial facts.',
+          'Refund credit to a closed account — coordinate with bank claim paths.',
+        ],
+      },
+      {
+        h: 'How HeirReady helps',
+        paras: [
+          'HeirReady keeps PAN location, CA contacts, and the asset inventory a tax professional needs. It does not file ITRs or replace a CA. Pair it with our bank-discovery guide when AIS reveals unknown interest lines.',
+        ],
+        body: [
+          'Tax / PAN item on the Life Map.',
+          'Shared document folder for prior returns and notices.',
+          'Optional counsel / professional contacts in one family vault.',
+        ],
+      },
+      {
+        h: 'Disclaimer',
+        paras: [
+          'Income-tax obligations after death depend on the deceased’s facts and current law. Engage a qualified Chartered Accountant or tax advocate. This article is educational continuity planning, not tax advice.',
+        ],
+        body: [],
+      },
+    ],
+    cta: 'Map PAN, CA, and accounts on a free Life Map',
+  },
 ];
 
 export function getGuide(slug) {
@@ -1834,7 +2202,7 @@ export function GuidesIndex() {
   usePageMeta({
     title: 'Guides for adult children abroad',
     description:
-      'Practical guides for NRI families — parent documents, LIC, EPF, PPF, NPS, bank lockers, cashless health cover, joint accounts, legal heir certificates, property mutation. Start free on HeirReady.',
+      'Practical guides for NRI families — IEPF claims, DigiLocker, vehicle RC, post office savings, ITR after death, LIC, EPF, PPF, NPS, bank lockers, cashless health. Start free on HeirReady.',
     path: '/guides',
   });
 
